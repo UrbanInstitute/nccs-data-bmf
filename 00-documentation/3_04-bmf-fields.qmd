@@ -1,0 +1,317 @@
+---
+title: "BMF Fields"
+format: html
+execute:
+  warning: false
+  message: false
+  echo: false 
+  output: asis
+---
+
+
+
+Documentation for the fields that originate from the IRS Business Master File (BMF).
+
+
+
+
+```{r}
+## Packages
+
+library( tidyverse )   # data wrangling 
+library( data.table )  # data wrangling 
+library( pander )      # pretty tables 
+library( knitr )       # pretty tables
+library( DiagrammeR )  # drawing diagrams
+library( ggthemes )    # graphics 
+library( gridExtra )   # graphics
+
+# CUSTOM FUNCTIONS: fable()
+source( "R/functions.R" )
+
+# FACTOR LABELS  
+source( "data/DICTIONARIES.R" )
+```
+
+
+```{r, cache=T}
+## Data from Step-00 PreProcessing
+d <- readRDS( "data/BMF-LABELED-TEMP.rds" )
+```
+
+
+```{r, eval=F, echo=F}
+
+#######
+#######   VARIABLES IN THIS SECTION
+#######
+
+# "BMF_SUBSECTION_CODE",    
+# "BMF_TAX_EXEMPT_PURP",
+# "BMF_CLASSIFICATION_CODE",
+# "BMF_DEDUCTIBILITY_CODE", 
+# "BMF_FILING_REQ_CODE", 
+# "BMF_PF_FILING_REQ_CODE",
+# "BMF_FOUNDATION_CODE",    
+# "BMF_STATUS_CODE", 
+# "BMF_AFFIL_CODE",
+# # "BMF_AFFILIATION_CODE",   
+# "BMF_GROUP_EXEMPT_NUM",
+# "BMF_INCOME_LEVEL",        
+# "BMF_ASSET_LEVEL", 
+ 
+```
+
+
+
+## EO Status Code (BMF_STATUS_CODE)
+
+```{r}
+dictionaries$BMF_STATUS_CODE %>% kable()
+```
+
+
+```{r status-codes}
+fable( d$BMF_STATUS_CODE )
+```
+
+
+The EO Status Code defines the type of exemption held by the organization. The following is a list of EO status codes and
+their definitions included in these files:
+Code Description
+
+
+
+
+## Affiliation Codes (BMF_AFFIL_CODE)
+
+Affiliation Code defines the organizational grouping. In the context of an IRS 990 Group Exemption structures:
+
+-   **Central Organizations**: At the top of the group exemption structure is the central organization, often a national or overarching entity that holds the group exemption letter from the IRS. This central organization is responsible for overseeing the entire group and ensuring compliance with IRS regulations.
+-   **Intermediate Organizations**-: Intermediate organizations are entities within the group that are affiliated with the central organization but operate at a regional, state, or local level. These intermediate organizations may have their own separate tax-exempt status but are covered under the group exemption umbrella of the central organization. They typically handle operations, fundraising, and programs within their specific geographic area or focus.
+-   **Subordinate Organizations**: Below the intermediate organizations are the subordinate organizations, which are the local chapters, branches, or affiliates of the group. These organizations are also covered under the group exemption and operate under the oversight of both the central and intermediate organizations. \`
+
+
+The use of intermediate organizations in a group exemption structure allows for centralized management and oversight while still accommodating regional or local operations and initiatives. It helps streamline administrative processes, ensures consistency in compliance, and provides a framework for collaboration and coordination among affiliated entities.
+
+
+| Code | Category         | Description               |
+|------|------------------|---------------------------|
+| 3    | Independent      | This code is used if the organization is an independent organization or an independent auxiliary (i.e., not affiliated with a National, Regional, or Geographic grouping of organizations).                           |  
+| 1    | Central          | This code is used if the organization is a central type organization (no group exemption) of a National, Regional or Geographic grouping of organizations.                                                            |  
+| 6    | Central          | This code is used if the organization is a parent (group ruling) and is not a church or 501(c)(1)organization.                                                                                                        |  
+| 8    | Central          | This code is used if the organization is a parent (group ruling) and is a church or 501(c)(1) organization. |    
+| 7    | Intermediate     | This code is used if the organization is a group exemption intermediate organization of a National, Regional or Geographic grouping of organizations.                                                                 |  
+| 2    | Intermediate     | This code is used if the organization is an intermediate organization (no group exemption) of a National, Regional or Geographic grouping of organizations (such as a state headquarters of a national organization). |  
+| 9    | Subordinate      | This code is used if the organization is a subordinate in a group ruling.   |  
+
+
+**NEW BMF_AFFIL_CODE LABELS:**
+
+
+```{dot}
+digraph G {
+
+  node [shape=plaintext]
+
+  parent -> intermediate_east;
+  parent -> intermediate_west;
+  intermediate_east -> subordinate_a;
+  intermediate_east -> subordinate_b;
+  intermediate_west -> subordinate_c;
+  intermediate_west -> subordinate_d;
+}
+```
+
+
+```{r}
+dictionaries$BMF_AFFIL_CODE %>% kable()
+```
+
+```{r}
+pander::pander( dictionaries$BMF_AFFIL_CODE[, 1:4 ] )
+```
+
+
+```{r affiliation-codes, echo=F}
+fable( d$BMF_AFFIL_CODE )
+fable( d$BMF_AFFIL_CODE, p=TRUE )
+```
+
+
+
+
+
+
+
+
+
+## Deductibility Codes (BMF_DEDUCTIBILITY_CODE)
+
+Deductibility Code signifies whether contributions made to an organization are deductible.
+
+```{r}
+dictionaries$BMF_DEDUCTIBILITY_CODE %>% kable()
+```
+
+
+```{r deduct-codes}
+fable( d$BMF_DEDUCTIBILITY_CODE )
+```
+
+
+
+
+## Asset Levels (BMF_ASSET_CODE)
+
+
+```{r}
+dictionaries$BMF_ASSET_LEVEL %>% kable()
+```
+
+
+```{r asset-level}
+fable( d$BMF_ASSET_LEVEL, as.factor=T )
+```
+
+
+
+
+## Income Levels (BMF_ASSET_CODE)
+
+```{r}
+dictionaries$BMF_ASSET_LEVEL %>% kable()
+```
+
+
+```{r income-level}
+fable( d$BMF_INCOME_LEVEL )
+```
+
+
+
+
+
+
+## Tax Exempt Purpose Codes (BMF_TAX_EXEMPT_PURP) 
+
+
+```{r, eval=F}
+dictionaries$BMF_TAX_EXEMPT_PURP %>% kable()
+```
+
+
+```{r tax-exempt-purp}
+fable( d$BMF_TAX_EXEMPT_PURP )
+```
+
+
+
+## Foundation Codes (BMF_FOUNDATION_CODE) 
+
+```{r, eval=F}
+dictionaries$BMF_FOUNDATION_CODE %>% kable()
+```
+
+
+```{r foundation-codes, echo=F}
+fable( d$BMF_FOUNDATION_CODE )
+```
+
+
+### Supporting Organization Types
+
+**TYPE I** 
+
+A Type I supporting organization must be operated, supervised or controlled by its supported organization(s), typically by giving the supported organization(s) the power to regularly appoint or elect a majority of the directors or trustees of the supporting organization. The relationship between the supported organization(s) and the supporting organization is sometimes described as similar to a parent-subsidiary relationship.
+
+**TYPE II** 
+
+A Type II supporting organization must be supervised or controlled in connection with its supported organization(s), typically by having a majority of the directors or trustees of the supported organization(s) serve as a majority of the trustees or directors of the supporting organization. The relationship between the supported organization(s) and the supporting organization is sometimes described as similar to a brother-sister relationship.
+
+**TYPE III** 
+
+A Type III supporting organization must be operated in connection with one or more publicly supported organizations. All supporting organizations must be responsive to the needs and demands of, and must constitute an integral part of or maintain significant involvement in, their supported organizations. Type I and Type II supporting organizations are deemed to accomplish these responsiveness and integral part requirements by virtue of their control relationships. However, a Type III supporting organization is not subject to the same level of control by its supported organization(s). Therefore, in addition to a notification requirement, Type III supporting organizations must pass separate responsiveness and integral part tests.
+
+**FUNCTIONALLY INTEGRATED**
+
+A Type III organization must satisfy one of three alternative integral part tests.
+
+__Alternative 1:  Activities test__
+
+- Direct furtherance prong. Substantially all of the supporting organization’s activities must be direct furtherance activities.   
+- Direct furtherance activities are conducted by the supporting organization itself, rather than by a supported organization.   
+- Fundraising, managing non-exempt-use assets, grant making to organizations, and grant making to individuals (unless it meets certain requirements) are not direct furtherance activities.  
+- But for prong. In addition, substantially all of such activities must be activities in which, but for the supporting organization’s involvement, the supported organization would normally be involved.  
+
+Examples include holding and managing facilities used by a church for its religious purposes, operating food pantries for a group of churches that normally would operate food pantries themselves, and maintaining local parks for a community foundation that otherwise would maintain those parks.
+
+__Alternative 2:  Parent of supported organizations__
+
+- Governance. The supporting organization must have the power to appoint a majority of the officers, directors or trustees of each of its supported organizations.  
+- Substantial degree of direction. In addition, the supporting organization must perform “parent-like” activities by exercising a substantial degree of direction over the policies, programs and activities of the supported organizations.  
+
+__Alternative 3:  Supporting a governmental entity__
+
+- Notice 2014-4 provides interim guidance for supporting organizations that want to qualify as functionally integrated because they are supporting a governmental entity.  
+
+Note: The transitional rule set out in the notice is not intended to signal what future proposed regulations will require with respect to qualifying as functionally integrated by supporting a governmental entity.  No Type III supporting organization will qualify as functionally integrated by reason of satisfying this transitional rule once final regulations under §509 are published.
+
+**NON-FUNCTIONALLY INTEGRATED**
+
+Distribution requirement. A Type III non-FISO must distribute its distributable amount each year to one or more of its supported organizations.
+
+Under final regulations, the distributable amount equals the greater of (1) 85 percent of the organization’s adjusted net income for the prior taxable year and (2) 3.5 percent of the aggregate fair market value of the organization’s non-exempt use assets, with certain adjustments.
+
+Certain excess amounts may reduce the distributable amount in subsequent years (for up to five years after the excess amount is generated).
+
+Attentiveness requirement. It is not enough for a Type III non-FISO to maintain a certain level of distributions to a supported organization. Those distributions must be sufficiently important to the supported organization to ensure that the supported organization has sufficient reason to pay attention to the supporting organization’s role in its operations. Distributions to a particular supported organization are sufficient to ensure such attentiveness if the amount of support:
+
+Equaled at least 10 percent of the supported organization’s total support for the supported organization’s prior year;
+Was necessary to avoid interruption of the carrying on of a particular substantial function or activity of the supported organization;
+
+or
+
+Based on all facts and circumstances (including actual evidence of attentiveness) was sufficient to ensure attentiveness.
+At least one-third of the supporting organization’s distributable amount must be distributed to supported organizations (1) that meet this attentiveness requirement and (2) to which the supporting organization is responsive.
+
+
+
+
+
+
+
+## Filing Requirement Code (BMF_FILING_REQ_CODE) 
+
+
+```{r}
+dictionaries$BMF_FILING_REQ_CODE %>% kable()
+```
+
+
+```{r filing-req}
+fable( d$BMF_FILING_REQ_CODE )
+```
+
+
+
+
+
+
+
+<style>
+
+h1, h2 {
+  margin-top: 80px
+}
+
+.codebook-entry {
+   background-color: beige;
+   margin-top: 20px;
+}
+</style>
+
+
+
+
+

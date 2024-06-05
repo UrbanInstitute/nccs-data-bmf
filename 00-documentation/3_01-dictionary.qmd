@@ -1,0 +1,60 @@
+---
+title: "Documentation"
+format: html
+execute:
+  warning: false
+  message: false
+  echo: true 
+  output: asis
+---
+
+
+
+
+```{r}
+## Packages
+
+library( tidyverse )   # data wrangling 
+library( data.table )  # data wrangling 
+library( pander )      # pretty tables 
+library( knitr )       # pretty tables
+library( DiagrammeR )  # drawing diagrams
+library( ggthemes )    # graphics 
+library( gridExtra )   # graphics
+
+# CUSTOM FUNCTIONS: fable()
+source( "R/functions.R" )
+
+# FACTOR LABELS  
+source( "data/DICTIONARIES.R" )
+```
+
+
+## Data from Step-00 PreProcessing
+
+```{r, cache=T}
+d <- readRDS( "data/BMF-LABELED-TEMP.rds" )
+```
+
+
+
+
+
+
+
+<style>
+
+h1, h2 {
+  margin-top: 80px
+}
+
+.codebook-entry {
+   background-color: beige;
+   margin-top: 20px;
+}
+</style>
+
+
+
+
+

@@ -1,0 +1,350 @@
+---
+title: "ORG Fields"
+format: html
+execute:
+  warning: false
+  message: false
+  echo: false 
+  output: asis
+---
+
+
+ORG_ fields represent stable organizational traits that typically are not changing over time. 
+
+- EIN 
+- EIN2  
+- ORG_NAME 
+- ORG_NAME_SEC 
+- ORG_PERS_ICO 
+- ORG_FISCAL_PERIOD 
+- ORG_TYPE_501C 
+- ORG_TYPE_PF 
+- ORG_CORP_FORM 
+- ORG_RULING_DATE 
+- ORG_RULING_YEAR 
+- ORG_YEAR_FIRST 
+- ORG_YEAR_LAST 
+- ORG_YEAR_COUNT 
+
+
+
+
+```{r}
+## Packages
+
+library( tidyverse )   # data wrangling 
+library( data.table )  # data wrangling 
+library( pander )      # pretty tables 
+library( knitr )       # pretty tables
+library( DiagrammeR )  # drawing diagrams
+library( ggthemes )    # graphics 
+library( gridExtra )   # graphics
+
+library( ggraph    )   # graphs
+library( igraph    )   # graphs
+library( viridis   )   # graphics
+
+
+# CUSTOM FUNCTIONS: fable()
+source( "R/functions.R" )
+
+# FACTOR LABELS  
+source( "data/DICTIONARIES.R" )
+```
+
+
+## Data from Step-00 PreProcessing
+
+```{r, cache=T}
+d <- readRDS( "data/BMF-LABELED-TEMP.rds" )
+```
+
+
+```{r, eval=F, echo=F}
+
+#######
+#######   VARIABLES IN THIS SECTION
+#######
+
+# "EIN", "EIN2", 
+# "ORG_NAME", 
+# "ORG_NAME_SEC", 
+# "ORG_PERS_ICO", 
+# "ORG_FISCAL_PERIOD", 
+# "ORG_TYPE_501C", 
+# "ORG_TYPE_PF",
+# "ORG_CORP_FORM",
+# "ORG_RULING_DATE", 
+# "ORG_RULING_YEAR",
+# "ORG_YEAR_FIRST", 
+# "ORG_YEAR_LAST", 
+# "ORG_YEAR_COUNT", 
+
+
+
+
+
+
+
+# "NTEE_IRS", 
+# "NTEE_NCCS",  
+# "NTEEV2", 
+# "NCCS_LEVEL_1", 
+# "NCCS_LEVEL_2", 
+# "NCCS_LEVEL_3",
+# 
+# "BMF_SUBSECTION_CODE",    
+# "BMF_TAX_EXEMPT_PURP",
+# "BMF_CLASSIFICATION_CODE",
+# "BMF_DEDUCTIBILITY_CODE", 
+# "BMF_FILING_REQ_CODE", 
+# "BMF_PF_FILING_REQ_CODE",
+# "BMF_FOUNDATION_CODE",    
+# "BMF_STATUS_CODE", 
+# "BMF_AFFIL_CODE",
+# # "BMF_AFFILIATION_CODE",   
+# "BMF_GROUP_EXEMPT_NUM",
+# "BMF_INCOME_LEVEL",        
+# "BMF_ASSET_LEVEL", 
+# 
+# "F990_FORM_YEAR",
+# "F990_TOTAL_REVENUE_RECENT", 
+# "F990_TOTAL_INCOME_RECENT", 
+# "F990_TOTAL_ASSETS_RECENT",   
+# 
+# "F990_ORG_ADDR_STREET",
+# "F990_ORG_ADDR_CITY", 
+# "F990_ORG_ADDR_STATE", 
+# "F990_ORG_ADDR_ZIP", 
+# 
+# "CENSUS_URBAN_AREA",
+# "CENSUS_STATE_ABBR",
+# "CENSUS_COUNTY_NAME",
+# "CENSUS_CBSA_NAME", 
+# "CENSUS_CBSA_FIPS",
+# "CENSUS_BLOCK_FIPS",
+#  
+# "ORG_ADDR_FULL", 
+# "ORG_ADDR_MATCH", 
+# "LATITUDE", 
+# "LONGITUDE", 
+# "GEOCODER_SCORE", 
+# "GEOCODER_MATCH"  
+```
+
+
+
+
+
+## Fiscal Period (ORG_FISCAL_PERIOD) 
+
+
+```{r org-fiscal-period}
+fable( d$ORG_FISCAL_PERIOD, p=T )
+```
+
+
+## Corporate Form (BMF_CORP_FORM)
+
+```{r}
+dictionaries$ORG_CORP_FORM %>% kable()
+```
+
+
+```{r corp-form-codes}
+fable( d$ORG_CORP_FORM )
+```
+
+
+
+
+
+
+## Tax Exempt Type (ORG_501C_TYPE)
+
+```{r}
+fable( d$ORG_TYPE_501C, as.factor=T )
+```
+
+
+
+```{r tax-exemt-type-graph, eval=F, echo=F}
+ggplot( d, aes( ORG_501C_TYPE ) ) +
+     geom_bar( fill="steelblue" ) +
+     theme_minimal() + 
+     scale_fill_fivethirtyeight() + 
+     coord_flip() +
+     theme( axis.text.x=element_blank(),
+            axis.title.x=element_blank() )
+```
+
+
+
+
+```{r 501c-circle-graph, fig.height=6, fig.width=8}
+# FROM METADATA STANDARDS: 
+# https://github.com/Nonprofit-Open-Data-Collective/metadata-standards/blob/main/tax-exempt-status/TAX-EXEMPT-TYPES.csv
+
+dd <- 
+structure(list(type_501c = c("501C_01", "501C_02", "501C_03", 
+"501C_04", "501C_05", "501C_06", "501C_07", "501C_08", "501C_09", 
+"501C_10", "501C_11", "501C_12", "501C_13", "501C_14", "501C_15", 
+"501C_16", "501C_17", "501C_18", "501C_19", "501C_20", "501C_21", 
+"501C_22", "501C_23", "501C_24", "501C_25", "501C_26", "501C_27", 
+"501C_28", "501C_29", "501C_40", "501C_50", "501C_60", "501C_70", 
+"501C_71", "501C_72", "501C_80", "501C_81"), exempt_subtype = c("CORPORATION", 
+"CORPORATION", "GENERAL", "GENERAL", "SPECIAL INT GRP", "GENERAL", 
+"MEMBERSHIP", "SPECIAL INT GRP", "INSURANCE", "MEMBERSHIP", "PENSION", 
+"INSURANCE", "GENERAL", "COOPERATIVE", "INSURANCE", "COOPERATIVE", 
+"INSURANCE", "PENSION", "MEMBERSHIP", "DEFUNCT", "INSURANCE", 
+"PENSION", "SPECIAL INT GRP", "DEFUNCT", "CORPORATION", "INSURANCE", 
+"INSURANCE", "PENSION", "INSURANCE", "MEMBERSHIP", "COOPERATIVE", 
+"COOPERATIVE", "GENERAL", "COOPERATIVE", "GENERAL", "COOPERATIVE", 
+"PENSION")), row.names = c(NA, -37L), class = "data.frame")
+
+tt <- 
+structure(list(Var1 = structure(1:40, levels = c("", "501C_00", 
+"501C_01", "501C_02", "501C_03", "501C_04", "501C_05", "501C_06", 
+"501C_07", "501C_08", "501C_09", "501C_10", "501C_11", "501C_12", 
+"501C_13", "501C_14", "501C_15", "501C_16", "501C_17", "501C_18", 
+"501C_19", "501C_20", "501C_21", "501C_23", "501C_24", "501C_25", 
+"501C_26", "501C_27", "501C_29", "501C_40", "501C_50", "501C_70", 
+"501C_71", "501C_80", "501C_81", "501C_82", "501C_90", "501C_91", 
+"501C_92", "501C_93"), class = "factor"), Freq = c(187369L, 253L, 
+800L, 9681L, 2503387L, 187435L, 91330L, 118543L, 96791L, 110634L, 
+19565L, 29748L, 12L, 8219L, 13927L, 5665L, 2472L, 27L, 628L, 
+6L, 57760L, 65L, 30L, 3L, 2L, 2780L, 11L, 18L, 23L, 250L, 30L, 
+1L, 1L, 1383L, 1L, 29L, 790L, 1362L, 9528L, 2440L)), class = "data.frame", row.names = c(NA, 
+-40L))
+
+# add nonprofit group types
+tt2 <- merge( tt, dd, by.x="Var1", by.y="type_501c" )
+
+# setup for circle packing diagram
+from     <- tt2$exempt_subtype
+to       <- tt2$Var1 %>% as.character()
+size     <- sqrt( tt2$Freq )  # raw counts too dramatic
+edges    <- data.frame( from, to )
+
+groups   <- unique( from )
+vertices <- 
+  data.frame( 
+    name=c( to, groups ), 
+    size=c( size,rep( 0, length(groups) ) ),
+    type=c( from, paste0( groups, "_X" ) ) )
+
+# head( vertices )
+# |name    |      size|type            |
+# |:-------|---------:|:---------------|
+# |501C_01 |  28.28427|CORPORATION     |
+# |501C_02 |  98.39207|CORPORATION     |
+# |501C_04 | 432.93764|GENERAL         |
+# |501C_05 | 302.20854|SPECIAL INT GRP |
+# |501C_06 | 344.30074|GENERAL         |
+# |501C_07 | 311.11252|MEMBERSHIP      |
+  
+mygraph  <- graph_from_data_frame( edges, vertices=vertices )
+ 
+# BLACK AND WHITE VERSION 
+p <- 
+  ggraph(mygraph, layout = 'circlepack', weight=size) + 
+  geom_node_circle() +
+  theme_void()
+
+# USE TYPE FOR SLIGHT DIFFERENCE IN 
+# GROUP TYPE VERSUS MEMBERS 
+# p$data$depth <- factor( p$data$type )
+
+npgroups <- 
+  c("GENERAL", "SPECIAL INT GRP", "MEMBERSHIP", "INSURANCE", 
+     "PENSION", "COOPERATIVE","CORPORATION",  "DEFUNCT")
+
+p + 
+  geom_node_circle( aes( fill = as.factor(type)) ) +
+  geom_node_text( aes( label=name, size=3*size, filter=leaf ), 
+                  color="white", fontface="bold" ) +
+  guides( size = "none") +
+  scale_fill_viridis( alpha=0.5, discrete=T , 
+    name="Nonprofit Function", breaks=npgroups )
+```
+
+
+
+
+## Ruledate (ORG_RULING_DATE)
+
+
+
+```{r ruleyear-graph}
+ggplot( d, aes( ORG_RULING_YEAR ) ) +
+     geom_bar( fill="steelblue" ) +
+     theme_minimal() + 
+     scale_fill_fivethirtyeight() + 
+     theme( axis.text.y=element_blank(),
+            axis.title.y=element_blank() )
+```
+
+
+## Core Data Availability 
+
+- ORG_YEAR_FIRST: first time an organization appears in an NCCS Core Database 
+- ORG_YEAR_LAST: last year they appear in the NCCS Core Database 
+- ORG_YEAR_COUNT: number of appearances in the NCCS Core Database 
+
+
+```{r core-data-graphs, echo=F}
+
+df <- 
+  d %>% 
+  select( ORG_YEAR_FIRST, ORG_YEAR_LAST ) %>% 
+  gather() %>% 
+  group_by( key ) %>%
+  count( value )
+
+p1 <- ggplot( d, aes( ORG_YEAR_FIRST) ) +
+     geom_bar( fill="steelblue" ) +
+     theme_minimal() + 
+     scale_fill_fivethirtyeight() + 
+     theme( axis.text.y=element_blank(),
+            axis.title.y=element_blank() )
+
+p2 <- ggplot( d, aes( ORG_YEAR_LAST ) ) +
+     geom_bar( fill="steelblue" ) +
+     theme_minimal() + 
+     scale_fill_fivethirtyeight() + 
+     theme( axis.text.y=element_blank(),
+            axis.title.y=element_blank() )
+
+p3 <- ggplot( d, aes( ORG_YEAR_COUNT) ) +
+     geom_bar( fill="steelblue" ) +
+     theme_minimal() + 
+     scale_fill_fivethirtyeight() + 
+     theme( axis.text.y=element_blank(),
+            axis.title.y=element_blank() )
+
+grid.arrange( p3, p1, p2,
+  nrow = 3,
+  top = "Years of Data Available in the NCCS Harmonized Core Files" )
+```
+
+
+
+
+
+
+<style>
+
+h1, h2 {
+  margin-top: 80px
+}
+
+.codebook-entry {
+   background-color: beige;
+   margin-top: 20px;
+}
+</style>
+
+
+
+
+

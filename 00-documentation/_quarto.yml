@@ -1,0 +1,45 @@
+project:
+  type: book
+  output-dir: GUIDEBOOK
+  
+  
+book:
+  title: "BMF Research Guidebook"
+  output-file: "bmf-guidebook"
+  author: 
+    - "Jesse Lecy"
+    - "Thiya Poongundranar"
+  date: last-modified
+  sidebar: 
+    style: "docked"
+    background: "#1273A1"  
+  chapters:
+    - index.qmd
+    - part: 0_00-legacy-bmf.qmd
+    - part: 1_00-harmonization.qmd
+    - part: 2_00-refinement.qmd
+    - part: 3_00-documentation.qmd
+      chapters: 
+      - 3_01-dictionary.qmd
+      - 3_02-org-fields.qmd
+      - 3_03-mission-fields.qmd
+      - 3_04-bmf-fields.qmd
+      - 3_05-990-fields.qmd
+      - 3_06-geo-fields.qmd
+
+    
+format:
+  html:
+    theme: lux
+    highlight-style: solarized
+    css: style.css
+    grid:
+      sidebar-width: 225px
+      body-width: 900px
+      margin-width: 400px
+      gutter-width: 100px
+  # pdf: 
+  #   documentclass: scrbook
+
+editor: visual
+

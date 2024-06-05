@@ -1,0 +1,90 @@
+---
+title: "NCCS BMF DOCUMENTATION"
+format: html
+execute:
+  warning: false
+  message: false
+  echo: false 
+  output: asis
+---
+
+
+## Packages
+
+```{r}
+library( tidyverse )   # data wrangling 
+library( data.table )  # data wrangling 
+library( pander )      # pretty tables 
+library( knitr )       # pretty tables
+library( DiagrammeR )  # drawing diagrams
+library( ggthemes )    # graphics 
+library( gridExtra )   # graphics
+
+# CUSTOM FUNCTIONS: fable()
+source( "R/functions.R" )
+
+# FACTOR LABELS  
+source( "data/DICTIONARIES.R" )
+```
+
+
+## Data from Step-00 PreProcessing
+
+```{r, cache=T}
+d <- readRDS( "data/BMF-LABELED-TEMP.rds" )
+```
+
+
+```{r, eval=F, echo=F}
+
+#######
+#######   VARIABLES IN THIS SECTION
+#######
+
+
+# "F990_FORM_YEAR",
+# "F990_TOTAL_REVENUE_RECENT", 
+# "F990_TOTAL_INCOME_RECENT", 
+# "F990_TOTAL_ASSETS_RECENT",   
+# 
+# "F990_ORG_ADDR_STREET",
+# "F990_ORG_ADDR_CITY", 
+# "F990_ORG_ADDR_STATE", 
+# "F990_ORG_ADDR_ZIP", 
+
+ 
+```
+
+# Form 990 Fields 
+
+ F990_TAX_YEAR ??
+
+"F990_TOTAL_REVENUE_RECENT",   # WHERE ARE EXPENSES? 
+"F990_TOTAL_INCOME_RECENT", 
+"F990_TOTAL_ASSETS_RECENT",    # NET ASSETS? 
+ 
+"F990_ORG_ADDR_CITY", 
+"F990_ORG_ADDR_STATE", 
+"F990_ORG_ADDR_ZIP", 
+"F990_ORG_ADDR_STREET",
+
+
+
+
+
+<style>
+
+h1, h2 {
+  margin-top: 80px
+}
+
+.codebook-entry {
+   background-color: beige;
+   margin-top: 20px;
+}
+</style>
+
+
+
+
+

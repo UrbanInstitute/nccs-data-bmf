@@ -1,0 +1,149 @@
+---
+title: "Mission Fields"
+format: html
+execute:
+  warning: false
+  message: false
+  echo: false 
+  output: asis
+---
+
+## Packages
+
+```{r}
+library( tidyverse )   # data wrangling 
+library( data.table )  # data wrangling 
+library( pander )      # pretty tables 
+library( knitr )       # pretty tables
+library( DiagrammeR )  # drawing diagrams
+library( ggthemes )    # graphics 
+library( gridExtra )   # graphics
+
+library( ggraph    )   # graphs
+library( igraph    )   # graphs
+library( viridis   )   # graphics
+
+
+# CUSTOM FUNCTIONS: fable()
+source( "R/functions.R" )
+
+# FACTOR LABELS  
+source( "data/DICTIONARIES.R" )
+```
+
+
+## Data from Step-00 PreProcessing
+
+```{r, cache=T}
+d <- readRDS( "data/BMF-LABELED-TEMP.rds" )
+```
+
+```{r, eval=F, echo=F}
+
+#######
+#######   VARIABLES IN THIS SECTION
+#######
+
+
+# "NTEE_IRS", 
+# "NTEE_NCCS",  
+# "NTEEV2", 
+# "NCCS_LEVEL_1", 
+# "NCCS_LEVEL_2", 
+# "NCCS_LEVEL_3",
+
+
+```
+
+
+
+
+## Mission Taxonomies 
+
+
+### NTEE Codes 
+
+```{r ntee}
+ntee_irs1  <- substr( d$NTEE_IRS, 1, 1 )
+ntee_nccs1 <- substr( d$NTEE_NCCS, 1, 1 )
+fable( ntee_irs1,  as.factor=T )
+fable( ntee_nccs1, as.factor=T )
+
+kable( table( ntee_irs1, ntee_nccs1 ))
+```
+
+
+
+### NTEE Version 2 (NTEEV2)
+
+
+```{r nteev2}
+head( d$NTEEV2 )
+```
+
+
+### NCSS_LEVEL Fields 
+
+```{r nccs-levels, results="asis"}
+fable( d$NCCS_LEVEL_1, p=T )
+fable( d$NCCS_LEVEL_2, p=T )
+fable( d$NCCS_LEVEL_3, p=T )
+```
+
+
+#### NCCS_LEVEL_1
+
+
+
+```{r nccs-level2, results="asis"}
+fable( d$NCCS_LEVEL_1, p=T )
+```
+
+
+
+#### NCCS_LEVEL_2
+
+Definition of a [Mutual Member Benefit Corporation](https://en.wikipedia.org/wiki/Mutual-benefit_nonprofit_corporation)
+
+> A mutual-benefit nonprofit corporation or membership corporation is a type of nonprofit corporation in the US, similar to other mutual benefit organizations found in some of common law nations, chartered by government with a mandate to serve the mutual benefit of its members.
+> 
+> A mutual-benefit corporation can be non-profit or not-for-profit in the United States, but it cannot obtain IRS 501(c)(3) non-profit status as a charitable organization.[1] It is distinct in U.S. law from public-benefit nonprofit corporations, and religious corporations. Mutual benefit corporations must still file tax returns and pay income tax because they are not formed for a purpose that is meant to benefit the general public (unlike public-benefit nonprofit corporations) but rather to provide an association of people with a common benefit. Due to its private purpose, a mutual benefit corporation pays the same taxes as a regular for-profit corporation (C corporation tax rates). However, the IRS still allows for tax exemptions for certain types of mutual-benefit nonprofits (501(c)(6)).
+> 
+> Mutual benefit corporations are formed for common gain purposes such as providing insurance for members (many insurance companies still have "mutual" in their names, though many have since adopted other corporate forms), establishing a community financial institution, managing common property, or promoting the social or economic welfare of member individuals or organizations (for example through trade groups, professional organizations or business districts). Some mutual water companies are organized as mutual benefit corporations; an electric membership corporation is another example.
+> 
+> Mutual benefit corporations have their roots in the benefit societies that sprang up to offer services and solidarity to workers during the Industrial Revolution, although most today do not have any particular connection to labor movements.
+
+```
+Wikipedia contributors. (2022, March 5). Mutual-benefit nonprofit corporation. In Wikipedia, The Free Encyclopedia. Retrieved 21:14, June 5, 2024, from "Mutual-benefit_nonprofit_corporation"
+```
+
+
+```{r nccs-level2, results="asis"}
+fable( d$NCCS_LEVEL_2, p=T )
+```
+
+
+#### NCCS_LEVEL_1
+
+```{r nccs-level2, results="asis"}
+fable( d$NCCS_LEVEL_3, p=T )
+```
+
+
+
+<style>
+
+h1, h2 {
+  margin-top: 80px
+}
+
+.codebook-entry {
+   background-color: beige;
+   margin-top: 20px;
+}
+</style>
+
+
+
+
+

@@ -1,0 +1,104 @@
+---
+title: "NCCS BMF DOCUMENTATION"
+format: html
+execute:
+  warning: false
+  message: false
+  echo: false 
+  output: asis
+---
+
+
+## Packages
+
+```{r}
+library( tidyverse )   # data wrangling 
+library( data.table )  # data wrangling 
+library( pander )      # pretty tables 
+library( knitr )       # pretty tables
+library( DiagrammeR )  # drawing diagrams
+library( ggthemes )    # graphics 
+library( gridExtra )   # graphics
+
+# CUSTOM FUNCTIONS: fable()
+source( "R/functions.R" )
+
+# FACTOR LABELS  
+source( "data/DICTIONARIES.R" )
+```
+
+
+## Data from Step-00 PreProcessing
+
+```{r, cache=T}
+d <- readRDS( "data/BMF-LABELED-TEMP.rds" )
+```
+
+
+```{r, eval=F, echo=F}
+
+#######
+#######   VARIABLES IN THIS SECTION
+#######
+
+# "F990_ORG_ADDR_STREET",
+# "F990_ORG_ADDR_CITY", 
+# "F990_ORG_ADDR_STATE", 
+# "F990_ORG_ADDR_ZIP", 
+# 
+# "CENSUS_URBAN_AREA",
+# "CENSUS_STATE_ABBR",
+# "CENSUS_COUNTY_NAME",
+# "CENSUS_CBSA_NAME", 
+# "CENSUS_CBSA_FIPS",
+# "CENSUS_BLOCK_FIPS",
+#  
+# "ORG_ADDR_FULL", 
+# "ORG_ADDR_MATCH", 
+# "LATITUDE", 
+# "LONGITUDE", 
+# "GEOCODER_SCORE", 
+# "GEOCODER_MATCH"  
+```
+
+
+
+# Geographic Variables 
+
+
+"ORG_ADDR_FULL", 
+"ORG_ADDR_MATCH",
+
+
+"LATITUDE", 
+"LONGITUDE", 
+"GEOCODER_SCORE", 
+"GEOCODER_MATCH", 
+
+"CENSUS_BLOCK_FIPS"    # CENSUS_BLOCK_FIPS_2020
+
+"CENSUS_CBSA_FIPS",  
+"CENSUS_CBSA_NAME", 
+"CENSUS_BLOCK_FIPS",    # 211110049002000  BL-21-111-004900-2000  GEO-21-111-004900-2000
+"CENSUS_URBAN_AREA", 
+"CENSUS_STATE_ABBR", 
+"CENSUS_COUNTY_NAME"  
+
+
+
+<style>
+
+h1, h2 {
+  margin-top: 80px
+}
+
+.codebook-entry {
+   background-color: beige;
+   margin-top: 20px;
+}
+</style>
+
+
+
+
+
