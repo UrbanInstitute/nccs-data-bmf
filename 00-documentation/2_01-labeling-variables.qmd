@@ -340,13 +340,20 @@ structure( list(code = c(3L, 1L, 2L, 6L, 7L, 8L, 9L),
  class = "data.frame", row.names = c(NA, -7L))
 ```
 
+```{r}
+fable( d$BMF_AFFILIATION_CODE )
+```
+
 
 ```{r}
 ###
 ###   BMF_AFFILIATION_CODE
 ###
 
-d$BMF_AFFILIATION_CODE[ d$BMF_GROUP_EXEMPT_NUM == 0 ] <- 3
+RULE1 <- d$BMF_GROUP_EXEMPT_NUM == 0
+RULE2 <- ! d$BMF_AFFILIATION_CODE %in% c(1,2)
+  
+d$BMF_AFFILIATION_CODE[ RULE1 & RULE2 ] <- 3
 
 d$BMF_AFFILIATION_CODE <- 
   factor( 
@@ -1312,7 +1319,7 @@ h3 {
    margin-top: 20px;
 }
 
-table table.table {
+.table {
    width: fit-content;
 }
 

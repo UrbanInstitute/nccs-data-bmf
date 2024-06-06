@@ -218,33 +218,33 @@ fable( d$BMF_AFFILIATION_CODE )
 ```
 
 
-**INDEPENDENT (3)** "This code is used if the organization is an
+**INDEPENDENT (3)** This code is used if the organization is an
 independent organization or an independent auxiliary (i.e., not
 affiliated with a National, Regional, or Geographic grouping of
-organizations).",
+organizations).
 
-**NETWORK-PARENT (1)** "This code is used if the organization is a
+**NETWORK-PARENT (1)** This code is used if the organization is a
 central type organization (no group exemption) of a National, Regional
-or Geographic grouping of organizations.",
+or Geographic grouping of organizations.
 
-**NETWORK-INTERM (2)** "This code is used if the organization is an
+**NETWORK-INTERM (2)** This code is used if the organization is an
 intermediate organization (no group exemption) of a National, Regional
 or Geographic grouping of organizations (such as a state headquarters of
-a national organization).",
+a national organization).
 
-**GROUP-EXM-PARENT-REGULAR (6)** "This code is used if the organization
+**GROUP-EXM-PARENT-REGULAR (6)** This code is used if the organization
 is a parent (group ruling) and is not a church or
-501(c)(1)organization.",
+501(c)(1)organization.
 
-**GROUP-EXM-INTERM (7)** "This code is used if the organization is a
+**GROUP-EXM-INTERM (7)** This code is used if the organization is a
 group exemption intermediate organization of a National, Regional or
-Geographic grouping of organizations.",
+Geographic grouping of organizations.
 
-**GROUP-EXM-PARENT-CHURCH (8)** "This code is used if the organization
-is a parent (group ruling) and is a church or 501(c)(1) organization.",
+**GROUP-EXM-PARENT-CHURCH (8)** This code is used if the organization
+is a parent (group ruling) and is a church or 501(c)(1) organization.
 
-**SUBORDINATE (9)** "This code is used if the organization is a
-subordinate in a group ruling.")
+**SUBORDINATE (9)** This code is used if the organization is a
+subordinate in a group ruling.
 
 
 
@@ -268,7 +268,6 @@ fx( "info", tm.title="BMF_DEDUCTIBILITY_CODE" )
 
 
 ```{r deduct-codes}
-#| column: margin
 fable( d$BMF_DEDUCTIBILITY_CODE )
 ```
 
@@ -357,7 +356,7 @@ IRS Tax-Exempt Purpose Codes for 501C3 Organizations: \[ See
 
 The other 501C Types have similar tax-exempt purpose categories:
 
-```{r, eval=F}
+```{r}
 dictionaries$BMF_TAX_EXEMPT_PURP %>% kable( align=c("l","r") )
 ```
 
