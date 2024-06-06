@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>BMF Research Guide - 3&nbsp; Organization Fields (ORG)</title>
+<title>BMF Research Guide - 2&nbsp; Data Dictionary</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -30,8 +30,8 @@ ul.task-list li input[type="checkbox"] {
 <script src="site_libs/quarto-search/fuse.min.js"></script>
 <script src="site_libs/quarto-search/quarto-search.js"></script>
 <meta name="quarto:offset" content="./">
-<link href="./3_03-mission-fields.html" rel="next">
-<link href="./3_01-dictionary.html" rel="prev">
+<link href="./3_02-org-fields.html" rel="next">
+<link href="./3_00-documentation.html" rel="prev">
 <script src="site_libs/quarto-html/quarto.js"></script>
 <script src="site_libs/quarto-html/popper.min.js"></script>
 <script src="site_libs/quarto-html/tippy.umd.min.js"></script>
@@ -82,7 +82,7 @@ ul.task-list li input[type="checkbox"] {
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
         <i class="bi bi-layout-text-sidebar-reverse"></i>
       </button>
-        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./3_00-documentation.html">DOCUMENTATION</a></li><li class="breadcrumb-item"><a href="./3_02-org-fields.html"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Organization Fields (ORG)</span></a></li></ol></nav>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./3_00-documentation.html">DOCUMENTATION</a></li><li class="breadcrumb-item"><a href="./3_01-dictionary.html"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Data Dictionary</span></a></li></ol></nav>
         <a class="flex-grow-1" role="button" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
         </a>
       <button type="button" class="btn quarto-search-button" aria-label="" onclick="window.quartoOpenSearch();">
@@ -149,13 +149,13 @@ ul.task-list li input[type="checkbox"] {
       <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./3_01-dictionary.html" class="sidebar-item-text sidebar-link">
+  <a href="./3_01-dictionary.html" class="sidebar-item-text sidebar-link active">
  <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Data Dictionary</span></span></a>
   </div>
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./3_02-org-fields.html" class="sidebar-item-text sidebar-link active">
+  <a href="./3_02-org-fields.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Organization Fields (ORG)</span></span></a>
   </div>
 </li>
@@ -201,21 +201,20 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">Table of contents</h2>
    
   <ul>
-  <li><a href="#data-from-step-00-preprocessing" id="toc-data-from-step-00-preprocessing" class="nav-link active" data-scroll-target="#data-from-step-00-preprocessing"><span class="header-section-number">3.1</span> Data from Step-00 PreProcessing</a></li>
-  <li><a href="#fiscal-period-org_fiscal_period" id="toc-fiscal-period-org_fiscal_period" class="nav-link" data-scroll-target="#fiscal-period-org_fiscal_period"><span class="header-section-number">3.2</span> Fiscal Period (ORG_FISCAL_PERIOD)</a></li>
-  <li><a href="#corporate-form-bmf_corp_form" id="toc-corporate-form-bmf_corp_form" class="nav-link" data-scroll-target="#corporate-form-bmf_corp_form"><span class="header-section-number">3.3</span> Corporate Form (BMF_CORP_FORM)</a></li>
-  <li><a href="#tax-exempt-type-org_501c_type" id="toc-tax-exempt-type-org_501c_type" class="nav-link" data-scroll-target="#tax-exempt-type-org_501c_type"><span class="header-section-number">3.4</span> Tax Exempt Type (ORG_501C_TYPE)</a></li>
-  <li><a href="#ruledate-org_ruling_date" id="toc-ruledate-org_ruling_date" class="nav-link" data-scroll-target="#ruledate-org_ruling_date"><span class="header-section-number">3.5</span> Ruledate (ORG_RULING_DATE)</a></li>
-  <li><a href="#core-data-availability" id="toc-core-data-availability" class="nav-link" data-scroll-target="#core-data-availability"><span class="header-section-number">3.6</span> Core Data Availability</a></li>
+  <li><a href="#organizational-traits" id="toc-organizational-traits" class="nav-link active" data-scroll-target="#organizational-traits"><span class="header-section-number">2.1</span> Organizational Traits</a></li>
+  <li><a href="#mission-taxonomies" id="toc-mission-taxonomies" class="nav-link" data-scroll-target="#mission-taxonomies"><span class="header-section-number">2.2</span> Mission Taxonomies</a></li>
+  <li><a href="#irs-bmf-fields" id="toc-irs-bmf-fields" class="nav-link" data-scroll-target="#irs-bmf-fields"><span class="header-section-number">2.3</span> IRS BMF Fields</a></li>
+  <li><a href="#form-990-financials" id="toc-form-990-financials" class="nav-link" data-scroll-target="#form-990-financials"><span class="header-section-number">2.4</span> Form 990 Financials</a></li>
+  <li><a href="#geographic-variables" id="toc-geographic-variables" class="nav-link" data-scroll-target="#geographic-variables"><span class="header-section-number">2.5</span> Geographic Variables</a></li>
   </ul>
 </nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content">
 
-<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./3_00-documentation.html">DOCUMENTATION</a></li><li class="breadcrumb-item"><a href="./3_02-org-fields.html"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Organization Fields (ORG)</span></a></li></ol></nav>
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./3_00-documentation.html">DOCUMENTATION</a></li><li class="breadcrumb-item"><a href="./3_01-dictionary.html"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Data Dictionary</span></a></li></ol></nav>
 <div class="quarto-title">
-<h1 class="title"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Organization Fields (ORG)</span></h1>
+<h1 class="title"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Data Dictionary</span></h1>
 </div>
 
 
@@ -232,361 +231,143 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<p>ORG_ fields represent stable organizational traits that typically are not changing over time.</p>
+<p><br> <br> <br></p>
+<section id="organizational-traits" class="level2" data-number="2.1">
+<h2 data-number="2.1" class="anchored" data-anchor-id="organizational-traits"><span class="header-section-number">2.1</span> <a href="3_02-org-fields.html">Organizational Traits</a></h2>
+<br>
+<hr>
+<p><br></p>
 <ul>
-<li>EIN</li>
-<li>EIN2<br>
+<li><strong>EIN</strong>: Employer Identification Number</li>
+<li><strong>EIN2</strong>: Formatted version (EIN-XX-XXXXXXX)</li>
+<li><strong>ORG_NAME</strong>: Nonprofit name</li>
+<li><strong>ORG_NAME_SEC</strong>: A secondary name or abbreviated name used by the nonprofit</li>
+<li><strong>ORG_PERS_ICO</strong>: Person In Care of Organization; the director or board chair.</li>
+<li><strong>ORG_FISCAL_PERIOD</strong>:<br>
 </li>
-<li>ORG_NAME</li>
-<li>ORG_NAME_SEC</li>
-<li>ORG_PERS_ICO</li>
-<li>ORG_FISCAL_PERIOD</li>
-<li>ORG_TYPE_501C</li>
-<li>ORG_TYPE_PF</li>
-<li>ORG_CORP_FORM</li>
-<li>ORG_RULING_DATE</li>
-<li>ORG_RULING_YEAR</li>
-<li>ORG_YEAR_FIRST</li>
-<li>ORG_YEAR_LAST</li>
-<li>ORG_YEAR_COUNT</li>
+<li><strong>ORG_TYPE_501C</strong>:<br>
+</li>
+<li><strong>ORG_TYPE_PF</strong>:</li>
+<li><strong>ORG_CORP_FORM</strong>:</li>
+<li><strong>ORG_RULING_DATE</strong>:<br>
+</li>
+<li><strong>ORG_RULING_YEAR</strong>:</li>
+<li><strong>ORG_YEAR_FIRST</strong>:<br>
+</li>
+<li><strong>ORG_YEAR_LAST</strong>:<br>
+</li>
+<li><strong>ORG_YEAR_COUNT</strong>:</li>
 </ul>
-<section id="data-from-step-00-preprocessing" class="level2" data-number="3.1">
-<h2 data-number="3.1" class="anchored" data-anchor-id="data-from-step-00-preprocessing"><span class="header-section-number">3.1</span> Data from Step-00 PreProcessing</h2>
+<br>
+<hr>
+<p><br></p>
 </section>
-<section id="fiscal-period-org_fiscal_period" class="level2" data-number="3.2">
-<h2 data-number="3.2" class="anchored" data-anchor-id="fiscal-period-org_fiscal_period"><span class="header-section-number">3.2</span> Fiscal Period (ORG_FISCAL_PERIOD)</h2>
-<table class="table">
-<thead>
-<tr class="header">
-<th style="text-align: right;">ORG_FISCAL_PERIOD</th>
-<th style="text-align: right;">Freq</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: right;">JAN (01)</td>
-<td style="text-align: right;">0.075</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">FEB (02)</td>
-<td style="text-align: right;">0.073</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">MAR (03)</td>
-<td style="text-align: right;">0.090</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">APR (04)</td>
-<td style="text-align: right;">0.080</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">MAY (05)</td>
-<td style="text-align: right;">0.083</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">JUN (06)</td>
-<td style="text-align: right;">0.137</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">JUL (07)</td>
-<td style="text-align: right;">0.077</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">AUG (08)</td>
-<td style="text-align: right;">0.083</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">SEP (09)</td>
-<td style="text-align: right;">0.086</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">OCT (10)</td>
-<td style="text-align: right;">0.081</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">NOV (11)</td>
-<td style="text-align: right;">0.068</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">DEC (12)</td>
-<td style="text-align: right;">0.067</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">NA</td>
-<td style="text-align: right;">0.000</td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="corporate-form-bmf_corp_form" class="level2" data-number="3.3">
-<h2 data-number="3.3" class="anchored" data-anchor-id="corporate-form-bmf_corp_form"><span class="header-section-number">3.3</span> Corporate Form (BMF_CORP_FORM)</h2>
-<table class="table">
-<thead>
-<tr class="header">
-<th style="text-align: right;">code</th>
-<th style="text-align: left;">label</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: right;">0</td>
-<td style="text-align: left;">UDC (0)</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">1</td>
-<td style="text-align: left;">CORPORATION (1)</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">2</td>
-<td style="text-align: left;">TRUST (2)</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">3</td>
-<td style="text-align: left;">COOPERATIVE (3)</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">4</td>
-<td style="text-align: left;">PARTNERSHIP (4)</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">5</td>
-<td style="text-align: left;">ASSOCIATION (5)</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">6</td>
-<td style="text-align: left;">UDC (6)</td>
-</tr>
-</tbody>
-</table>
-<table class="table">
-<thead>
-<tr class="header">
-<th style="text-align: right;">ORG_CORP_FORM</th>
-<th style="text-align: right;">Freq</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: right;">UDC (0)</td>
-<td style="text-align: right;">10,518</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">CORPORATION (1)</td>
-<td style="text-align: right;">1,586,341</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">TRUST (2)</td>
-<td style="text-align: right;">60,682</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">COOPERATIVE (3)</td>
-<td style="text-align: right;">2,056</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">PARTNERSHIP (4)</td>
-<td style="text-align: right;">129</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">ASSOCIATION (5)</td>
-<td style="text-align: right;">486,704</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">UDC (6)</td>
-<td style="text-align: right;">2,899</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">NA</td>
-<td style="text-align: right;">1,367,238</td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="tax-exempt-type-org_501c_type" class="level2" data-number="3.4">
-<h2 data-number="3.4" class="anchored" data-anchor-id="tax-exempt-type-org_501c_type"><span class="header-section-number">3.4</span> Tax Exempt Type (ORG_501C_TYPE)</h2>
-<table class="table">
-<thead>
-<tr class="header">
-<th style="text-align: right;">ORG_TYPE_501C</th>
-<th style="text-align: right;">Freq</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: right;">501C_00</td>
-<td style="text-align: right;">253</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">501C_01</td>
-<td style="text-align: right;">808</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">501C_02</td>
-<td style="text-align: right;">10,041</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">501C_03</td>
-<td style="text-align: right;">2,540,321</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">501C_04</td>
-<td style="text-align: right;">190,013</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">501C_05</td>
-<td style="text-align: right;">92,560</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">501C_06</td>
-<td style="text-align: right;">121,269</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">501C_07</td>
-<td style="text-align: right;">97,891</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">501C_08</td>
-<td style="text-align: right;">114,748</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">501C_09</td>
-<td style="text-align: right;">20,913</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">501C_10</td>
-<td style="text-align: right;">30,248</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">501C_11</td>
-<td style="text-align: right;">12</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">501C_12</td>
-<td style="text-align: right;">8,617</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">501C_13</td>
-<td style="text-align: right;">14,025</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">501C_14</td>
-<td style="text-align: right;">5,859</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">501C_15</td>
-<td style="text-align: right;">2,564</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">501C_16</td>
-<td style="text-align: right;">27</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">501C_17</td>
-<td style="text-align: right;">640</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">501C_18</td>
-<td style="text-align: right;">6</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">501C_19</td>
-<td style="text-align: right;">58,666</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">501C_20</td>
-<td style="text-align: right;">65</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">501C_21</td>
-<td style="text-align: right;">30</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">501C_23</td>
-<td style="text-align: right;">3</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">501C_24</td>
-<td style="text-align: right;">4</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">501C_25</td>
-<td style="text-align: right;">2,826</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">501C_26</td>
-<td style="text-align: right;">11</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">501C_27</td>
-<td style="text-align: right;">18</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">501C_29</td>
-<td style="text-align: right;">23</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">501C_40</td>
-<td style="text-align: right;">252</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">501C_50</td>
-<td style="text-align: right;">30</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">501C_70</td>
-<td style="text-align: right;">1</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">501C_71</td>
-<td style="text-align: right;">1</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">501C_80</td>
-<td style="text-align: right;">1,629</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">501C_81</td>
-<td style="text-align: right;">1</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">501C_82</td>
-<td style="text-align: right;">35</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">501C_90</td>
-<td style="text-align: right;">916</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">501C_91</td>
-<td style="text-align: right;">1,460</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">501C_92</td>
-<td style="text-align: right;">9,934</td>
-</tr>
-<tr class="odd">
-<td style="text-align: right;">501C_93</td>
-<td style="text-align: right;">2,478</td>
-</tr>
-<tr class="even">
-<td style="text-align: right;">NA</td>
-<td style="text-align: right;">187,369</td>
-</tr>
-</tbody>
-</table>
-<p><img src="3_02-org-fields_files/figure-html/501c-circle-graph-1.png" class="img-fluid" width="768"></p>
-</section>
-<section id="ruledate-org_ruling_date" class="level2" data-number="3.5">
-<h2 data-number="3.5" class="anchored" data-anchor-id="ruledate-org_ruling_date"><span class="header-section-number">3.5</span> Ruledate (ORG_RULING_DATE)</h2>
-<p><img src="3_02-org-fields_files/figure-html/ruleyear-graph-1.png" class="img-fluid" width="672"></p>
-</section>
-<section id="core-data-availability" class="level2" data-number="3.6">
-<h2 data-number="3.6" class="anchored" data-anchor-id="core-data-availability"><span class="header-section-number">3.6</span> Core Data Availability</h2>
+<section id="mission-taxonomies" class="level2" data-number="2.2">
+<h2 data-number="2.2" class="anchored" data-anchor-id="mission-taxonomies"><span class="header-section-number">2.2</span> <a href="3_03-mission-fields.html">Mission Taxonomies</a></h2>
+<br>
+<hr>
+<p><br></p>
 <ul>
-<li>ORG_YEAR_FIRST: first time an organization appears in an NCCS Core Database</li>
-<li>ORG_YEAR_LAST: last year they appear in the NCCS Core Database</li>
-<li>ORG_YEAR_COUNT: number of appearances in the NCCS Core Database</li>
+<li><strong>NTEE_IRS</strong>:<br>
+</li>
+<li><strong>NTEE_NCCS</strong>:<br>
+</li>
+<li><strong>NTEEV2</strong>:<br>
+</li>
+<li><strong>NCCS_LEVEL_1</strong>:<br>
+</li>
+<li><strong>NCCS_LEVEL_2</strong>:<br>
+</li>
+<li><strong>NCCS_LEVEL_3</strong>:</li>
 </ul>
-<p><img src="3_02-org-fields_files/figure-html/core-data-graphs-1.png" class="img-fluid" width="672"></p>
+<br>
+<hr>
+<p><br></p>
+</section>
+<section id="irs-bmf-fields" class="level2" data-number="2.3">
+<h2 data-number="2.3" class="anchored" data-anchor-id="irs-bmf-fields"><span class="header-section-number">2.3</span> <a href="3_04-bmf-fields.html">IRS BMF Fields</a></h2>
+<br>
+<hr>
+<p><br></p>
+<ul>
+<li><strong>BMF_SUBSECTION_CODE</strong>:<br>
+</li>
+<li><strong>BMF_TAX_EXEMPT_PURP</strong>:<br>
+</li>
+<li><strong>BMF_CLASSIFICATION_CODE</strong>:</li>
+<li><strong>BMF_DEDUCTIBILITY_CODE</strong>:<br>
+</li>
+<li><strong>BMF_FILING_REQ_CODE</strong>:<br>
+</li>
+<li><strong>BMF_PF_FILING_REQ_CODE</strong>:</li>
+<li><strong>BMF_FOUNDATION_CODE</strong>:<br>
+</li>
+<li><strong>BMF_STATUS_CODE</strong>:<br>
+</li>
+<li><strong>BMF_AFFIL_CODE</strong>:</li>
+<li><strong>BMF_AFFILIATION_CODE</strong>:<br>
+</li>
+<li><strong>BMF_GROUP_EXEMPT_NUM</strong>:</li>
+<li><strong>BMF_INCOME_LEVEL</strong>:<br>
+</li>
+<li><strong>BMF_ASSET_LEVEL</strong>:</li>
+</ul>
+<br>
+<hr>
+<p><br></p>
+</section>
+<section id="form-990-financials" class="level2" data-number="2.4">
+<h2 data-number="2.4" class="anchored" data-anchor-id="form-990-financials"><span class="header-section-number">2.4</span> <a href="3_05-f990-fields.html">Form 990 Financials</a></h2>
+<br>
+<hr>
+<p><br></p>
+<ul>
+<li><strong>F990_FORM_YEAR</strong>:</li>
+<li><strong>F990_TOTAL_REVENUE_RECENT</strong>:<br>
+</li>
+<li><strong>F990_TOTAL_INCOME_RECENT</strong>:<br>
+</li>
+<li><strong>F990_TOTAL_ASSETS_RECENT</strong>:</li>
+</ul>
+<br>
+<hr>
+<p><br></p>
+</section>
+<section id="geographic-variables" class="level2" data-number="2.5">
+<h2 data-number="2.5" class="anchored" data-anchor-id="geographic-variables"><span class="header-section-number">2.5</span> <a href="3_06-geo-fields.html">Geographic Variables</a></h2>
+<br>
+<hr>
+<p><br></p>
+<ul>
+<li><strong>F990_ORG_ADDR_STREET</strong>:</li>
+<li><strong>F990_ORG_ADDR_CITY</strong>:<br>
+</li>
+<li><strong>F990_ORG_ADDR_STATE</strong>:<br>
+</li>
+<li><strong>F990_ORG_ADDR_ZIP</strong>:<br>
+</li>
+<li><strong>CENSUS_URBAN_AREA</strong>:</li>
+<li><strong>CENSUS_STATE_ABBR</strong>:</li>
+<li><strong>CENSUS_COUNTY_NAME</strong>:</li>
+<li><strong>CENSUS_CBSA_NAME</strong>:<br>
+</li>
+<li><strong>CENSUS_CBSA_FIPS</strong>:</li>
+<li><strong>CENSUS_BLOCK_FIPS</strong>:</li>
+<li><strong>ORG_ADDR_FULL</strong>:<br>
+</li>
+<li><strong>ORG_ADDR_MATCH</strong>:<br>
+</li>
+<li><strong>LATITUDE</strong>:<br>
+</li>
+<li><strong>LONGITUDE</strong>:<br>
+</li>
+<li><strong>GEOCODER_SCORE</strong>:<br>
+</li>
+<li><strong>GEOCODER_MATCH</strong>:</li>
+</ul>
+<br>
+<hr>
+<p><br></p>
 <style>
 
 h1, h2 {
@@ -596,6 +377,16 @@ h1, h2 {
 .codebook-entry {
    background-color: beige;
    margin-top: 20px;
+}
+
+strong {
+  font-weight: bold;
+  font-family: monospace;
+  color: #886608;
+}
+
+a{
+  color: #1485bb;
 }
 </style>
 
@@ -1014,13 +805,13 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 </script>
 <nav class="page-navigation">
   <div class="nav-page nav-page-previous">
-      <a href="./3_01-dictionary.html" class="pagination-link" aria-label="Data Dictionary">
-        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Data Dictionary</span></span>
+      <a href="./3_00-documentation.html" class="pagination-link" aria-label="DOCUMENTATION">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">DOCUMENTATION</span>
       </a>          
   </div>
   <div class="nav-page nav-page-next">
-      <a href="./3_03-mission-fields.html" class="pagination-link" aria-label="Mission Fields (NTEE)">
-        <span class="nav-page-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Mission Fields (NTEE)</span></span> <i class="bi bi-arrow-right-short"></i>
+      <a href="./3_02-org-fields.html" class="pagination-link" aria-label="Organization Fields (ORG)">
+        <span class="nav-page-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Organization Fields (ORG)</span></span> <i class="bi bi-arrow-right-short"></i>
       </a>
   </div>
 </nav>

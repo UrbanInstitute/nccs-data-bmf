@@ -4,7 +4,7 @@ project:
   
   
 book:
-  title: "BMF Research Guidebook"
+  title: "BMF Research Guide"
   output-file: "bmf-guidebook"
   author: 
     - "Jesse Lecy"
@@ -18,14 +18,17 @@ book:
     - part: 0_00-legacy-bmf.qmd
     - part: 1_00-harmonization.qmd
     - part: 2_00-refinement.qmd
+      chapters: 
+      - 2_01-labeling-variables.qmd
     - part: 3_00-documentation.qmd
       chapters: 
       - 3_01-dictionary.qmd
       - 3_02-org-fields.qmd
       - 3_03-mission-fields.qmd
       - 3_04-bmf-fields.qmd
-      - 3_05-990-fields.qmd
+      - 3_05-f990-fields.qmd
       - 3_06-geo-fields.qmd
+      - 3_07-census-data.qmd
 
     
 format:

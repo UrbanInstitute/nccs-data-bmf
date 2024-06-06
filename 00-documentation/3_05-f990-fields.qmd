@@ -1,19 +1,17 @@
 ---
-title: "Legacy BMF Files"
+title: "Form 990 Fields (F990)"
 format: html
 execute:
   warning: false
   message: false
-  echo: true 
+  echo: false 
   output: asis
 ---
 
 
-
-
-```{r}
 ## Packages
 
+```{r}
 library( tidyverse )   # data wrangling 
 library( data.table )  # data wrangling 
 library( pander )      # pretty tables 
@@ -37,6 +35,38 @@ d <- readRDS( "data/BMF-LABELED-TEMP.rds" )
 ```
 
 
+```{r, eval=F, echo=F}
+
+#######
+#######   VARIABLES IN THIS SECTION
+#######
+
+
+# "F990_FORM_YEAR",
+# "F990_TOTAL_REVENUE_RECENT", 
+# "F990_TOTAL_INCOME_RECENT", 
+# "F990_TOTAL_ASSETS_RECENT",   
+# 
+# "F990_ORG_ADDR_STREET",
+# "F990_ORG_ADDR_CITY", 
+# "F990_ORG_ADDR_STATE", 
+# "F990_ORG_ADDR_ZIP", 
+
+ 
+```
+
+# Form 990 Fields 
+
+ F990_TAX_YEAR ??
+
+"F990_TOTAL_REVENUE_RECENT",   # WHERE ARE EXPENSES? 
+"F990_TOTAL_INCOME_RECENT", 
+"F990_TOTAL_ASSETS_RECENT",    # NET ASSETS? 
+ 
+"F990_ORG_ADDR_CITY", 
+"F990_ORG_ADDR_STATE", 
+"F990_ORG_ADDR_ZIP", 
+"F990_ORG_ADDR_STREET",
 
 
 

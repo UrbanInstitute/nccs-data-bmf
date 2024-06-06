@@ -1,5 +1,5 @@
 ---
-title: "NCCS BMF DOCUMENTATION"
+title: "Geographic Fields (GEO)"
 format: html
 execute:
   warning: false
@@ -9,9 +9,11 @@ execute:
 ---
 
 
-## Packages
+
 
 ```{r}
+## Packages
+
 library( tidyverse )   # data wrangling 
 library( data.table )  # data wrangling 
 library( pander )      # pretty tables 
@@ -28,9 +30,9 @@ source( "data/DICTIONARIES.R" )
 ```
 
 
-## Data from Step-00 PreProcessing
 
 ```{r, cache=T}
+## Data from Refinement Step
 d <- readRDS( "data/BMF-LABELED-TEMP.rds" )
 ```
 
@@ -62,27 +64,36 @@ d <- readRDS( "data/BMF-LABELED-TEMP.rds" )
 ```
 
 
+## Notes on Geography 
 
-# Geographic Variables 
-
-
-"ORG_ADDR_FULL", 
-"ORG_ADDR_MATCH",
+* Geocoding process 
+* Census fields 
 
 
-"LATITUDE", 
-"LONGITUDE", 
-"GEOCODER_SCORE", 
-"GEOCODER_MATCH", 
+## Summary Tables 
 
-"CENSUS_BLOCK_FIPS"    # CENSUS_BLOCK_FIPS_2020
+### By State 
 
-"CENSUS_CBSA_FIPS",  
-"CENSUS_CBSA_NAME", 
-"CENSUS_BLOCK_FIPS",    # 211110049002000  BL-21-111-004900-2000  GEO-21-111-004900-2000
-"CENSUS_URBAN_AREA", 
-"CENSUS_STATE_ABBR", 
-"CENSUS_COUNTY_NAME"  
+```{r}
+fable( d$CENSUS_STATE_ABBR, as.factor=T )
+```
+
+
+### By Urban vs Rural
+
+```{r}
+fable( d$CENSUS_URBAN_AREA )
+```
+
+### By Metropolitan Areas 
+
+```{r}
+fable( d$CENSUS_CBSA_NAME )
+```
+
+
+
+
 
 
 

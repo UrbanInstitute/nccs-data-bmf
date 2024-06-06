@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.4.553">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>BMF Research Guide - 5&nbsp; IRS Fields (BMF)</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./3_05-f990-fields.html" rel="next">
+<link href="./3_03-mission-fields.html" rel="prev">
+<script src="site_libs/quarto-html/quarto.js"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body class="nav-sidebar docked slimcontent">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./3_00-documentation.html">DOCUMENTATION</a></li><li class="breadcrumb-item"><a href="./3_04-bmf-fields.html"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">IRS Fields (BMF)</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="button" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="./">BMF Research Guide</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Preface</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <span class="sidebar-item-text sidebar-link text-start">
+ <span class="menu-text">Legacy BMF Files</span></span>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <span class="sidebar-item-text sidebar-link text-start">
+ <span class="menu-text">Harmonization</span></span>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="./2_00-refinement.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Data Refinement</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./2_01-labeling-variables.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Labeling Variables</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="./3_00-documentation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DOCUMENTATION</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./3_01-dictionary.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Data Dictionary</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./3_02-org-fields.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Organization Fields (ORG)</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./3_03-mission-fields.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Mission Fields (NTEE)</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./3_04-bmf-fields.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">IRS Fields (BMF)</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./3_05-f990-fields.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Form 990 Fields (F990)</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./3_06-geo-fields.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Geographic Fields (GEO)</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./3_07-census-data.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Appending Census Data</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#bmf_status_code" id="toc-bmf_status_code" class="nav-link active" data-scroll-target="#bmf_status_code"><span class="header-section-number">5.1</span> BMF_STATUS_CODE</a></li>
+  <li><a href="#bmf_affiliation_code" id="toc-bmf_affiliation_code" class="nav-link" data-scroll-target="#bmf_affiliation_code"><span class="header-section-number">5.2</span> BMF_AFFILIATION_CODE</a></li>
+  <li><a href="#bmf_deductibility_code" id="toc-bmf_deductibility_code" class="nav-link" data-scroll-target="#bmf_deductibility_code"><span class="header-section-number">5.3</span> BMF_DEDUCTIBILITY_CODE</a></li>
+  <li><a href="#bmf_asset_code" id="toc-bmf_asset_code" class="nav-link" data-scroll-target="#bmf_asset_code"><span class="header-section-number">5.4</span> BMF_ASSET_CODE</a></li>
+  <li><a href="#income-levels-bmf_asset_code" id="toc-income-levels-bmf_asset_code" class="nav-link" data-scroll-target="#income-levels-bmf_asset_code"><span class="header-section-number">5.5</span> Income Levels (BMF_ASSET_CODE)</a></li>
+  <li><a href="#tax-exempt-purpose-codes-bmf_tax_exempt_purp" id="toc-tax-exempt-purpose-codes-bmf_tax_exempt_purp" class="nav-link" data-scroll-target="#tax-exempt-purpose-codes-bmf_tax_exempt_purp"><span class="header-section-number">5.6</span> Tax Exempt Purpose Codes (BMF_TAX_EXEMPT_PURP)</a></li>
+  <li><a href="#foundation-codes-bmf_foundation_code" id="toc-foundation-codes-bmf_foundation_code" class="nav-link" data-scroll-target="#foundation-codes-bmf_foundation_code"><span class="header-section-number">5.7</span> Foundation Codes (BMF_FOUNDATION_CODE)</a>
+  <ul class="collapse">
+  <li><a href="#supporting-organization-types" id="toc-supporting-organization-types" class="nav-link" data-scroll-target="#supporting-organization-types"><span class="header-section-number">5.7.1</span> Supporting Organization Types</a></li>
+  </ul></li>
+  <li><a href="#filing-requirement-code-bmf_filing_req_code" id="toc-filing-requirement-code-bmf_filing_req_code" class="nav-link" data-scroll-target="#filing-requirement-code-bmf_filing_req_code"><span class="header-section-number">5.8</span> Filing Requirement Code (BMF_FILING_REQ_CODE)</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content page-columns page-full" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./3_00-documentation.html">DOCUMENTATION</a></li><li class="breadcrumb-item"><a href="./3_04-bmf-fields.html"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">IRS Fields (BMF)</span></a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">IRS Fields (BMF)</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>Documentation for the fields that originate from the IRS Business Master File (BMF).</p>
+<p><br> <br> <br></p>
+<section id="bmf_status_code" class="level2 page-columns page-full" data-number="5.1">
+<h2 data-number="5.1" class="anchored" data-anchor-id="bmf_status_code"><span class="header-section-number">5.1</span> BMF_STATUS_CODE</h2>
+<p>The Exempt Organization (EO) Status Code defines the type of exemption held by the organization.</p>
+<table class="table">
+<thead>
+<tr class="header">
+<th style="text-align: right;">BMF_STATUS_CODE</th>
+<th style="text-align: right;">Freq</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">Unconditional Exemption (01)</td>
+<td style="text-align: right;">1,937,470</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">Conditional Exemption (02)</td>
+<td style="text-align: right;">662</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">Trust (12)</td>
+<td style="text-align: right;">6,983</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">Split Interest Trust (25)</td>
+<td style="text-align: right;">905</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">1,570,547</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Trust (12):</strong><br>
+Trust described in section 4947(a)(2) of the Internal Revenue Code</p>
+<p><strong>Split Interest Trust (25):</strong><br>
+Organization terminating its private foundation status under section 507(b)(1)(B) of the Code</p>
+
+<div class="no-row-height column-margin column-container"><div class="cell">
+
+</div></div></section>
+<section id="bmf_affiliation_code" class="level2" data-number="5.2">
+<h2 data-number="5.2" class="anchored" data-anchor-id="bmf_affiliation_code"><span class="header-section-number">5.2</span> BMF_AFFILIATION_CODE</h2>
+<div class="cell" data-layout-align="default">
+<div class="cell-output-display">
+<div>
+<p></p><figure class="figure"><p></p>
+<div>
+<svg width="672" height="480" viewbox="0.00 0.00 452.92 188.00" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" style="; max-width: none; max-height: none">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 184)">
+<title>G</title>
+<polygon fill="white" stroke="transparent" points="-4,4 -4,-184 448.92,-184 448.92,4 -4,4"></polygon>
+<!-- parent -->
+<g id="node1" class="node">
+<title>parent</title>
+<text text-anchor="middle" x="221.27" y="-157.8" font-family="Times,serif" font-size="14.00">parent</text>
+</g>
+<!-- intermediate_east -->
+<g id="node2" class="node">
+<title>intermediate_east</title>
+<text text-anchor="middle" x="154.27" y="-85.8" font-family="Times,serif" font-size="14.00">intermediate_east</text>
+</g>
+<!-- parent&#45;&gt;intermediate_east -->
+<g id="edge1" class="edge">
+<title>parent-&gt;intermediate_east</title>
+<path fill="none" stroke="black" d="M204.7,-143.7C196.59,-135.22 186.68,-124.86 177.79,-115.58"></path>
+<polygon fill="black" stroke="black" points="180.08,-112.91 170.64,-108.1 175.02,-117.75 180.08,-112.91"></polygon>
+</g>
+<!-- intermediate_west -->
+<g id="node3" class="node">
+<title>intermediate_west</title>
+<text text-anchor="middle" x="289.27" y="-85.8" font-family="Times,serif" font-size="14.00">intermediate_west</text>
+</g>
+<!-- parent&#45;&gt;intermediate_west -->
+<g id="edge2" class="edge">
+<title>parent-&gt;intermediate_west</title>
+<path fill="none" stroke="black" d="M238.07,-143.7C246.39,-135.14 256.57,-124.66 265.66,-115.3"></path>
+<polygon fill="black" stroke="black" points="268.19,-117.72 272.65,-108.1 263.17,-112.84 268.19,-117.72"></polygon>
+</g>
+<!-- subordinate_a -->
+<g id="node4" class="node">
+<title>subordinate_a</title>
+<text text-anchor="middle" x="47.27" y="-13.8" font-family="Times,serif" font-size="14.00">subordinate_a</text>
+</g>
+<!-- intermediate_east&#45;&gt;subordinate_a -->
+<g id="edge3" class="edge">
+<title>intermediate_east-&gt;subordinate_a</title>
+<path fill="none" stroke="black" d="M128.09,-71.88C114.23,-62.81 97.02,-51.55 82.05,-41.76"></path>
+<polygon fill="black" stroke="black" points="83.83,-38.74 73.54,-36.19 79.99,-44.59 83.83,-38.74"></polygon>
+</g>
+<!-- subordinate_b -->
+<g id="node5" class="node">
+<title>subordinate_b</title>
+<text text-anchor="middle" x="160.27" y="-13.8" font-family="Times,serif" font-size="14.00">subordinate_b</text>
+</g>
+<!-- intermediate_east&#45;&gt;subordinate_b -->
+<g id="edge4" class="edge">
+<title>intermediate_east-&gt;subordinate_b</title>
+<path fill="none" stroke="black" d="M155.75,-71.7C156.41,-63.98 157.2,-54.71 157.94,-46.11"></path>
+<polygon fill="black" stroke="black" points="161.43,-46.37 158.8,-36.1 154.46,-45.77 161.43,-46.37"></polygon>
+</g>
+<!-- subordinate_c -->
+<g id="node6" class="node">
+<title>subordinate_c</title>
+<text text-anchor="middle" x="284.27" y="-13.8" font-family="Times,serif" font-size="14.00">subordinate_c</text>
+</g>
+<!-- intermediate_west&#45;&gt;subordinate_c -->
+<g id="edge5" class="edge">
+<title>intermediate_west-&gt;subordinate_c</title>
+<path fill="none" stroke="black" d="M288.03,-71.7C287.48,-63.98 286.82,-54.71 286.2,-46.11"></path>
+<polygon fill="black" stroke="black" points="289.69,-45.83 285.49,-36.1 282.71,-46.33 289.69,-45.83"></polygon>
+</g>
+<!-- subordinate_d -->
+<g id="node7" class="node">
+<title>subordinate_d</title>
+<text text-anchor="middle" x="397.27" y="-13.8" font-family="Times,serif" font-size="14.00">subordinate_d</text>
+</g>
+<!-- intermediate_west&#45;&gt;subordinate_d -->
+<g id="edge6" class="edge">
+<title>intermediate_west-&gt;subordinate_d</title>
+<path fill="none" stroke="black" d="M315.69,-71.88C329.68,-62.81 347.04,-51.55 362.15,-41.76"></path>
+<polygon fill="black" stroke="black" points="364.26,-44.57 370.74,-36.19 360.45,-38.69 364.26,-44.57"></polygon>
+</g>
+</g>
+</svg>
+</div>
+<p></p></figure><p></p>
+</div>
+</div>
+</div>
+<p>Affiliation Code defines the organizational grouping. In the context of an IRS 990 Group Exemption structures:</p>
+<ul>
+<li><strong>Central Organizations</strong>: At the top of the group exemption structure is the central organization, often a national or overarching entity that holds the group exemption letter from the IRS. This central organization is responsible for overseeing the entire group and ensuring compliance with IRS regulations.</li>
+<li><strong>Intermediate Organizations</strong>-: Intermediate organizations are entities within the group that are affiliated with the central organization but operate at a regional, state, or local level. These intermediate organizations may have their own separate tax-exempt status but are covered under the group exemption umbrella of the central organization. They typically handle operations, fundraising, and programs within their specific geographic area or focus.</li>
+<li><strong>Subordinate Organizations</strong>: Below the intermediate organizations are the subordinate organizations, which are the local chapters, branches, or affiliates of the group. These organizations are also covered under the group exemption and operate under the oversight of both the central and intermediate organizations. `</li>
+</ul>
+<table class="table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 22%">
+<col style="width: 25%">
+<col style="width: 42%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: right;">code</th>
+<th style="text-align: left;">role</th>
+<th style="text-align: left;">affiliation</th>
+<th style="text-align: left;">label</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">3</td>
+<td style="text-align: left;">INDY</td>
+<td style="text-align: left;">NONE</td>
+<td style="text-align: left;">INDEPENDENT (3)</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">1</td>
+<td style="text-align: left;">PARENT</td>
+<td style="text-align: left;">NETWORK</td>
+<td style="text-align: left;">NETWORK-PARENT (1)</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">2</td>
+<td style="text-align: left;">INTERMEDIATE</td>
+<td style="text-align: left;">NETWORK</td>
+<td style="text-align: left;">NETWORK-INTERM (2)</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">6</td>
+<td style="text-align: left;">PARENT-REGULAR</td>
+<td style="text-align: left;">GROUPEXM</td>
+<td style="text-align: left;">GROUP-EXM-PARENT-REGULAR (6)</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">7</td>
+<td style="text-align: left;">INTERMEDIATE</td>
+<td style="text-align: left;">GROUPEXM</td>
+<td style="text-align: left;">GROUP-EXM-INTERM (7)</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">8</td>
+<td style="text-align: left;">PARENT-CHURCH</td>
+<td style="text-align: left;">GROUPEXM</td>
+<td style="text-align: left;">GROUP-EXM-PARENT-CHURCH (8)</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">9</td>
+<td style="text-align: left;">SUBORDINATE</td>
+<td style="text-align: left;">GROUPEXM/NETWORK</td>
+<td style="text-align: left;">SUBORDINATE (9)</td>
+</tr>
+</tbody>
+</table>
+<p>The use of intermediate organizations in a group exemption structure allows for centralized management and oversight while still accommodating regional or local operations and initiatives. It helps streamline administrative processes, ensures consistency in compliance, and provides a framework for collaboration and coordination among affiliated entities.</p>
+<table class="table">
+<thead>
+<tr class="header">
+<th style="text-align: right;">BMF_AFFILIATION_CODE</th>
+<th style="text-align: right;">Freq</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">INDEPENDENT (3)</td>
+<td style="text-align: right;">2,058,970</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">NETWORK-PARENT (1)</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">NETWORK-INTERM (2)</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">GROUP-EXM-PARENT-REGULAR (6)</td>
+<td style="text-align: right;">3,378</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">GROUP-EXM-INTERM (7)</td>
+<td style="text-align: right;">99</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">GROUP-EXM-PARENT-CHURCH (8)</td>
+<td style="text-align: right;">713</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">SUBORDINATE (9)</td>
+<td style="text-align: right;">428,775</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">1,024,632</td>
+</tr>
+</tbody>
+</table>
+<p><strong>INDEPENDENT (3)</strong> “This code is used if the organization is an independent organization or an independent auxiliary (i.e., not affiliated with a National, Regional, or Geographic grouping of organizations).”,</p>
+<p><strong>NETWORK-PARENT (1)</strong> “This code is used if the organization is a central type organization (no group exemption) of a National, Regional or Geographic grouping of organizations.”,</p>
+<p><strong>NETWORK-INTERM (2)</strong> “This code is used if the organization is an intermediate organization (no group exemption) of a National, Regional or Geographic grouping of organizations (such as a state headquarters of a national organization).”,</p>
+<p><strong>GROUP-EXM-PARENT-REGULAR (6)</strong> “This code is used if the organization is a parent (group ruling) and is not a church or 501(c)(1)organization.”,</p>
+<p><strong>GROUP-EXM-INTERM (7)</strong> “This code is used if the organization is a group exemption intermediate organization of a National, Regional or Geographic grouping of organizations.”,</p>
+<p><strong>GROUP-EXM-PARENT-CHURCH (8)</strong> “This code is used if the organization is a parent (group ruling) and is a church or 501(c)(1) organization.”,</p>
+<p><strong>SUBORDINATE (9)</strong> “This code is used if the organization is a subordinate in a group ruling.”)</p>
+</section>
+<section id="bmf_deductibility_code" class="level2 page-columns page-full" data-number="5.3">
+<h2 data-number="5.3" class="anchored" data-anchor-id="bmf_deductibility_code"><span class="header-section-number">5.3</span> BMF_DEDUCTIBILITY_CODE</h2>
+<p>Deductibility Code signifies whether contributions made to an organization are deductible.</p>
+
+<div class="no-row-height column-margin column-container"><div class="cell">
+<table class="table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: right;">BMF_DEDUCTIBILITY_CODE</th>
+<th style="text-align: right;">Freq</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">UDC (0)</td>
+<td style="text-align: right;">35,172</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">YES (1)</td>
+<td style="text-align: right;">1,660,328</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">NO (2)</td>
+<td style="text-align: right;">249,968</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">BY TREATY(4)</td>
+<td style="text-align: right;">552</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">1,570,547</td>
+</tr>
+</tbody>
+</table>
+</div></div></section>
+<section id="bmf_asset_code" class="level2 page-columns page-full" data-number="5.4">
+<h2 data-number="5.4" class="anchored" data-anchor-id="bmf_asset_code"><span class="header-section-number">5.4</span> BMF_ASSET_CODE</h2>
+<p>Asset levels based upon the last year of financials reported.</p>
+<p><img src="3_04-bmf-fields_files/figure-html/unnamed-chunk-10-1.png" class="img-fluid" width="672"></p>
+
+<div class="no-row-height column-margin column-container"><div class="cell">
+<table class="table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: right;">BMF_ASSET_LEVEL</th>
+<th style="text-align: right;">Freq</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">$0</td>
+<td style="text-align: right;">1,245,337</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">$1 to $10k</td>
+<td style="text-align: right;">76,856</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">$10k to $25k</td>
+<td style="text-align: right;">41,860</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">$25k to $100k</td>
+<td style="text-align: right;">119,860</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">$100k to $500k</td>
+<td style="text-align: right;">184,573</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">$500k to $1m</td>
+<td style="text-align: right;">73,574</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">$1m to $5m</td>
+<td style="text-align: right;">117,855</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">$5m to $10m</td>
+<td style="text-align: right;">30,444</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">$10m to $50m</td>
+<td style="text-align: right;">38,234</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">$50m +</td>
+<td style="text-align: right;">17,427</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">1,570,547</td>
+</tr>
+</tbody>
+</table>
+</div></div></section>
+<section id="income-levels-bmf_asset_code" class="level2 page-columns page-full" data-number="5.5">
+<h2 data-number="5.5" class="anchored" data-anchor-id="income-levels-bmf_asset_code"><span class="header-section-number">5.5</span> Income Levels (BMF_ASSET_CODE)</h2>
+<p><img src="3_04-bmf-fields_files/figure-html/unnamed-chunk-13-1.png" class="img-fluid" width="672"></p>
+
+<div class="no-row-height column-margin column-container"><div class="cell">
+<table class="table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: right;">BMF_INCOME_LEVEL</th>
+<th style="text-align: right;">Freq</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">$0</td>
+<td style="text-align: right;">1,255,752</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">$1 to $10k</td>
+<td style="text-align: right;">59,409</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">$10k to $25k</td>
+<td style="text-align: right;">34,423</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">$25k to $100k</td>
+<td style="text-align: right;">149,568</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">$100k to $500k</td>
+<td style="text-align: right;">227,063</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">$500k to $1m</td>
+<td style="text-align: right;">66,682</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">$1m to $5m</td>
+<td style="text-align: right;">93,392</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">$5m to $10m</td>
+<td style="text-align: right;">22,387</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">$10m to $50m</td>
+<td style="text-align: right;">26,753</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">$50m +</td>
+<td style="text-align: right;">10,591</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">1,570,547</td>
+</tr>
+</tbody>
+</table>
+</div></div></section>
+<section id="tax-exempt-purpose-codes-bmf_tax_exempt_purp" class="level2" data-number="5.6">
+<h2 data-number="5.6" class="anchored" data-anchor-id="tax-exempt-purpose-codes-bmf_tax_exempt_purp"><span class="header-section-number">5.6</span> Tax Exempt Purpose Codes (BMF_TAX_EXEMPT_PURP)</h2>
+<p>When applying for tax exempt status from the IRS, nonprofit founders report <strong>organizational purpose</strong> on their application, which is used by the IRS to make a determination on whether the organization qualifies for tax-exempt status. These codes differ from the NTEE taxonomies in that each code is binary (yes/no), and they are NOT mutually exclusive, so a nonprofit mission can fulfill one or several of these purposes.</p>
+<p>IRS Tax-Exempt Purpose Codes for 501C3 Organizations: [ See <a href="https://www.irs.gov/pub/irs-pdf/i1023ez.pdf">Instructions pp 6-7</a> ]</p>
+<ul>
+<li>Charitable Purpose [yes/no]</li>
+<li>Religious Purpose [yes/no]</li>
+<li>Educational Purpose [yes/no]</li>
+<li>Scientific Purpose [yes/no]</li>
+<li>Literary Purpose [yes/no]</li>
+<li>Public Safety Purpose [yes/no]</li>
+<li>Amateur Sports Purpose [yes/no]</li>
+<li>Prevent Cruelty to Animals and/or Children [yes/no]</li>
+</ul>
+<p>The other 501C Types have similar tax-exempt purpose categories:</p>
+</section>
+<section id="foundation-codes-bmf_foundation_code" class="level2 page-columns page-full" data-number="5.7">
+<h2 data-number="5.7" class="anchored" data-anchor-id="foundation-codes-bmf_foundation_code"><span class="header-section-number">5.7</span> Foundation Codes (BMF_FOUNDATION_CODE)</h2>
+<ul>
+<li><strong>501C_not_3 (0):</strong> All organizations except 501(c)(3)</li>
+<li><strong>priv op foundation (2):</strong> Private operating foundation exempt from paying excise taxes on investment income</li>
+<li><strong>priv op foundation (other) (3):</strong> Private operating foundation (other)</li>
+<li><strong>priv non-op foundation (4):</strong> Private non-operating foundation</li>
+<li><strong>status suspended (9):</strong> Suspense</li>
+<li><strong>church (10):</strong> Church 170(b)(1)(A)(i)</li>
+<li><strong>school (11):</strong> School 170(b)(1)(A)(ii)</li>
+<li><strong>hospital/ med research (12):</strong> Hospital or medical research organization 170(b)(1)(A)(iii)</li>
+<li><strong>public university support (13):</strong> Organization that operates for the benefit of a college or university and is owned or operated by a governmental unit 170(b)(1)(A)(iv)</li>
+<li><strong>governmental unit (14):</strong> Governmental unit 170(b)(1)(A)(v)</li>
+<li><strong>gov or public support (15):</strong> Organization that receives a substantial part of its support from a governmental unit or the general public 170(b)(1)(A)(vi)</li>
+<li><strong>one-third investment or ubi (16):</strong> Organization that normally receives no more than one-third of its support from gross investment income and unrelated business income and at the same time more than one-third of its support from contributions, fees, and gross receipts related to exempt purposes 509(a)(2)</li>
+<li><strong>subsidiary (17):</strong> Organizations operated solely for the benefit of and in conjunction with organizations described in 10 through 16 above 509(a)(3)</li>
+<li><strong>public safety (18):</strong> Organization organized and operated to test for public safety 509(a)(4)</li>
+<li><strong>supporting org type1 (21):</strong> 509(a)(3) Type I</li>
+<li><strong>supporting org type2 (22):</strong> 509(a)(3) Type II</li>
+<li><strong>supporting org type3 (23):</strong> 509(a)(3) Type III functionally integrated</li>
+<li><strong>supporting org type3 nfi (24):</strong> 509(a)(3) Type III not functionally integrated</li>
+</ul>
+<table class="table">
+<thead>
+<tr class="header">
+<th style="text-align: right;">BMF_FOUNDATION_CODE</th>
+<th style="text-align: right;">Freq</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">501C_not_3 (0)</td>
+<td style="text-align: right;">783,396</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">priv op foundation (2)</td>
+<td style="text-align: right;">526</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">priv op foundation (other) (3)</td>
+<td style="text-align: right;">13,369</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">priv non-op foundation (4)</td>
+<td style="text-align: right;">238,657</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">status suspended (9)</td>
+<td style="text-align: right;">2,428</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">church (10)</td>
+<td style="text-align: right;">317,436</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">school (11)</td>
+<td style="text-align: right;">38,845</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">hospital/ med research (12)</td>
+<td style="text-align: right;">10,354</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">public university support (13)</td>
+<td style="text-align: right;">2,713</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">governmental unit (14)</td>
+<td style="text-align: right;">543</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">gov or public support (15)</td>
+<td style="text-align: right;">1,110,194</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">one-third investment or ubi (16)</td>
+<td style="text-align: right;">685,474</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">subsidiary (17)</td>
+<td style="text-align: right;">33,864</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">public safety (18)</td>
+<td style="text-align: right;">108</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">supporting org type1 (21)</td>
+<td style="text-align: right;">5,227</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">supporting org type2 (22)</td>
+<td style="text-align: right;">1,122</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">supporting org type3 (23)</td>
+<td style="text-align: right;">810</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">supporting org type3 nfi (24)</td>
+<td style="text-align: right;">304</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">271,197</td>
+</tr>
+</tbody>
+</table>
+
+<div class="no-row-height column-margin column-container"><div class="cell">
+<p><img src="3_04-bmf-fields_files/figure-html/unnamed-chunk-17-1.png" class="img-fluid" width="672"></p>
+</div></div><section id="supporting-organization-types" class="level3" data-number="5.7.1">
+<h3 data-number="5.7.1" class="anchored" data-anchor-id="supporting-organization-types"><span class="header-section-number">5.7.1</span> Supporting Organization Types</h3>
+<p><strong>TYPE I</strong></p>
+<p>A Type I supporting organization must be operated, supervised or controlled by its supported organization(s), typically by giving the supported organization(s) the power to regularly appoint or elect a majority of the directors or trustees of the supporting organization. The relationship between the supported organization(s) and the supporting organization is sometimes described as similar to a parent-subsidiary relationship.</p>
+<p><strong>TYPE II</strong></p>
+<p>A Type II supporting organization must be supervised or controlled in connection with its supported organization(s), typically by having a majority of the directors or trustees of the supported organization(s) serve as a majority of the trustees or directors of the supporting organization. The relationship between the supported organization(s) and the supporting organization is sometimes described as similar to a brother-sister relationship.</p>
+<p><strong>TYPE III</strong></p>
+<p>A Type III supporting organization must be operated in connection with one or more publicly supported organizations. All supporting organizations must be responsive to the needs and demands of, and must constitute an integral part of or maintain significant involvement in, their supported organizations. Type I and Type II supporting organizations are deemed to accomplish these responsiveness and integral part requirements by virtue of their control relationships. However, a Type III supporting organization is not subject to the same level of control by its supported organization(s). Therefore, in addition to a notification requirement, Type III supporting organizations must pass separate responsiveness and integral part tests.</p>
+<br>
+<hr>
+<p><br></p>
+<p><strong>FUNCTIONALLY INTEGRATED</strong></p>
+<p>A Type III organization must satisfy one of three alternative integral part tests.</p>
+<p><strong>Alternative 1: Activities test</strong></p>
+<ul>
+<li>Direct furtherance prong. Substantially all of the supporting organization’s activities must be direct furtherance activities.<br>
+</li>
+<li>Direct furtherance activities are conducted by the supporting organization itself, rather than by a supported organization.<br>
+</li>
+<li>Fundraising, managing non-exempt-use assets, grant making to organizations, and grant making to individuals (unless it meets certain requirements) are not direct furtherance activities.<br>
+</li>
+<li>But for prong. In addition, substantially all of such activities must be activities in which, but for the supporting organization’s involvement, the supported organization would normally be involved.</li>
+</ul>
+<p>Examples include holding and managing facilities used by a church for its religious purposes, operating food pantries for a group of churches that normally would operate food pantries themselves, and maintaining local parks for a community foundation that otherwise would maintain those parks.</p>
+<p><strong>Alternative 2: Parent of supported organizations</strong></p>
+<ul>
+<li>Governance. The supporting organization must have the power to appoint a majority of the officers, directors or trustees of each of its supported organizations.<br>
+</li>
+<li>Substantial degree of direction. In addition, the supporting organization must perform “parent-like” activities by exercising a substantial degree of direction over the policies, programs and activities of the supported organizations.</li>
+</ul>
+<p><strong>Alternative 3: Supporting a governmental entity</strong></p>
+<ul>
+<li>Notice 2014-4 provides interim guidance for supporting organizations that want to qualify as functionally integrated because they are supporting a governmental entity.</li>
+</ul>
+<p>Note: The transitional rule set out in the notice is not intended to signal what future proposed regulations will require with respect to qualifying as functionally integrated by supporting a governmental entity. No Type III supporting organization will qualify as functionally integrated by reason of satisfying this transitional rule once final regulations under §509 are published.</p>
+<br>
+<hr>
+<p><br></p>
+<p><strong>NON-FUNCTIONALLY INTEGRATED</strong></p>
+<p>Distribution requirement. A Type III non-FISO must distribute its distributable amount each year to one or more of its supported organizations.</p>
+<p>Under final regulations, the distributable amount equals the greater of (1) 85 percent of the organization’s adjusted net income for the prior taxable year and (2) 3.5 percent of the aggregate fair market value of the organization’s non-exempt use assets, with certain adjustments.</p>
+<p>Certain excess amounts may reduce the distributable amount in subsequent years (for up to five years after the excess amount is generated).</p>
+<p>Attentiveness requirement. It is not enough for a Type III non-FISO to maintain a certain level of distributions to a supported organization. Those distributions must be sufficiently important to the supported organization to ensure that the supported organization has sufficient reason to pay attention to the supporting organization’s role in its operations. Distributions to a particular supported organization are sufficient to ensure such attentiveness if the amount of support:</p>
+<p>Equaled at least 10 percent of the supported organization’s total support for the supported organization’s prior year; Was necessary to avoid interruption of the carrying on of a particular substantial function or activity of the supported organization;</p>
+<p>or</p>
+<p>Based on all facts and circumstances (including actual evidence of attentiveness) was sufficient to ensure attentiveness. At least one-third of the supporting organization’s distributable amount must be distributed to supported organizations (1) that meet this attentiveness requirement and (2) to which the supporting organization is responsive.</p>
+<p><br></p>
+<hr>
+<p><br></p>
+</section>
+</section>
+<section id="filing-requirement-code-bmf_filing_req_code" class="level2 page-columns page-full" data-number="5.8">
+<h2 data-number="5.8" class="anchored" data-anchor-id="filing-requirement-code-bmf_filing_req_code"><span class="header-section-number">5.8</span> Filing Requirement Code (BMF_FILING_REQ_CODE)</h2>
+<table class="table">
+<thead>
+<tr class="header">
+<th style="text-align: right;">BMF_FILING_REQ_CODE</th>
+<th style="text-align: right;">Freq</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">990/990EZ (01)</td>
+<td style="text-align: right;">696,890</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">990-N (02)</td>
+<td style="text-align: right;">1,628,405</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">990PF (00+PF={1,2,3})</td>
+<td style="text-align: right;">151,568</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">GROUP RETURN (03)</td>
+<td style="text-align: right;">7,399</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">990-BL (04)</td>
+<td style="text-align: right;">31</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">NRQ: CHURCH (06)</td>
+<td style="text-align: right;">293,132</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">NRQ: 501C1 GOV (07)</td>
+<td style="text-align: right;">782</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">NOT RQ: RELIG ORG (13)</td>
+<td style="text-align: right;">10,162</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">NOT RQ: STATE DIV (14)</td>
+<td style="text-align: right;">2,673</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">NOT RQ: ALL OTHER (00)</td>
+<td style="text-align: right;">71,408</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">Undocumented Category (11)</td>
+<td style="text-align: right;">671</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">653,446</td>
+</tr>
+</tbody>
+</table>
+
+<div class="no-row-height column-margin column-container"><div class="cell">
+<p><img src="3_04-bmf-fields_files/figure-html/unnamed-chunk-19-1.png" class="img-fluid" width="672"></p>
+</div></div><style>
+
+h1, h2 {
+  margin-top: 80px
+}
+
+h3 {
+  margin-bottom: 20px;
+}
+
+.codebook-entry {
+   background-color: beige;
+   margin-top: 20px;
+}
+
+
+.table {
+   width: fit-content;
+}
+
+strong {
+  font-weight: bold;
+}
+
+</style>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="./3_03-mission-fields.html" class="pagination-link" aria-label="Mission Fields (NTEE)">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Mission Fields (NTEE)</span></span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="./3_05-f990-fields.html" class="pagination-link" aria-label="Form 990 Fields (F990)">
+        <span class="nav-page-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Form 990 Fields (F990)</span></span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

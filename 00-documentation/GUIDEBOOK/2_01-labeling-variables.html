@@ -1,0 +1,2628 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.4.553">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>BMF Research Guide - 1&nbsp; Labeling Variables</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./3_00-documentation.html" rel="next">
+<link href="./2_00-refinement.html" rel="prev">
+<script src="site_libs/quarto-html/quarto.js"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "sidebar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "start",
+  "type": "textbox",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body class="nav-sidebar docked">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./2_00-refinement.html">Data Refinement</a></li><li class="breadcrumb-item"><a href="./2_01-labeling-variables.html"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Labeling Variables</span></a></li></ol></nav>
+        <a class="flex-grow-1" role="button" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
+    <div class="pt-lg-2 mt-2 text-left sidebar-header">
+    <div class="sidebar-title mb-0 py-0">
+      <a href="./">BMF Research Guide</a> 
+    </div>
+      </div>
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Preface</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <span class="sidebar-item-text sidebar-link text-start">
+ <span class="menu-text">Legacy BMF Files</span></span>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <span class="sidebar-item-text sidebar-link text-start">
+ <span class="menu-text">Harmonization</span></span>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="./2_00-refinement.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Data Refinement</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./2_01-labeling-variables.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Labeling Variables</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a href="./3_00-documentation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">DOCUMENTATION</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./3_01-dictionary.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">2</span>&nbsp; <span class="chapter-title">Data Dictionary</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./3_02-org-fields.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">3</span>&nbsp; <span class="chapter-title">Organization Fields (ORG)</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./3_03-mission-fields.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">4</span>&nbsp; <span class="chapter-title">Mission Fields (NTEE)</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./3_04-bmf-fields.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">5</span>&nbsp; <span class="chapter-title">IRS Fields (BMF)</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./3_05-f990-fields.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">6</span>&nbsp; <span class="chapter-title">Form 990 Fields (F990)</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./3_06-geo-fields.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">7</span>&nbsp; <span class="chapter-title">Geographic Fields (GEO)</span></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./3_07-census-data.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text"><span class="chapter-number">8</span>&nbsp; <span class="chapter-title">Appending Census Data</span></span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#packages" id="toc-packages" class="nav-link active" data-scroll-target="#packages"><span class="header-section-number">1.1</span> Packages</a></li>
+  <li><a href="#load-data" id="toc-load-data" class="nav-link" data-scroll-target="#load-data"><span class="header-section-number">1.2</span> Load Data</a></li>
+  <li><a href="#impute-missing-values" id="toc-impute-missing-values" class="nav-link" data-scroll-target="#impute-missing-values"><span class="header-section-number">1.3</span> Impute Missing Values</a>
+  <ul class="collapse">
+  <li><a href="#private-foundations" id="toc-private-foundations" class="nav-link" data-scroll-target="#private-foundations"><span class="header-section-number">1.3.1</span> Private Foundations</a></li>
+  </ul></li>
+  <li><a href="#add-labels-to-factors" id="toc-add-labels-to-factors" class="nav-link" data-scroll-target="#add-labels-to-factors"><span class="header-section-number">1.4</span> Add Labels to Factors</a>
+  <ul class="collapse">
+  <li><a href="#org_fiscal_period" id="toc-org_fiscal_period" class="nav-link" data-scroll-target="#org_fiscal_period"><span class="header-section-number">1.4.1</span> ORG_FISCAL_PERIOD</a></li>
+  <li><a href="#bmf_status_code" id="toc-bmf_status_code" class="nav-link" data-scroll-target="#bmf_status_code"><span class="header-section-number">1.4.2</span> BMF_STATUS_CODE</a></li>
+  <li><a href="#bmf_affiliation_code" id="toc-bmf_affiliation_code" class="nav-link" data-scroll-target="#bmf_affiliation_code"><span class="header-section-number">1.4.3</span> BMF_AFFILIATION_CODE</a></li>
+  <li><a href="#bmf_deductibility_code" id="toc-bmf_deductibility_code" class="nav-link" data-scroll-target="#bmf_deductibility_code"><span class="header-section-number">1.4.4</span> BMF_DEDUCTIBILITY_CODE</a></li>
+  <li><a href="#bmf_asset_level-bmf_income_level" id="toc-bmf_asset_level-bmf_income_level" class="nav-link" data-scroll-target="#bmf_asset_level-bmf_income_level"><span class="header-section-number">1.4.5</span> BMF_ASSET_LEVEL &amp; BMF_INCOME_LEVEL</a></li>
+  <li><a href="#org_corp_form" id="toc-org_corp_form" class="nav-link" data-scroll-target="#org_corp_form"><span class="header-section-number">1.4.6</span> ORG_CORP_FORM</a></li>
+  <li><a href="#bmf_foundation_code" id="toc-bmf_foundation_code" class="nav-link" data-scroll-target="#bmf_foundation_code"><span class="header-section-number">1.4.7</span> BMF_FOUNDATION_CODE</a></li>
+  <li><a href="#nccs_level_1" id="toc-nccs_level_1" class="nav-link" data-scroll-target="#nccs_level_1"><span class="header-section-number">1.4.8</span> NCCS_LEVEL_1</a></li>
+  <li><a href="#nccs_level_2" id="toc-nccs_level_2" class="nav-link" data-scroll-target="#nccs_level_2"><span class="header-section-number">1.4.9</span> NCCS_LEVEL_2</a></li>
+  <li><a href="#nccs_level_3" id="toc-nccs_level_3" class="nav-link" data-scroll-target="#nccs_level_3"><span class="header-section-number">1.4.10</span> NCCS_LEVEL_3</a></li>
+  </ul></li>
+  <li><a href="#c-types" id="toc-c-types" class="nav-link" data-scroll-target="#c-types"><span class="header-section-number">1.5</span> 501C Types</a></li>
+  <li><a href="#composite-codes" id="toc-composite-codes" class="nav-link" data-scroll-target="#composite-codes"><span class="header-section-number">1.6</span> Composite Codes</a>
+  <ul class="collapse">
+  <li><a href="#tax-exempt-purpose" id="toc-tax-exempt-purpose" class="nav-link" data-scroll-target="#tax-exempt-purpose"><span class="header-section-number">1.6.1</span> Tax Exempt Purpose</a></li>
+  <li><a href="#filing-requirement-codes" id="toc-filing-requirement-codes" class="nav-link" data-scroll-target="#filing-requirement-codes"><span class="header-section-number">1.6.2</span> Filing Requirement Codes</a></li>
+  </ul></li>
+  <li><a href="#select-variables" id="toc-select-variables" class="nav-link" data-scroll-target="#select-variables"><span class="header-section-number">1.7</span> Select Variables</a></li>
+  <li><a href="#save-objects" id="toc-save-objects" class="nav-link" data-scroll-target="#save-objects"><span class="header-section-number">1.8</span> Save Objects</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./2_00-refinement.html">Data Refinement</a></li><li class="breadcrumb-item"><a href="./2_01-labeling-variables.html"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Labeling Variables</span></a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title"><span class="chapter-number">1</span>&nbsp; <span class="chapter-title">Labeling Variables</span></h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="packages" class="level2" data-number="1.1">
+<h2 data-number="1.1" class="anchored" data-anchor-id="packages"><span class="header-section-number">1.1</span> Packages</h2>
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>( tidyverse )   <span class="co"># data wrangling </span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>( data.table )  <span class="co"># data wrangling </span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>( pander )      <span class="co"># pretty tables </span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>( knitr )       <span class="co"># pretty tables</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>( DiagrammeR )  <span class="co"># drawing diagrams</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>( ggthemes )    <span class="co"># graphics </span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>( gridExtra )   <span class="co"># graphics</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="co"># CUSTOM FUNCTIONS: fable()</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="fu">source</span>( <span class="st">"R/functions.R"</span> )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+<section id="load-data" class="level2" data-number="1.2">
+<h2 data-number="1.2" class="anchored" data-anchor-id="load-data"><span class="header-section-number">1.2</span> Load Data</h2>
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># REMOTE OPTION </span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>URL <span class="ot">&lt;-</span> <span class="st">"https://nccsdata.s3.us-east-1.amazonaws.com/harmonized/bmf/unified/BMF_UNIFIED_V1.1.csv"</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">fread</span>( URL )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">fread</span>( <span class="st">"data/BMF_UNIFIED_V1.1.csv"</span> )</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>n_501c <span class="ot">&lt;-</span> <span class="fu">str_pad</span>( d<span class="sc">$</span>BMF_SUBSECTION_CODE, <span class="at">width=</span><span class="dv">2</span>, <span class="at">pad=</span><span class="st">"0"</span> )</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>ORG_TYPE_501C <span class="ot">&lt;-</span> <span class="fu">paste0</span>( <span class="st">"501C_"</span>, n_501c )</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>ORG_TYPE_501C[ d<span class="sc">$</span>ORG_TYPE_501C <span class="sc">==</span> <span class="st">"501C_NA"</span> ] <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>       </span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>ORG_TYPE_PF <span class="ot">&lt;-</span> d<span class="sc">$</span>BMF_PF_FILING_REQ_CODE <span class="sc">%in%</span> <span class="fu">c</span>(<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>) <span class="sc">%&gt;%</span> <span class="fu">as.numeric</span>()</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>ORG_TYPE_PF[ <span class="fu">is.na</span>(d<span class="sc">$</span>BMF_PF_FILING_REQ_CODE) ] <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> d <span class="sc">%&gt;%</span> <span class="fu">rename</span>(         <span class="at">ORG_NAME =</span> ORG_NAME_CURRENT      )</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> d <span class="sc">%&gt;%</span> <span class="fu">rename</span>(    <span class="at">BMF_CORP_FORM =</span> BMF_ORGANIZATION_CODE )</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> d <span class="sc">%&gt;%</span> <span class="fu">rename</span>(  <span class="at">BMF_ASSET_LEVEL =</span> BMF_ASSET_CODE        )</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> d <span class="sc">%&gt;%</span> <span class="fu">rename</span>( <span class="at">BMF_INCOME_LEVEL =</span> BMF_INCOME_CODE       )</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> d <span class="sc">%&gt;%</span> <span class="fu">rename</span>(   <span class="at">F990_FORM_YEAR =</span> ORG_FISCAL_YEAR       ) </span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> d <span class="sc">%&gt;%</span> <span class="fu">rename</span>(    <span class="at">ORG_CORP_FORM =</span> BMF_CORP_FORM         ) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>new.order <span class="ot">&lt;-</span> <span class="fu">c</span>( </span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="st">"EIN"</span>, <span class="st">"EIN2"</span>, </span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ORG_NAME"</span>, </span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ORG_NAME_SEC"</span>, </span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ORG_PERS_ICO"</span>, </span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ORG_FISCAL_PERIOD"</span>, </span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ORG_TYPE_501C"</span>, </span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ORG_TYPE_PF"</span>, </span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ORG_CORP_FORM"</span>,</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ORG_RULING_DATE"</span>, </span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ORG_RULING_YEAR"</span>,</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ORG_YEAR_FIRST"</span>, </span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ORG_YEAR_LAST"</span>, </span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ORG_YEAR_COUNT"</span>, </span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>  <span class="st">"NTEE_IRS"</span>, </span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>  <span class="st">"NTEE_NCCS"</span>,  </span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>  <span class="st">"NTEEV2"</span>, </span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>  <span class="st">"NCCS_LEVEL_1"</span>, </span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>  <span class="st">"NCCS_LEVEL_2"</span>, </span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>  <span class="st">"NCCS_LEVEL_3"</span>,</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>  <span class="st">"BMF_SUBSECTION_CODE"</span>,   </span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>  <span class="st">"BMF_DEDUCTIBILITY_CODE"</span>, </span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>  <span class="st">"BMF_FILING_REQ_CODE"</span>, </span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>  <span class="st">"BMF_PF_FILING_REQ_CODE"</span>,</span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>  <span class="st">"BMF_FOUNDATION_CODE"</span>,    </span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>  <span class="st">"BMF_STATUS_CODE"</span>, </span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>  <span class="st">"BMF_CLASSIFICATION_CODE"</span>, </span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>  <span class="st">"BMF_AFFILIATION_CODE"</span>,   </span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>  <span class="st">"BMF_GROUP_EXEMPT_NUM"</span>,</span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a>  <span class="st">"BMF_INCOME_LEVEL"</span>,        </span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a>  <span class="st">"BMF_ASSET_LEVEL"</span>, </span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a>  <span class="st">"F990_FORM_YEAR"</span>,</span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a>  <span class="st">"F990_TOTAL_REVENUE_RECENT"</span>, </span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a>  <span class="st">"F990_TOTAL_INCOME_RECENT"</span>, </span>
+<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a>  <span class="st">"F990_TOTAL_ASSETS_RECENT"</span>,   </span>
+<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a> </span>
+<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a>  <span class="st">"F990_ORG_ADDR_STREET"</span>,</span>
+<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a>  <span class="st">"F990_ORG_ADDR_CITY"</span>, </span>
+<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a>  <span class="st">"F990_ORG_ADDR_STATE"</span>, </span>
+<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a>  <span class="st">"F990_ORG_ADDR_ZIP"</span>, </span>
+<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a> </span>
+<span id="cb4-47"><a href="#cb4-47" aria-hidden="true" tabindex="-1"></a>  <span class="st">"CENSUS_URBAN_AREA"</span>,</span>
+<span id="cb4-48"><a href="#cb4-48" aria-hidden="true" tabindex="-1"></a>  <span class="st">"CENSUS_STATE_ABBR"</span>,</span>
+<span id="cb4-49"><a href="#cb4-49" aria-hidden="true" tabindex="-1"></a>  <span class="st">"CENSUS_COUNTY_NAME"</span>,</span>
+<span id="cb4-50"><a href="#cb4-50" aria-hidden="true" tabindex="-1"></a>  <span class="st">"CENSUS_CBSA_NAME"</span>, </span>
+<span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a>  <span class="st">"CENSUS_CBSA_FIPS"</span>,</span>
+<span id="cb4-52"><a href="#cb4-52" aria-hidden="true" tabindex="-1"></a>  <span class="st">"CENSUS_BLOCK_FIPS"</span>,</span>
+<span id="cb4-53"><a href="#cb4-53" aria-hidden="true" tabindex="-1"></a>   </span>
+<span id="cb4-54"><a href="#cb4-54" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ORG_ADDR_FULL"</span>, </span>
+<span id="cb4-55"><a href="#cb4-55" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ORG_ADDR_MATCH"</span>, </span>
+<span id="cb4-56"><a href="#cb4-56" aria-hidden="true" tabindex="-1"></a>  <span class="st">"LATITUDE"</span>, </span>
+<span id="cb4-57"><a href="#cb4-57" aria-hidden="true" tabindex="-1"></a>  <span class="st">"LONGITUDE"</span>, </span>
+<span id="cb4-58"><a href="#cb4-58" aria-hidden="true" tabindex="-1"></a>  <span class="st">"GEOCODER_SCORE"</span>, </span>
+<span id="cb4-59"><a href="#cb4-59" aria-hidden="true" tabindex="-1"></a>  <span class="st">"GEOCODER_MATCH"</span>  )</span>
+<span id="cb4-60"><a href="#cb4-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-61"><a href="#cb4-61" aria-hidden="true" tabindex="-1"></a><span class="co"># MAKE SURE ALL LISTED VARIABLES EXIST </span></span>
+<span id="cb4-62"><a href="#cb4-62" aria-hidden="true" tabindex="-1"></a><span class="fu">setdiff</span>( new.order, <span class="fu">names</span>(d) )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>character(0)</p>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># DROPPED VARIABLES </span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">setdiff</span>( <span class="fu">names</span>(d), new.order )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>character(0)</p>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">select</span>( d, <span class="fu">all_of</span>( new.order ) )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+<section id="impute-missing-values" class="level2" data-number="1.3">
+<h2 data-number="1.3" class="anchored" data-anchor-id="impute-missing-values"><span class="header-section-number">1.3</span> Impute Missing Values</h2>
+<section id="private-foundations" class="level3" data-number="1.3.1">
+<h3 data-number="1.3.1" class="anchored" data-anchor-id="private-foundations"><span class="header-section-number">1.3.1</span> Private Foundations</h3>
+<p>Private foundations have 501C Status of 501C_03 or 501C_92.</p>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>V1 <span class="ot">&lt;-</span> d<span class="sc">$</span>ORG_TYPE_501C</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>V2 <span class="ot">&lt;-</span> d<span class="sc">$</span>BMF_PF_FILING_REQ_CODE</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="fu">table</span>( V1, V2, <span class="at">useNA=</span><span class="st">"ifany"</span> ) <span class="sc">%&gt;%</span> <span class="fu">kable</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<pre><code>|        | NON-PF (0)| OPERATING PF (1)| NON-OPERATING PF (2)| NON-OPERATING PF (3)|     NA|
+|:-------|----------:|----------------:|--------------------:|--------------------:|------:|
+|501C_00 |         27|                0|                    0|                    0|    226|
+|501C_01 |        709|                0|                    0|                    0|     91|
+|501C_02 |       4295|                0|                    0|                    0|   5386|
+|501C_03 |    1452651|           144762|                   20|                  237| 905717|
+|501C_04 |      75102|                0|                    0|                    0| 112333|
+|501C_05 |      45202|                0|                    0|                    0|  46128|
+|501C_06 |      61227|                0|                    0|                    0|  57316|
+|501C_07 |      48675|                0|                    0|                    0|  48116|
+|501C_08 |      38539|                0|                    0|                    0|  72095|
+|501C_09 |       5587|                0|                    0|                    0|  13978|
+|501C_10 |      15446|                0|                    0|                    0|  14302|
+|501C_11 |          6|                0|                    0|                    0|      6|
+|501C_12 |       5449|                0|                    0|                    0|   2770|
+|501C_13 |       9692|                0|                    0|                    0|   4235|
+|501C_14 |       1529|                0|                    0|                    0|   4136|
+|501C_15 |        623|                0|                    0|                    0|   1849|
+|501C_16 |         11|                0|                    0|                    0|     16|
+|501C_17 |         87|                0|                    0|                    0|    541|
+|501C_18 |          3|                0|                    0|                    0|      3|
+|501C_19 |      26908|                0|                    0|                    0|  30852|
+|501C_20 |          1|                0|                    0|                    0|     64|
+|501C_21 |          2|                0|                    0|                    0|     28|
+|501C_23 |          2|                0|                    0|                    0|      1|
+|501C_24 |          0|                0|                    0|                    0|      2|
+|501C_25 |        594|                0|                    0|                    0|   2186|
+|501C_26 |          5|                0|                    0|                    0|      6|
+|501C_27 |         14|                0|                    0|                    0|      4|
+|501C_29 |         15|                0|                    0|                    0|      8|
+|501C_40 |        220|                0|                    0|                    0|     30|
+|501C_50 |          4|                1|                    0|                    0|     25|
+|501C_70 |          0|                0|                    0|                    0|      1|
+|501C_71 |          1|                0|                    0|                    0|      0|
+|501C_80 |          0|                0|                    0|                    0|   1383|
+|501C_81 |          1|                0|                    0|                    0|      0|
+|501C_82 |         11|                0|                    0|                    0|     18|
+|501C_90 |          0|                0|                    0|                    0|    790|
+|501C_91 |        666|                1|                    0|                    0|    695|
+|501C_92 |        140|             5894|                    1|                    0|   3493|
+|501C_93 |          0|                0|                    0|                    0|   2440|
+|NA      |          0|                0|                    0|                    0| 187369|</code></pre>
+<p>The rest of the cases can be imputed as non-PFs. Note BMF_PF_FILING_REQ_CODE is labeled below, it is currently 0-4.</p>
+<p>Before:</p>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">fable</span>( d<span class="sc">$</span>ORG_TYPE_PF, <span class="at">p=</span>T )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<table class="table">
+<thead>
+<tr class="header">
+<th style="text-align: right;">ORG_TYPE_PF</th>
+<th style="text-align: right;">Freq</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.518</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">0.439</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0.044</td>
+</tr>
+</tbody>
+</table>
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">fable</span>( d<span class="sc">$</span>BMF_PF_FILING_REQ_CODE, <span class="at">p=</span>T )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<table class="table">
+<thead>
+<tr class="header">
+<th style="text-align: right;">BMF_PF_FILING_REQ_CODE</th>
+<th style="text-align: right;">Freq</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.518</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">0.439</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0.044</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">0.000</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">0.000</td>
+</tr>
+</tbody>
+</table>
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>RULE1 <span class="ot">&lt;-</span> d<span class="sc">$</span>ORG_TYPE_501C <span class="sc">==</span> <span class="st">"501C_03"</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>RULE2 <span class="ot">&lt;-</span> d<span class="sc">$</span>ORG_TYPE_501C <span class="sc">==</span> <span class="st">"501C_92"</span> </span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>not.a.pf <span class="ot">&lt;-</span> <span class="sc">!</span> ( RULE1 <span class="sc">|</span> RULE2 )</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>ORG_TYPE_PF[  not.a.pf ]            <span class="ot">&lt;-</span> <span class="dv">0</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>BMF_PF_FILING_REQ_CODE[ not.a.pf  ] <span class="ot">&lt;-</span> <span class="dv">0</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>After:</p>
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">fable</span>( d<span class="sc">$</span>ORG_TYPE_PF, <span class="at">p=</span>T )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<table class="table">
+<thead>
+<tr class="header">
+<th style="text-align: right;">ORG_TYPE_PF</th>
+<th style="text-align: right;">Freq</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.640</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">0.317</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0.044</td>
+</tr>
+</tbody>
+</table>
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">fable</span>( d<span class="sc">$</span>BMF_PF_FILING_REQ_CODE, <span class="at">p=</span>T )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<table class="table">
+<thead>
+<tr class="header">
+<th style="text-align: right;">BMF_PF_FILING_REQ_CODE</th>
+<th style="text-align: right;">Freq</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0.640</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">0.317</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0.044</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">0.000</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">0.000</td>
+</tr>
+</tbody>
+</table>
+<br>
+<hr>
+<p><br></p>
+</section>
+</section>
+<section id="add-labels-to-factors" class="level2" data-number="1.4">
+<h2 data-number="1.4" class="anchored" data-anchor-id="add-labels-to-factors"><span class="header-section-number">1.4</span> Add Labels to Factors</h2>
+<section id="org_fiscal_period" class="level3" data-number="1.4.1">
+<h3 data-number="1.4.1" class="anchored" data-anchor-id="org_fiscal_period"><span class="header-section-number">1.4.1</span> ORG_FISCAL_PERIOD</h3>
+<pre><code>| code|labels   |
+|----:|:--------|
+|    1|JAN (01) |
+|    2|FEB (02) |
+|    3|MAR (03) |
+|    4|APR (04) |
+|    5|MAY (05) |
+|    6|JUN (06) |
+|    7|JUL (07) |
+|    8|AUG (08) |
+|    9|SEP (09) |
+|   10|OCT (10) |
+|   11|NOV (11) |
+|   12|DEC (12) |</code></pre>
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="do">###</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="do">###   ORG_FISCAL_PERIOD</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="do">###</span></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>ORG_FISCAL_PERIOD <span class="ot">&lt;-</span> </span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">factor</span>( d<span class="sc">$</span>ORG_FISCAL_PERIOD,</span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>          <span class="at">levels=</span> fiscal.codes<span class="sc">$</span>code,</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>          <span class="at">labels=</span> fiscal.codes<span class="sc">$</span>label  )</span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a><span class="fu">fable</span>( d<span class="sc">$</span>ORG_FISCAL_PERIOD )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<table class="table">
+<thead>
+<tr class="header">
+<th style="text-align: right;">ORG_FISCAL_PERIOD</th>
+<th style="text-align: right;">Freq</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">JAN (01)</td>
+<td style="text-align: right;">258,398</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">FEB (02)</td>
+<td style="text-align: right;">252,643</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">MAR (03)</td>
+<td style="text-align: right;">312,381</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">APR (04)</td>
+<td style="text-align: right;">269,016</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">MAY (05)</td>
+<td style="text-align: right;">288,255</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">JUN (06)</td>
+<td style="text-align: right;">478,666</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">JUL (07)</td>
+<td style="text-align: right;">267,541</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">AUG (08)</td>
+<td style="text-align: right;">289,599</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">SEP (09)</td>
+<td style="text-align: right;">297,430</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">OCT (10)</td>
+<td style="text-align: right;">279,988</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">NOV (11)</td>
+<td style="text-align: right;">237,079</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">DEC (12)</td>
+<td style="text-align: right;">232,002</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">1</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="bmf_status_code" class="level3" data-number="1.4.2">
+<h3 data-number="1.4.2" class="anchored" data-anchor-id="bmf_status_code"><span class="header-section-number">1.4.2</span> BMF_STATUS_CODE</h3>
+<pre><code>|code |label                        |
+|:----|:----------------------------|
+|1    |Unconditional Exemption (01) |
+|2    |Conditional Exemption (02)   |
+|12   |Trust (12)                   |
+|25   |Split Interest Trust (25)    |</code></pre>
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="do">###</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="do">###   BMF_STATUS_CODE</span></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="do">###</span></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>BMF_STATUS_CODE <span class="ot">&lt;-</span> </span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">factor</span>( d<span class="sc">$</span>BMF_STATUS_CODE,</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>          <span class="at">levels=</span>status<span class="sc">$</span>code,</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>          <span class="at">labels=</span>status<span class="sc">$</span>label )</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a><span class="fu">fable</span>( d<span class="sc">$</span>BMF_STATUS_CODE )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<table class="table">
+<thead>
+<tr class="header">
+<th style="text-align: right;">BMF_STATUS_CODE</th>
+<th style="text-align: right;">Freq</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">Unconditional Exemption (01)</td>
+<td style="text-align: right;">1,935,874</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">Conditional Exemption (02)</td>
+<td style="text-align: right;">662</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">Trust (12)</td>
+<td style="text-align: right;">6,925</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">Split Interest Trust (25)</td>
+<td style="text-align: right;">899</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">1,518,639</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="bmf_affiliation_code" class="level3" data-number="1.4.3">
+<h3 data-number="1.4.3" class="anchored" data-anchor-id="bmf_affiliation_code"><span class="header-section-number">1.4.3</span> BMF_AFFILIATION_CODE</h3>
+<pre><code>| code|role           |affiliation       |label                        |
+|----:|:--------------|:-----------------|:----------------------------|
+|    3|INDEPENDENT    |NONE              |INDEPENDENT (3)              |
+|    1|PARENT         |NETWORK           |NETWORK-PARENT (1)           |
+|    2|INTERMEDIATE   |NETWORK           |NETWORK-INTERM (2)           |
+|    6|PARENT-REGULAR |GROUP-EXM         |GROUP-EXM-PARENT-REGULAR (6) |
+|    8|PARENT-CHURCH  |GROUP-EXM         |GROUP-EXM-PARENT-CHURCH (8)  |
+|    7|INTERMEDIATE   |GROUP-EXM         |GROUP-EXM-INTERM (7)         |
+|    9|SUBORDINATE    |GROUP-EXM/NETWORK |SUBORDINATE (9)              |</code></pre>
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="do">###</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="do">###   BMF_AFFILIATION_CODE</span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a><span class="do">###</span></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>BMF_AFFILIATION_CODE[ d<span class="sc">$</span>BMF_GROUP_EXEMPT_NUM <span class="sc">==</span> <span class="dv">0</span> ] <span class="ot">&lt;-</span> <span class="dv">3</span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>BMF_AFFILIATION_CODE <span class="ot">&lt;-</span> </span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">factor</span>( </span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>    d<span class="sc">$</span>BMF_AFFILIATION_CODE, </span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">levels=</span> aff.codes<span class="sc">$</span>code,</span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">labels=</span> aff.codes<span class="sc">$</span>label )</span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a><span class="fu">fable</span>( d<span class="sc">$</span>BMF_AFFILIATION_CODE )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<table class="table">
+<thead>
+<tr class="header">
+<th style="text-align: right;">BMF_AFFILIATION_CODE</th>
+<th style="text-align: right;">Freq</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">INDEPENDENT (3)</td>
+<td style="text-align: right;">2,045,260</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">NETWORK-PARENT (1)</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">NETWORK-INTERM (2)</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">GROUP-EXM-PARENT-REGULAR (6)</td>
+<td style="text-align: right;">3,378</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">GROUP-EXM-INTERM (7)</td>
+<td style="text-align: right;">99</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">GROUP-EXM-PARENT-CHURCH (8)</td>
+<td style="text-align: right;">713</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">SUBORDINATE (9)</td>
+<td style="text-align: right;">428,691</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">984,858</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="bmf_deductibility_code" class="level3" data-number="1.4.4">
+<h3 data-number="1.4.4" class="anchored" data-anchor-id="bmf_deductibility_code"><span class="header-section-number">1.4.4</span> BMF_DEDUCTIBILITY_CODE</h3>
+<pre><code># | code|label        |desc                                                           |
+# |----:|:------------|:--------------------------------------------------------------|
+# |    0|UDC (0)      |Undocumented category                                          |
+# |    1|YES (1)      |Contributions are deductible                                   |
+# |    2|NO (2)       |Contributions are not deductible                               |
+# |    4|BY TREATY(4) |Contributions are deductible by treaty (foreign organizations) |</code></pre>
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="do">###</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="do">###   BMF_DEDUCTIBILITY_CODE</span></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a><span class="do">###</span></span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>BMF_DEDUCTIBILITY_CODE <span class="ot">&lt;-</span> </span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">factor</span>( d<span class="sc">$</span>BMF_DEDUCTIBILITY_CODE,</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>          <span class="at">levels=</span>deduct<span class="sc">$</span>code,</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>          <span class="at">labels=</span>deduct<span class="sc">$</span>label )</span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a><span class="fu">fable</span>( d<span class="sc">$</span>BMF_DEDUCTIBILITY_CODE )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<table class="table">
+<thead>
+<tr class="header">
+<th style="text-align: right;">BMF_DEDUCTIBILITY_CODE</th>
+<th style="text-align: right;">Freq</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">UDC (0)</td>
+<td style="text-align: right;">35,116</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">YES (1)</td>
+<td style="text-align: right;">1,658,772</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">NO (2)</td>
+<td style="text-align: right;">249,920</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">BY TREATY(4)</td>
+<td style="text-align: right;">552</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">1,518,639</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="bmf_asset_level-bmf_income_level" class="level3" data-number="1.4.5">
+<h3 data-number="1.4.5" class="anchored" data-anchor-id="bmf_asset_level-bmf_income_level"><span class="header-section-number">1.4.5</span> BMF_ASSET_LEVEL &amp; BMF_INCOME_LEVEL</h3>
+<pre><code># | code|label          |
+# |----:|:--------------|
+# |    0|$0             |
+# |    1|$1 to $10k     |
+# |    2|$10k to $25k   |
+# |    3|$25k to $100k  |
+# |    4|$100k to $500k |
+# |    5|$500k to $1m   |
+# |    6|$1m to $5m     |
+# |    7|$5m to $10m    |
+# |    8|$10m to $50m   |
+# |    9|$50m +         |</code></pre>
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="do">###</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="do">###   BMF_ASSET_LEVEL</span></span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a><span class="do">###   BMF_INCOME_LEVEL</span></span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a><span class="do">###</span></span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>BMF_ASSET_LEVEL <span class="ot">&lt;-</span></span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">factor</span>( d<span class="sc">$</span>BMF_ASSET_LEVEL,</span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a>          <span class="at">levels=</span>asset.level<span class="sc">$</span>code,</span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a>          <span class="at">labels=</span>asset.level<span class="sc">$</span>label )</span>
+<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a><span class="fu">fable</span>( d<span class="sc">$</span>BMF_ASSET_LEVEL )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<table class="table">
+<thead>
+<tr class="header">
+<th style="text-align: right;">BMF_ASSET_LEVEL</th>
+<th style="text-align: right;">Freq</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">$0</td>
+<td style="text-align: right;">1,244,763</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">$1 to $10k</td>
+<td style="text-align: right;">76,640</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">$10k to $25k</td>
+<td style="text-align: right;">41,754</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">$25k to $100k</td>
+<td style="text-align: right;">119,700</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">$100k to $500k</td>
+<td style="text-align: right;">184,359</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">$500k to $1m</td>
+<td style="text-align: right;">73,462</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">$1m to $5m</td>
+<td style="text-align: right;">117,695</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">$5m to $10m</td>
+<td style="text-align: right;">30,400</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">$10m to $50m</td>
+<td style="text-align: right;">38,176</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">$50m +</td>
+<td style="text-align: right;">17,411</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">1,518,639</td>
+</tr>
+</tbody>
+</table>
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>BMF_INCOME_LEVEL <span class="ot">&lt;-</span></span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">factor</span>( d<span class="sc">$</span>BMF_INCOME_LEVEL,</span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>          <span class="at">levels=</span>asset.level<span class="sc">$</span>code,</span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>          <span class="at">labels=</span>asset.level<span class="sc">$</span>label )</span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a><span class="fu">fable</span>( d<span class="sc">$</span>BMF_INCOME_LEVEL )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<table class="table">
+<thead>
+<tr class="header">
+<th style="text-align: right;">BMF_INCOME_LEVEL</th>
+<th style="text-align: right;">Freq</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">$0</td>
+<td style="text-align: right;">1,255,152</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">$1 to $10k</td>
+<td style="text-align: right;">59,235</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">$10k to $25k</td>
+<td style="text-align: right;">34,339</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">$25k to $100k</td>
+<td style="text-align: right;">149,334</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">$100k to $500k</td>
+<td style="text-align: right;">226,771</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">$500k to $1m</td>
+<td style="text-align: right;">66,600</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">$1m to $5m</td>
+<td style="text-align: right;">93,266</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">$5m to $10m</td>
+<td style="text-align: right;">22,367</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">$10m to $50m</td>
+<td style="text-align: right;">26,713</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">$50m +</td>
+<td style="text-align: right;">10,583</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">1,518,639</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="org_corp_form" class="level3" data-number="1.4.6">
+<h3 data-number="1.4.6" class="anchored" data-anchor-id="org_corp_form"><span class="header-section-number">1.4.6</span> ORG_CORP_FORM</h3>
+<pre><code>#  | code|label           |
+#  |----:|:---------------|
+#  |    0|UDC (0)         |
+#  |    1|CORPORATION (1) |
+#  |    2|TRUST (2)       |
+#  |    3|COOPERATIVE (3) |
+#  |    4|PARTNERSHIP (4) |
+#  |    5|ASSOCIATION (5) |
+#  |    6|UDC (6)         |</code></pre>
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="do">#########</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a><span class="do">#########   ORG_CORP_FORM</span></span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a><span class="do">#########</span></span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>ORG_CORP_FORM <span class="ot">&lt;-</span> </span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">factor</span>( d<span class="sc">$</span>ORG_CORP_FORM,</span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>          <span class="at">levels=</span>corp<span class="sc">$</span>code,</span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>          <span class="at">labels=</span>corp<span class="sc">$</span>label )</span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a><span class="fu">fable</span>( d<span class="sc">$</span>ORG_CORP_FORM )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<table class="table">
+<thead>
+<tr class="header">
+<th style="text-align: right;">ORG_CORP_FORM</th>
+<th style="text-align: right;">Freq</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">UDC (0)</td>
+<td style="text-align: right;">10,478</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">CORPORATION (1)</td>
+<td style="text-align: right;">1,582,603</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">TRUST (2)</td>
+<td style="text-align: right;">60,422</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">COOPERATIVE (3)</td>
+<td style="text-align: right;">2,052</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">PARTNERSHIP (4)</td>
+<td style="text-align: right;">129</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">ASSOCIATION (5)</td>
+<td style="text-align: right;">484,774</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">UDC (6)</td>
+<td style="text-align: right;">2,885</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">1,319,656</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="bmf_foundation_code" class="level3" data-number="1.4.7">
+<h3 data-number="1.4.7" class="anchored" data-anchor-id="bmf_foundation_code"><span class="header-section-number">1.4.7</span> BMF_FOUNDATION_CODE</h3>
+<pre><code># | code|label                            |
+# |----:|:--------------------------------|
+# |    0|501C_not_3 (0)                   |
+# |    2|priv op foundation (2)           |
+# |    3|priv op foundation (other) (3)   |
+# |    4|priv non-op foundation (4)       |
+# |    9|status suspended (9)             |
+# |   10|church (10)                      |
+# |   11|school (11)                      |
+# |   12|hospital/ med research (12)      |
+# |   13|public university support (13)   |
+# |   14|governmental unit (14)           |
+# |   15|gov or public support (15)       |
+# |   16|one-third investment or ubi (16) |
+# |   17|subsidiary (17)                  |
+# |   18|public safety (18)               |
+# |   21|supporting org type1 (21)        |
+# |   22|supporting org type2 (22)        |
+# |   23|supporting org type3 (23)        |
+# |   24|supporting org type3 nfi (24)    |</code></pre>
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="do">###</span></span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a><span class="do">###   BMF_FOUNDATION_CODE</span></span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a><span class="do">###</span></span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>BMF_FOUNDATION_CODE <span class="ot">&lt;-</span> </span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">factor</span>( d<span class="sc">$</span>BMF_FOUNDATION_CODE, </span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>          <span class="at">levels=</span>fnd<span class="sc">$</span>code,</span>
+<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a>          <span class="at">labels=</span>fnd<span class="sc">$</span>label )</span>
+<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a><span class="fu">fable</span>( d<span class="sc">$</span>BMF_FOUNDATION_CODE )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<table class="table">
+<thead>
+<tr class="header">
+<th style="text-align: right;">BMF_FOUNDATION_CODE</th>
+<th style="text-align: right;">Freq</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">501C_not_3 (0)</td>
+<td style="text-align: right;">766,790</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">priv op foundation (2)</td>
+<td style="text-align: right;">518</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">priv op foundation (other) (3)</td>
+<td style="text-align: right;">13,215</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">priv non-op foundation (4)</td>
+<td style="text-align: right;">234,457</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">status suspended (9)</td>
+<td style="text-align: right;">2,348</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">church (10)</td>
+<td style="text-align: right;">315,158</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">school (11)</td>
+<td style="text-align: right;">38,545</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">hospital/ med research (12)</td>
+<td style="text-align: right;">10,220</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">public university support (13)</td>
+<td style="text-align: right;">2,697</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">governmental unit (14)</td>
+<td style="text-align: right;">527</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">gov or public support (15)</td>
+<td style="text-align: right;">1,086,466</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">one-third investment or ubi (16)</td>
+<td style="text-align: right;">680,048</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">subsidiary (17)</td>
+<td style="text-align: right;">33,274</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">public safety (18)</td>
+<td style="text-align: right;">102</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">supporting org type1 (21)</td>
+<td style="text-align: right;">5,211</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">supporting org type2 (22)</td>
+<td style="text-align: right;">1,122</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">supporting org type3 (23)</td>
+<td style="text-align: right;">804</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">supporting org type3 nfi (24)</td>
+<td style="text-align: right;">300</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">271,197</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="nccs_level_1" class="level3" data-number="1.4.8">
+<h3 data-number="1.4.8" class="anchored" data-anchor-id="nccs_level_1"><span class="header-section-number">1.4.8</span> NCCS_LEVEL_1</h3>
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="do">###</span></span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a><span class="do">###   NCCS_LEVEL_1</span></span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a><span class="do">###</span></span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>NCCS_LEVEL_1 <span class="ot">&lt;-</span> </span>
+<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">factor</span>( d<span class="sc">$</span>NCCS_LEVEL_1,</span>
+<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a>          <span class="at">levels=</span>L1.levels,</span>
+<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a>          <span class="at">labels=</span>L1.labels )</span>
+<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a><span class="fu">fable</span>( d<span class="sc">$</span>NCCS_LEVEL_1 )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<table class="table">
+<thead>
+<tr class="header">
+<th style="text-align: right;">NCCS_LEVEL_1</th>
+<th style="text-align: right;">Freq</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">NONPROFIT (501C_not3)</td>
+<td style="text-align: right;">953,649</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">CHARITY (501C3)</td>
+<td style="text-align: right;">2,247,977</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">PRIVATE FOUNDATION (501C3-PF)</td>
+<td style="text-align: right;">252,928</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">UNDEFINED</td>
+<td style="text-align: right;">8,428</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">17</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="nccs_level_2" class="level3" data-number="1.4.9">
+<h3 data-number="1.4.9" class="anchored" data-anchor-id="nccs_level_2"><span class="header-section-number">1.4.9</span> NCCS_LEVEL_2</h3>
+<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="do">###</span></span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a><span class="do">###   NCCS_LEVEL_2</span></span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a><span class="do">###</span></span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>NCCS_LEVEL_2 <span class="ot">&lt;-</span> </span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">factor</span>( d<span class="sc">$</span>NCCS_LEVEL_2,</span>
+<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a>          <span class="at">levels=</span>L2.levels,</span>
+<span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a>          <span class="at">labels=</span>L2.labels )</span>
+<span id="cb30-9"><a href="#cb30-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-10"><a href="#cb30-10" aria-hidden="true" tabindex="-1"></a><span class="fu">fable</span>( d<span class="sc">$</span>NCCS_LEVEL_2 )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<table class="table">
+<thead>
+<tr class="header">
+<th style="text-align: right;">NCCS_LEVEL_2</th>
+<th style="text-align: right;">Freq</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">OPERATING (O)</td>
+<td style="text-align: right;">2,865,354</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">SUPPORTING (S)</td>
+<td style="text-align: right;">468,038</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">MUTUAL/MEMBER (M)</td>
+<td style="text-align: right;">129,590</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">17</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="nccs_level_3" class="level3" data-number="1.4.10">
+<h3 data-number="1.4.10" class="anchored" data-anchor-id="nccs_level_3"><span class="header-section-number">1.4.10</span> NCCS_LEVEL_3</h3>
+<pre><code>|code |label                                   |
+|:----|:---------------------------------------|
+|AR   |Arts, culture and humanities(AR)        |
+|ED   |Education(ED)                           |
+|EN   |Environment/animals(EN)                 |
+|HE   |Health(HE)                              |
+|HS   |Human Services(HS)                      |
+|IN   |International, foreign affairs(IN)      |
+|MO   |Other mutual benefit(MO)                |
+|MR   |Pension and retirement funds(MR)        |
+|PB   |Public, societal benefit(PB)            |
+|RE   |Religion related(RE)                    |
+|UN   |Unknown, unclassified(UN)               |
+|ZA   |Single organization support(ZA)         |
+|ZB   |Fundraising within NTEE major group(ZB) |
+|ZC   |Private grantmaking foundations(ZC)     |
+|ZD   |Public foundations(ZD)                  |
+|ZE   |General fundraising(ZE)                 |
+|ZF   |Other Supporting Public Benefit(ZF)     |</code></pre>
+<div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="do">###</span></span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a><span class="do">###   NCCS_LEVEL_3</span></span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a><span class="do">###</span></span>
+<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>NCCS_LEVEL_3[ d<span class="sc">$</span>NCCS_LEVEL_3 <span class="sc">==</span> <span class="st">"-"</span> ] <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>NCCS_LEVEL_3[ d<span class="sc">$</span>NCCS_LEVEL_3 <span class="sc">==</span> <span class="st">""</span>  ] <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb32-7"><a href="#cb32-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-8"><a href="#cb32-8" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>NCCS_LEVEL_3 <span class="ot">&lt;-</span> </span>
+<span id="cb32-9"><a href="#cb32-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">factor</span>( d<span class="sc">$</span>NCCS_LEVEL_3,</span>
+<span id="cb32-10"><a href="#cb32-10" aria-hidden="true" tabindex="-1"></a>          <span class="at">levels=</span> level3.codes<span class="sc">$</span>code,</span>
+<span id="cb32-11"><a href="#cb32-11" aria-hidden="true" tabindex="-1"></a>          <span class="at">labels=</span> level3.codes<span class="sc">$</span>label )</span>
+<span id="cb32-12"><a href="#cb32-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-13"><a href="#cb32-13" aria-hidden="true" tabindex="-1"></a><span class="fu">fable</span>( d<span class="sc">$</span>NCCS_LEVEL_3 )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<table class="table">
+<thead>
+<tr class="header">
+<th style="text-align: right;">NCCS_LEVEL_3</th>
+<th style="text-align: right;">Freq</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">Arts, culture and humanities(AR)</td>
+<td style="text-align: right;">243,094</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">Education(ED)</td>
+<td style="text-align: right;">398,845</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">Environment/animals(EN)</td>
+<td style="text-align: right;">118,606</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">Health(HE)</td>
+<td style="text-align: right;">198,935</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">Human Services(HS)</td>
+<td style="text-align: right;">904,014</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">International, foreign affairs(IN)</td>
+<td style="text-align: right;">42,230</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">Other mutual benefit(MO)</td>
+<td style="text-align: right;">70,057</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">Pension and retirement funds(MR)</td>
+<td style="text-align: right;">289</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">Public, societal benefit(PB)</td>
+<td style="text-align: right;">477,413</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">Religion related(RE)</td>
+<td style="text-align: right;">406,963</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">Unknown, unclassified(UN)</td>
+<td style="text-align: right;">167,378</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">Single organization support(ZA)</td>
+<td style="text-align: right;">47,232</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">Fundraising within NTEE major group(ZB)</td>
+<td style="text-align: right;">21,291</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">Private grantmaking foundations(ZC)</td>
+<td style="text-align: right;">143,992</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">Public foundations(ZD)</td>
+<td style="text-align: right;">26,788</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">General fundraising(ZE)</td>
+<td style="text-align: right;">6,358</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">Other Supporting Public Benefit(ZF)</td>
+<td style="text-align: right;">140,162</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">49,352</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="c-types" class="level2" data-number="1.5">
+<h2 data-number="1.5" class="anchored" data-anchor-id="c-types"><span class="header-section-number">1.5</span> 501C Types</h2>
+<p>Do we need to reconcile IRS and NCCS dictionaries while incorporating new waves of BMF files?</p>
+<pre><code>|ORG_TYPE_501C |      Freq|
+|:-------------|---------:|
+|501C_00       |       253|
+|501C_01       |       800|
+|501C_02       |     9,681|
+|501C_03       | 2,503,387|
+|501C_04       |   187,435|
+|501C_05       |    91,330|
+|501C_06       |   118,543|
+|501C_07       |    96,791|
+|501C_08       |   110,634|
+|501C_09       |    19,565|
+|501C_10       |    29,748|
+|501C_11       |        12|
+|501C_12       |     8,219|
+|501C_13       |    13,927|
+|501C_14       |     5,665|
+|501C_15       |     2,472|
+|501C_16       |        27|
+|501C_17       |       628|
+|501C_18       |         6|
+|501C_19       |    57,760|
+|501C_20       |        65|
+|501C_21       |        30|
+|501C_23       |         3|
+|501C_24       |         2|
+|501C_25       |     2,780|
+|501C_26       |        11|
+|501C_27       |        18|
+|501C_29       |        23|
+|501C_40       |       250|
+|501C_50       |        30|
+|501C_70       |         1|
+|501C_71       |         1|
+|501C_80       |     1,383|  # missing from IRS
+|501C_81       |         1|
+|501C_82       |        29|  # missing from IRS
+|501C_90       |       790|  # missing from IRS
+|501C_91       |     1,362|  # missing from IRS
+|501C_92       |     9,528|  # different from IRS ?
+|501C_93       |     2,440|  # missing from IRS
+|NA            |   187,369|</code></pre>
+<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="do">##########</span></span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a><span class="do">##########   FROM BMF DOCUMENTATION </span></span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a><span class="do">##########</span></span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a>TABLE OF EO SUBSECTION AND CLASSIFICATION CODES</span>
+<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a>Subsection Classification Description</span>
+<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a>Code Code</span>
+<span id="cb34-9"><a href="#cb34-9" aria-hidden="true" tabindex="-1"></a><span class="dv">01</span> <span class="dv">1</span> Government Instrumentality</span>
+<span id="cb34-10"><a href="#cb34-10" aria-hidden="true" tabindex="-1"></a><span class="dv">02</span> <span class="dv">1</span> Title<span class="sc">-</span>Holding Corporation</span>
+<span id="cb34-11"><a href="#cb34-11" aria-hidden="true" tabindex="-1"></a><span class="dv">03</span> <span class="dv">1</span> Charitable Organization</span>
+<span id="cb34-12"><a href="#cb34-12" aria-hidden="true" tabindex="-1"></a><span class="dv">03</span> <span class="dv">2</span> Educational Organization</span>
+<span id="cb34-13"><a href="#cb34-13" aria-hidden="true" tabindex="-1"></a><span class="dv">03</span> <span class="dv">3</span> Literary Organization</span>
+<span id="cb34-14"><a href="#cb34-14" aria-hidden="true" tabindex="-1"></a><span class="dv">03</span> <span class="dv">4</span> Organization to Prevent Cruelty to Animals</span>
+<span id="cb34-15"><a href="#cb34-15" aria-hidden="true" tabindex="-1"></a><span class="dv">03</span> <span class="dv">5</span> Organization to Prevent Cruelty to Children</span>
+<span id="cb34-16"><a href="#cb34-16" aria-hidden="true" tabindex="-1"></a><span class="dv">03</span> <span class="dv">6</span> Organization <span class="cf">for</span> Public Safety Testing</span>
+<span id="cb34-17"><a href="#cb34-17" aria-hidden="true" tabindex="-1"></a><span class="dv">03</span> <span class="dv">7</span> Religious Organization</span>
+<span id="cb34-18"><a href="#cb34-18" aria-hidden="true" tabindex="-1"></a><span class="dv">03</span> <span class="dv">8</span> Scientific Organization</span>
+<span id="cb34-19"><a href="#cb34-19" aria-hidden="true" tabindex="-1"></a><span class="dv">04</span> <span class="dv">1</span> Civic League</span>
+<span id="cb34-20"><a href="#cb34-20" aria-hidden="true" tabindex="-1"></a><span class="dv">04</span> <span class="dv">2</span> Local Association of Employees</span>
+<span id="cb34-21"><a href="#cb34-21" aria-hidden="true" tabindex="-1"></a><span class="dv">04</span> <span class="dv">3</span> Social Welfare Organization</span>
+<span id="cb34-22"><a href="#cb34-22" aria-hidden="true" tabindex="-1"></a><span class="dv">05</span> <span class="dv">1</span> Agricultural Organization</span>
+<span id="cb34-23"><a href="#cb34-23" aria-hidden="true" tabindex="-1"></a><span class="dv">05</span> <span class="dv">2</span> Horticultural Organization</span>
+<span id="cb34-24"><a href="#cb34-24" aria-hidden="true" tabindex="-1"></a><span class="dv">05</span> <span class="dv">3</span> Labor Organization</span>
+<span id="cb34-25"><a href="#cb34-25" aria-hidden="true" tabindex="-1"></a><span class="dv">06</span> <span class="dv">1</span> Board of Trade</span>
+<span id="cb34-26"><a href="#cb34-26" aria-hidden="true" tabindex="-1"></a><span class="dv">06</span> <span class="dv">2</span> Business League</span>
+<span id="cb34-27"><a href="#cb34-27" aria-hidden="true" tabindex="-1"></a><span class="dv">06</span> <span class="dv">3</span> Chamber of Commerce</span>
+<span id="cb34-28"><a href="#cb34-28" aria-hidden="true" tabindex="-1"></a><span class="dv">06</span> <span class="dv">4</span> Real Estate Board</span>
+<span id="cb34-29"><a href="#cb34-29" aria-hidden="true" tabindex="-1"></a><span class="dv">07</span> <span class="dv">1</span> Pleasure, Recreational, or Social Club</span>
+<span id="cb34-30"><a href="#cb34-30" aria-hidden="true" tabindex="-1"></a><span class="dv">08</span> <span class="dv">1</span> Fraternal Beneficiary Society, Order or Association</span>
+<span id="cb34-31"><a href="#cb34-31" aria-hidden="true" tabindex="-1"></a><span class="dv">09</span> <span class="dv">1</span> Voluntary Employees<span class="st">' Beneficiary Association (Non-Govt. Emps.)</span></span>
+<span id="cb34-32"><a href="#cb34-32" aria-hidden="true" tabindex="-1"></a><span class="st">09 2 Voluntary Employees'</span> Beneficiary <span class="fu">Association</span> (Govt. Emps.)</span>
+<span id="cb34-33"><a href="#cb34-33" aria-hidden="true" tabindex="-1"></a><span class="dv">10</span> <span class="dv">1</span> Domestic Fraternal Societies and Associations</span>
+<span id="cb34-34"><a href="#cb34-34" aria-hidden="true" tabindex="-1"></a><span class="dv">11</span> <span class="dv">1</span> Teachers Retirement Fund Assoc.</span>
+<span id="cb34-35"><a href="#cb34-35" aria-hidden="true" tabindex="-1"></a><span class="dv">12</span> <span class="dv">1</span> Benevolent Life Insurance Assoc.</span>
+<span id="cb34-36"><a href="#cb34-36" aria-hidden="true" tabindex="-1"></a><span class="dv">12</span> <span class="dv">2</span> Mutual Ditch or Irrigation Co.</span>
+<span id="cb34-37"><a href="#cb34-37" aria-hidden="true" tabindex="-1"></a><span class="dv">12</span> <span class="dv">3</span> Mutual Cooperative Telephone Co.</span>
+<span id="cb34-38"><a href="#cb34-38" aria-hidden="true" tabindex="-1"></a><span class="dv">12</span> <span class="dv">4</span> Organization Like Those on Three Preceding Lines</span>
+<span id="cb34-39"><a href="#cb34-39" aria-hidden="true" tabindex="-1"></a><span class="dv">13</span> <span class="dv">1</span> Burial Association</span>
+<span id="cb34-40"><a href="#cb34-40" aria-hidden="true" tabindex="-1"></a><span class="dv">13</span> <span class="dv">2</span> Cemetery Company</span>
+<span id="cb34-41"><a href="#cb34-41" aria-hidden="true" tabindex="-1"></a><span class="dv">14</span> <span class="dv">1</span> Credit Union</span>
+<span id="cb34-42"><a href="#cb34-42" aria-hidden="true" tabindex="-1"></a><span class="dv">14</span> <span class="dv">2</span> Other Mutual Corp. or Assoc.</span>
+<span id="cb34-43"><a href="#cb34-43" aria-hidden="true" tabindex="-1"></a><span class="dv">15</span> <span class="dv">1</span> Mutual Insurance Company or Assoc. Other Than Life or Marine</span>
+<span id="cb34-44"><a href="#cb34-44" aria-hidden="true" tabindex="-1"></a><span class="dv">16</span> <span class="dv">1</span> Corp. Financing Crop Operations</span>
+<span id="cb34-45"><a href="#cb34-45" aria-hidden="true" tabindex="-1"></a><span class="dv">17</span> <span class="dv">1</span> Supplemental Unemployment Compensation Trust or Plan</span>
+<span id="cb34-46"><a href="#cb34-46" aria-hidden="true" tabindex="-1"></a><span class="dv">18</span> <span class="dv">1</span> Employee Funded Pension <span class="fu">Trust</span> (Created Before <span class="dv">6</span><span class="sc">/</span><span class="dv">25</span><span class="sc">/</span><span class="dv">59</span>)</span>
+<span id="cb34-47"><a href="#cb34-47" aria-hidden="true" tabindex="-1"></a><span class="dv">19</span> <span class="dv">1</span> Post or Organization of War Veterans</span>
+<span id="cb34-48"><a href="#cb34-48" aria-hidden="true" tabindex="-1"></a><span class="dv">20</span> <span class="dv">1</span> Legal Service Organization</span>
+<span id="cb34-49"><a href="#cb34-49" aria-hidden="true" tabindex="-1"></a><span class="dv">21</span> <span class="dv">1</span> Black Lung Trust</span>
+<span id="cb34-50"><a href="#cb34-50" aria-hidden="true" tabindex="-1"></a><span class="dv">22</span> <span class="dv">1</span> Multiemployer Pension Plan</span>
+<span id="cb34-51"><a href="#cb34-51" aria-hidden="true" tabindex="-1"></a><span class="dv">23</span> <span class="dv">1</span> Veterans Assoc. Formed Prior to <span class="dv">1880</span></span>
+<span id="cb34-52"><a href="#cb34-52" aria-hidden="true" tabindex="-1"></a><span class="dv">24</span> <span class="dv">1</span> Trust Described <span class="cf">in</span> Sect. <span class="dv">4049</span> of ERISA</span>
+<span id="cb34-53"><a href="#cb34-53" aria-hidden="true" tabindex="-1"></a><span class="dv">25</span> <span class="dv">1</span> Title Holding Co. <span class="cf">for</span> Pensions, etc.</span>
+<span id="cb34-54"><a href="#cb34-54" aria-hidden="true" tabindex="-1"></a><span class="dv">26</span> <span class="dv">1</span> State<span class="sc">-</span>Sponsored High Risk Health Insurance Organizations</span>
+<span id="cb34-55"><a href="#cb34-55" aria-hidden="true" tabindex="-1"></a><span class="dv">27</span> <span class="dv">1</span> State<span class="sc">-</span>Sponsored Workers Compensation Reinsurance</span>
+<span id="cb34-56"><a href="#cb34-56" aria-hidden="true" tabindex="-1"></a><span class="dv">29</span> <span class="dv">1</span> ACA <span class="dv">1322</span> Qualified Nonprofit Health Insurance Issuers</span>
+<span id="cb34-57"><a href="#cb34-57" aria-hidden="true" tabindex="-1"></a><span class="dv">40</span> <span class="dv">1</span> Apostolic and Religious <span class="fu">Org.</span> (<span class="dv">501</span>(d))</span>
+<span id="cb34-58"><a href="#cb34-58" aria-hidden="true" tabindex="-1"></a><span class="dv">50</span> <span class="dv">1</span> Cooperative Hospital Service <span class="fu">Organization</span> (<span class="dv">501</span>(e))</span>
+<span id="cb34-59"><a href="#cb34-59" aria-hidden="true" tabindex="-1"></a><span class="dv">60</span> <span class="dv">1</span> Cooperative Service Organization of Operating Educational <span class="fu">Organization</span> (<span class="dv">501</span>(f))</span>
+<span id="cb34-60"><a href="#cb34-60" aria-hidden="true" tabindex="-1"></a><span class="dv">70</span> <span class="dv">1</span> Child Care <span class="fu">Organization</span> (<span class="dv">501</span>(k))</span>
+<span id="cb34-61"><a href="#cb34-61" aria-hidden="true" tabindex="-1"></a><span class="dv">71</span> <span class="dv">1</span> Charitable Risk Pool</span>
+<span id="cb34-62"><a href="#cb34-62" aria-hidden="true" tabindex="-1"></a><span class="dv">81</span> <span class="dv">1</span> Qualified State<span class="sc">-</span>Sponsored Tuition Program</span>
+<span id="cb34-63"><a href="#cb34-63" aria-hidden="true" tabindex="-1"></a><span class="dv">92</span> <span class="dv">1</span> <span class="dv">4947</span>(a)(<span class="dv">1</span>) <span class="sc">-</span> Private <span class="fu">Foundation</span> (Form <span class="dv">990</span>PF Filer)</span>
+<span id="cb34-64"><a href="#cb34-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-65"><a href="#cb34-65" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-66"><a href="#cb34-66" aria-hidden="true" tabindex="-1"></a><span class="do">##########</span></span>
+<span id="cb34-67"><a href="#cb34-67" aria-hidden="true" tabindex="-1"></a><span class="do">##########   FROM NCCS DOCUMENTATION </span></span>
+<span id="cb34-68"><a href="#cb34-68" aria-hidden="true" tabindex="-1"></a><span class="do">##########</span></span>
+<span id="cb34-69"><a href="#cb34-69" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-70"><a href="#cb34-70" aria-hidden="true" tabindex="-1"></a>SUBSECCD</span>
+<span id="cb34-71"><a href="#cb34-71" aria-hidden="true" tabindex="-1"></a>Character</span>
+<span id="cb34-72"><a href="#cb34-72" aria-hidden="true" tabindex="-1"></a>(<span class="dv">20</span>)    Subsection code</span>
+<span id="cb34-73"><a href="#cb34-73" aria-hidden="true" tabindex="-1"></a>IRS subsection <span class="fu">code</span> (<span class="dv">03</span><span class="ot">=</span><span class="dv">501</span>(c)(<span class="dv">3</span>), etc.)</span>
+<span id="cb34-74"><a href="#cb34-74" aria-hidden="true" tabindex="-1"></a><span class="dv">01</span>  <span class="dv">01</span><span class="sc">-</span> Corporations originated under Act of Congress, including Federal Credit Unions</span>
+<span id="cb34-75"><a href="#cb34-75" aria-hidden="true" tabindex="-1"></a><span class="dv">02</span>  <span class="dv">02</span><span class="sc">-</span> Title holding corporation <span class="cf">for</span> a tax<span class="sc">-</span>exempt organization.</span>
+<span id="cb34-76"><a href="#cb34-76" aria-hidden="true" tabindex="-1"></a><span class="dv">03</span>  <span class="dv">03</span><span class="sc">-</span> Religious, educational, charitable, scientific, and literary organizations...</span>
+<span id="cb34-77"><a href="#cb34-77" aria-hidden="true" tabindex="-1"></a><span class="dv">04</span>  <span class="dv">04</span><span class="sc">-</span> Civic leagues, social welfare organizations, and local associations of employees</span>
+<span id="cb34-78"><a href="#cb34-78" aria-hidden="true" tabindex="-1"></a><span class="dv">05</span>  <span class="dv">05</span><span class="sc">-</span> Labor, agricultural, horticultural organizations. These are eduactional or instruct. grps...</span>
+<span id="cb34-79"><a href="#cb34-79" aria-hidden="true" tabindex="-1"></a><span class="dv">06</span>  <span class="dv">06</span><span class="sc">-</span> Business leagues, chambers of commerce, real estate boards, etc. formed to improve conditions...</span>
+<span id="cb34-80"><a href="#cb34-80" aria-hidden="true" tabindex="-1"></a><span class="dv">07</span>  <span class="dv">07</span><span class="sc">-</span> Social and recreational clubs which provide pleasure, recreation, and social activities.</span>
+<span id="cb34-81"><a href="#cb34-81" aria-hidden="true" tabindex="-1"></a><span class="dv">08</span>  <span class="dv">08</span><span class="sc">-</span> Fraternal beneficiary societies and associations, with lodges providing <span class="cf">for</span> payment of life...</span>
+<span id="cb34-82"><a href="#cb34-82" aria-hidden="true" tabindex="-1"></a><span class="dv">09</span>  <span class="dv">09</span><span class="sc">-</span> Voluntary employees<span class="st">' beneficiary ass'</span><span class="fu">ns</span> (including fed. employees<span class="st">' voluntary beneficiary...</span></span>
+<span id="cb34-83"><a href="#cb34-83" aria-hidden="true" tabindex="-1"></a><span class="st">10  10- Domestic fraternal societies and assoc'</span>s<span class="sc">-</span>lodges devoting their net earnings to charitable...</span>
+<span id="cb34-84"><a href="#cb34-84" aria-hidden="true" tabindex="-1"></a><span class="dv">11</span>  <span class="dv">11</span><span class="sc">-</span> Teachers retirement fund associations.</span>
+<span id="cb34-85"><a href="#cb34-85" aria-hidden="true" tabindex="-1"></a><span class="dv">12</span>  <span class="dv">12</span><span class="sc">-</span> Benevolent life insurance associations, mutual ditch or irrigation companies, mutual or coop...</span>
+<span id="cb34-86"><a href="#cb34-86" aria-hidden="true" tabindex="-1"></a><span class="dv">13</span>  <span class="dv">13</span><span class="sc">-</span> Cemetery companies, providing burial and incidental activities <span class="cf">for</span> members.</span>
+<span id="cb34-87"><a href="#cb34-87" aria-hidden="true" tabindex="-1"></a><span class="dv">14</span>  <span class="dv">14</span><span class="sc">-</span> State<span class="sc">-</span>chartered credit unions, mutual reserve funds, offering loans to members...</span>
+<span id="cb34-88"><a href="#cb34-88" aria-hidden="true" tabindex="-1"></a><span class="dv">15</span>  <span class="dv">15</span><span class="sc">-</span> Mutual insurance cos. ar associations, providing insurance to members substantially at cost...</span>
+<span id="cb34-89"><a href="#cb34-89" aria-hidden="true" tabindex="-1"></a><span class="dv">16</span>  <span class="dv">16</span><span class="sc">-</span> Cooperative organizations to finance crop operations, <span class="cf">in</span> conjunction with activities ...</span>
+<span id="cb34-90"><a href="#cb34-90" aria-hidden="true" tabindex="-1"></a><span class="dv">17</span>  <span class="dv">17</span><span class="sc">-</span> Supplemental unemployment benefit trusts, providing payments of suppl. unemployment comp...</span>
+<span id="cb34-91"><a href="#cb34-91" aria-hidden="true" tabindex="-1"></a><span class="dv">18</span>  <span class="dv">18</span><span class="sc">-</span> Employee funded pension trusts, providing benefits under a pension plan funded by employees...</span>
+<span id="cb34-92"><a href="#cb34-92" aria-hidden="true" tabindex="-1"></a><span class="dv">19</span>  <span class="dv">19</span><span class="sc">-</span> Post or organization of war veterans.</span>
+<span id="cb34-93"><a href="#cb34-93" aria-hidden="true" tabindex="-1"></a><span class="dv">20</span>  <span class="dv">20</span><span class="sc">-</span> Trusts <span class="cf">for</span> prepaid group legal services, as part of a qual. group legal service plan or plans.</span>
+<span id="cb34-94"><a href="#cb34-94" aria-hidden="true" tabindex="-1"></a><span class="dv">21</span>  <span class="dv">21</span><span class="sc">-</span> Black lung trusts, satisfying claims <span class="cf">for</span> compensation under Black Lung Acts.</span>
+<span id="cb34-95"><a href="#cb34-95" aria-hidden="true" tabindex="-1"></a><span class="dv">22</span>  <span class="dv">22</span><span class="sc">-</span> Multiemployer Pension Plan</span>
+<span id="cb34-96"><a href="#cb34-96" aria-hidden="true" tabindex="-1"></a><span class="dv">23</span>  <span class="dv">23</span><span class="sc">-</span> Veterans association formed prior to <span class="dv">1880</span></span>
+<span id="cb34-97"><a href="#cb34-97" aria-hidden="true" tabindex="-1"></a><span class="dv">24</span>  <span class="dv">24</span><span class="sc">-</span>Trust described <span class="cf">in</span> Section <span class="dv">4049</span> of ERISA</span>
+<span id="cb34-98"><a href="#cb34-98" aria-hidden="true" tabindex="-1"></a><span class="dv">25</span>  <span class="dv">25</span><span class="sc">-</span> Title Holding Company <span class="cf">for</span> Pensions, etc</span>
+<span id="cb34-99"><a href="#cb34-99" aria-hidden="true" tabindex="-1"></a><span class="dv">26</span>  <span class="dv">26</span><span class="sc">-</span> State<span class="sc">-</span>Sponsored High Risk Health Insurance Organizations</span>
+<span id="cb34-100"><a href="#cb34-100" aria-hidden="true" tabindex="-1"></a><span class="dv">27</span>  <span class="dv">27</span><span class="sc">-</span> State<span class="sc">-</span>Sponsored Workers Compensation Reinsurance</span>
+<span id="cb34-101"><a href="#cb34-101" aria-hidden="true" tabindex="-1"></a><span class="dv">40</span>  <span class="dv">40</span><span class="sc">-</span> Apostolic and religious orgs. <span class="sc">-</span> <span class="dv">501</span>(d)</span>
+<span id="cb34-102"><a href="#cb34-102" aria-hidden="true" tabindex="-1"></a><span class="dv">50</span>  <span class="dv">50</span><span class="sc">-</span> Cooperative Hospital Service Organization <span class="sc">-</span> <span class="dv">501</span>(e)</span>
+<span id="cb34-103"><a href="#cb34-103" aria-hidden="true" tabindex="-1"></a><span class="dv">60</span>  <span class="dv">60</span><span class="sc">-</span> Cooperative Service Org. of Operating Educ. Org.<span class="sc">-</span> <span class="dv">501</span>(f)</span>
+<span id="cb34-104"><a href="#cb34-104" aria-hidden="true" tabindex="-1"></a><span class="dv">70</span>  <span class="dv">70</span><span class="sc">-</span> Child Care Organization <span class="sc">-</span> <span class="dv">501</span>(k)</span>
+<span id="cb34-105"><a href="#cb34-105" aria-hidden="true" tabindex="-1"></a><span class="dv">71</span>  <span class="dv">71</span><span class="sc">-</span> Charitable Risk Pool</span>
+<span id="cb34-106"><a href="#cb34-106" aria-hidden="true" tabindex="-1"></a><span class="dv">80</span>  <span class="dv">80</span><span class="sc">-</span> Farmers<span class="st">' Cooperatives</span></span>
+<span id="cb34-107"><a href="#cb34-107" aria-hidden="true" tabindex="-1"></a><span class="st">81  81- Qualified State-Sponsored Tuition Program</span></span>
+<span id="cb34-108"><a href="#cb34-108" aria-hidden="true" tabindex="-1"></a><span class="st">82  82- 527 Political Organizations</span></span>
+<span id="cb34-109"><a href="#cb34-109" aria-hidden="true" tabindex="-1"></a><span class="st">90  90- 4947(a)(2) Split Interest Trust</span></span>
+<span id="cb34-110"><a href="#cb34-110" aria-hidden="true" tabindex="-1"></a><span class="st">91  91- 4947(a)(1) Public Charity (Files 990/990-EZ)</span></span>
+<span id="cb34-111"><a href="#cb34-111" aria-hidden="true" tabindex="-1"></a><span class="st">92  92- 4947(a)(1) Private Foundations</span></span>
+<span id="cb34-112"><a href="#cb34-112" aria-hidden="true" tabindex="-1"></a><span class="st">93  93- 1381(a)(2) Taxable Farmers Cooperative</span></span>
+<span id="cb34-113"><a href="#cb34-113" aria-hidden="true" tabindex="-1"></a><span class="st">CO  CO- Unspecified 501(c) Organization Other Than 501(c)(3)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="fu">table</span>( d<span class="sc">$</span>ORG_TYPE_501C, d<span class="sc">$</span>ORG_TYPE_PF, <span class="at">useNA=</span><span class="st">"ifany"</span> ) <span class="sc">%&gt;%</span> <span class="fu">pander</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<table class="table">
+<colgroup>
+<col style="width: 19%">
+<col style="width: 13%">
+<col style="width: 12%">
+<col style="width: 12%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: center;">&nbsp;</th>
+<th style="text-align: center;">0</th>
+<th style="text-align: center;">1</th>
+<th style="text-align: center;">NA</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;"><strong>501C_00</strong></td>
+<td style="text-align: center;">253</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"><strong>501C_01</strong></td>
+<td style="text-align: center;">800</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"><strong>501C_02</strong></td>
+<td style="text-align: center;">9681</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"><strong>501C_03</strong></td>
+<td style="text-align: center;">1452651</td>
+<td style="text-align: center;">145019</td>
+<td style="text-align: center;">905717</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"><strong>501C_04</strong></td>
+<td style="text-align: center;">187435</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"><strong>501C_05</strong></td>
+<td style="text-align: center;">91330</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"><strong>501C_06</strong></td>
+<td style="text-align: center;">118543</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"><strong>501C_07</strong></td>
+<td style="text-align: center;">96791</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"><strong>501C_08</strong></td>
+<td style="text-align: center;">110634</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"><strong>501C_09</strong></td>
+<td style="text-align: center;">19565</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"><strong>501C_10</strong></td>
+<td style="text-align: center;">29748</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"><strong>501C_11</strong></td>
+<td style="text-align: center;">12</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"><strong>501C_12</strong></td>
+<td style="text-align: center;">8219</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"><strong>501C_13</strong></td>
+<td style="text-align: center;">13927</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"><strong>501C_14</strong></td>
+<td style="text-align: center;">5665</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"><strong>501C_15</strong></td>
+<td style="text-align: center;">2472</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"><strong>501C_16</strong></td>
+<td style="text-align: center;">27</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"><strong>501C_17</strong></td>
+<td style="text-align: center;">628</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"><strong>501C_18</strong></td>
+<td style="text-align: center;">6</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"><strong>501C_19</strong></td>
+<td style="text-align: center;">57760</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"><strong>501C_20</strong></td>
+<td style="text-align: center;">65</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"><strong>501C_21</strong></td>
+<td style="text-align: center;">30</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"><strong>501C_23</strong></td>
+<td style="text-align: center;">3</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"><strong>501C_24</strong></td>
+<td style="text-align: center;">2</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"><strong>501C_25</strong></td>
+<td style="text-align: center;">2780</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"><strong>501C_26</strong></td>
+<td style="text-align: center;">11</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"><strong>501C_27</strong></td>
+<td style="text-align: center;">18</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"><strong>501C_29</strong></td>
+<td style="text-align: center;">23</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"><strong>501C_40</strong></td>
+<td style="text-align: center;">250</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"><strong>501C_50</strong></td>
+<td style="text-align: center;">30</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"><strong>501C_70</strong></td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"><strong>501C_71</strong></td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"><strong>501C_80</strong></td>
+<td style="text-align: center;">1383</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"><strong>501C_81</strong></td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"><strong>501C_82</strong></td>
+<td style="text-align: center;">29</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"><strong>501C_90</strong></td>
+<td style="text-align: center;">790</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"><strong>501C_91</strong></td>
+<td style="text-align: center;">1362</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"><strong>501C_92</strong></td>
+<td style="text-align: center;">140</td>
+<td style="text-align: center;">5895</td>
+<td style="text-align: center;">3493</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;"><strong>501C_93</strong></td>
+<td style="text-align: center;">2440</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">NA</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: center;">187369</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="composite-codes" class="level2" data-number="1.6">
+<h2 data-number="1.6" class="anchored" data-anchor-id="composite-codes"><span class="header-section-number">1.6</span> Composite Codes</h2>
+<section id="tax-exempt-purpose" class="level3" data-number="1.6.1">
+<h3 data-number="1.6.1" class="anchored" data-anchor-id="tax-exempt-purpose"><span class="header-section-number">1.6.1</span> Tax Exempt Purpose</h3>
+<p>Combine 501C Type with BMF “Classification Codes”.</p>
+<p>Classification Code is ambiguous. When applying for tax exempt status from the IRS, nonprofit founders report <strong>organizational purpose</strong> on their application, which is used by the IRS to make a determination on whether the organization qualifies for tax-exempt status. These codes differ from the NTEE taxonomies in that each code is binary (yes/no), and they are NOT mutually exclusive, so a nonprofit mission can fulfill one or several of these purposes.</p>
+<p>IRS Tax-Exempt Purpose Codes: [ See <a href="https://www.irs.gov/pub/irs-pdf/i1023ez.pdf">Instructions pp 6-7</a> ]</p>
+<ul>
+<li>Charitable Purpose [yes/no]</li>
+<li>Religious Purpose [yes/no]</li>
+<li>Educational Purpose [yes/no]</li>
+<li>Scientific Purpose [yes/no]</li>
+<li>Literary Purpose [yes/no]</li>
+<li>Public Safety Purpose [yes/no]</li>
+<li>Amateur Sports Purpose [yes/no]</li>
+<li>Prevent Cruelty to Animals and/or Children [yes/no]</li>
+</ul>
+<p>The other 501C Types have similar tax-exempt purpose categories:</p>
+<pre><code>|CODE |LABEL                                                                                      |
+|:----|:------------------------------------------------------------------------------------------|
+|1-1  |Government Instrumentality (501C1-1)                                                       |
+|2-1  |Title-Holding Corporation (501C2-1)                                                        |
+|3-1  |Charitable Organization (501C3-1)                                                          |
+|3-2  |Educational Organization (501C3-2)                                                         |
+|3-3  |Literary Organization (501C3-3)                                                            |
+|3-4  |Organization to Prevent Cruelty to Animals (501C3-4)                                       |
+|3-5  |Organization to Prevent Cruelty to Children (501C3-5)                                      |
+|3-6  |Organization for Public Safety Testing (501C3-6)                                           |
+|3-7  |Religious Organization (501C3-7)                                                           |
+|3-8  |Scientific Organization (501C3-8)                                                          |
+|4-1  |Civic League (501C4-1)                                                                     |
+|4-2  |Local Association of Employees (501C4-2)                                                   |
+|4-3  |Social Welfare Organization (501C4-3)                                                      |
+|5-1  |Agricultural Organization (501C5-1)                                                        |
+|5-2  |Horticultural Organization (501C5-2)                                                       |
+|5-3  |Labor Organization (501C5-3)                                                               |
+|6-1  |Board of Trade (501C6-1)                                                                   |
+|6-2  |Business League (501C6-2)                                                                  |
+|6-3  |Chamber of Commerce (501C6-3)                                                              |
+|6-4  |Real Estate Board (501C6-4)                                                                |
+|7-1  |Pleasure, Recreational, or Social Club (501C7-1)                                           |
+|8-1  |Fraternal Beneficiary Society, Order or Association (501C8-1)                              |
+|9-1  |Voluntary Employees Beneficiary Association (Non-Govt Emps) (501C9-1)                      |
+|9-2  |Voluntary Employees Beneficiary Association (Govt Emps) (501C9-2)                          |
+|10-1 |Domestic Fraternal Societies and Associations (501C10-1)                                   |
+|11-1 |Teachers Retirement Fund Assoc (501C11-1)                                                  |
+|12-1 |Benevolent Life Insurance Assoc (501C12-1)                                                 |
+|12-2 |Mutual Ditch or Irrigation Co (501C12-2)                                                   |
+|12-3 |Mutual Cooperative Telephone Co (501C12-3)                                                 |
+|12-4 |Organization Like Those on Three Preceding Lines (501C12-4)                                |
+|13-1 |Burial Association (501C13-1)                                                              |
+|13-2 |Cemetery Company (501C13-2)                                                                |
+|14-1 |Credit Union (501C14-1)                                                                    |
+|14-2 |Other Mutual Corp or Assoc (501C14-2)                                                      |
+|15-1 |Mutual Insurance Company or Assoc Other Than Life or Marine (501C15-1)                     |
+|16-1 |Corp Financing Crop Operations (501C16-1)                                                  |
+|17-1 |Supplemental Unemployment Compensation Trust or Plan (501C17-1)                            |
+|18-1 |Employee Funded Pension Trust (501C18-1)                                                   |
+|19-1 |Post or Organization of War Veterans (501C19-1)                                            |
+|20-1 |Legal Service Organization (501C20-1)                                                      |
+|21-1 |Black Lung Trust (501C21-1)                                                                |
+|22-1 |Multiemployer Pension Plan (501C22-1)                                                      |
+|23-1 |Veterans Assoc Formed Prior to 1880 (501C23-1)                                             |
+|24-1 |Trust Described in Sect 4049 of ERISA (501C24-1)                                           |
+|25-1 |Title Holding Co for Pensions etc (501C25-1)                                               |
+|26-1 |State-Sponsored High Risk Health Insurance Organizations (501C26-1)                        |
+|27-1 |State-Sponsored Workers Compensation Reinsurance (501C27-1)                                |
+|29-1 |ACA 1322 Qualified Nonprofit Health Insurance Issuers (501C29-1)                           |
+|40-1 |Apostolic and Religious Org (501(d)) (501C40-1)                                            |
+|50-1 |Cooperative Hospital Service Organization (501(e)) (501C50-1)                              |
+|60-1 |Cooperative Service Organization of Operating Educational Organization (501(f)) (501C60-1) |
+|70-1 |Child Care Organization (501(k)) (501C70-1)                                                |
+|71-1 |Charitable Risk Pool (501C71-1)                                                            |
+|81-1 |Qualified State-Sponsored Tuition Program (501C81-1)                                       |
+|92-1 |4947(a)(1) - Private Foundation (Form 990PF Filer) (501C92-1)                              |</code></pre>
+<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="do">###</span></span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a><span class="do">###   BMF_TAX_EXEMPT_PURP</span></span>
+<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a><span class="do">###</span></span>
+<span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb37-5"><a href="#cb37-5" aria-hidden="true" tabindex="-1"></a><span class="do">###    THIS TAKES A COUPLE OF HOURS TO RUN - </span></span>
+<span id="cb37-6"><a href="#cb37-6" aria-hidden="true" tabindex="-1"></a><span class="do">###    CURRENTLY SET TO A CACHED VERSION</span></span>
+<span id="cb37-7"><a href="#cb37-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb37-8"><a href="#cb37-8" aria-hidden="true" tabindex="-1"></a>code.table <span class="ot">&lt;-</span> taxexp.purp</span>
+<span id="cb37-9"><a href="#cb37-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb37-10"><a href="#cb37-10" aria-hidden="true" tabindex="-1"></a>get_codes <span class="ot">&lt;-</span> <span class="cf">function</span>( x1, x2 ){</span>
+<span id="cb37-11"><a href="#cb37-11" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span>( <span class="fu">is.na</span>(x2) <span class="sc">|</span> <span class="fu">is.na</span>(x1) )</span>
+<span id="cb37-12"><a href="#cb37-12" aria-hidden="true" tabindex="-1"></a>  { <span class="fu">return</span>(<span class="cn">NA</span>) }</span>
+<span id="cb37-13"><a href="#cb37-13" aria-hidden="true" tabindex="-1"></a>  xx <span class="ot">&lt;-</span> stringr<span class="sc">::</span><span class="fu">str_split_1</span>( <span class="fu">as.character</span>(x2), <span class="st">""</span> )</span>
+<span id="cb37-14"><a href="#cb37-14" aria-hidden="true" tabindex="-1"></a>  X <span class="ot">&lt;-</span> <span class="fu">paste0</span>( x1, <span class="st">"-"</span>, xx ) </span>
+<span id="cb37-15"><a href="#cb37-15" aria-hidden="true" tabindex="-1"></a>  df <span class="ot">&lt;-</span> <span class="fu">data.frame</span>( <span class="at">CD=</span>X )</span>
+<span id="cb37-16"><a href="#cb37-16" aria-hidden="true" tabindex="-1"></a>  df <span class="ot">&lt;-</span> <span class="fu">merge</span>( df, code.table  ) <span class="sc">%&gt;%</span> <span class="fu">na.omit</span>()</span>
+<span id="cb37-17"><a href="#cb37-17" aria-hidden="true" tabindex="-1"></a>  code <span class="ot">&lt;-</span> <span class="fu">paste0</span>( df<span class="sc">$</span>LABEL, <span class="at">collapse=</span><span class="st">" ;; "</span> )</span>
+<span id="cb37-18"><a href="#cb37-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>( code )</span>
+<span id="cb37-19"><a href="#cb37-19" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb37-20"><a href="#cb37-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb37-21"><a href="#cb37-21" aria-hidden="true" tabindex="-1"></a>d.codes <span class="ot">&lt;-</span> </span>
+<span id="cb37-22"><a href="#cb37-22" aria-hidden="true" tabindex="-1"></a>  purrr<span class="sc">::</span><span class="fu">map2_chr</span>( </span>
+<span id="cb37-23"><a href="#cb37-23" aria-hidden="true" tabindex="-1"></a>    d<span class="sc">$</span>BMF_SUBSECTION_CODE, </span>
+<span id="cb37-24"><a href="#cb37-24" aria-hidden="true" tabindex="-1"></a>    d<span class="sc">$</span>BMF_CLASSIFICATION_CODE,</span>
+<span id="cb37-25"><a href="#cb37-25" aria-hidden="true" tabindex="-1"></a>    get_codes )</span>
+<span id="cb37-26"><a href="#cb37-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb37-27"><a href="#cb37-27" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>BMF_TAX_EXEMPT_PURP <span class="ot">&lt;-</span> d.codes</span>
+<span id="cb37-28"><a href="#cb37-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb37-29"><a href="#cb37-29" aria-hidden="true" tabindex="-1"></a>dsub <span class="ot">&lt;-</span> dplyr<span class="sc">::</span><span class="fu">select</span>( d, EIN2, BMF_TAX_EXEMPT_PURP )</span>
+<span id="cb37-30"><a href="#cb37-30" aria-hidden="true" tabindex="-1"></a>dsub <span class="ot">&lt;-</span> <span class="fu">na.omit</span>( dsub )</span>
+<span id="cb37-31"><a href="#cb37-31" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>( dsub, <span class="st">"data/BMF_TAX_EXEMPT_PURP.csv"</span>, <span class="at">row.names=</span>F )</span>
+<span id="cb37-32"><a href="#cb37-32" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>( dsub, <span class="st">"data/BMF_TAX_EXEMPT_PURP.rds"</span> ) <span class="co"># one-tenth size</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>purpose.cats <span class="ot">&lt;-</span> <span class="fu">readRDS</span>( <span class="st">"data/BMF_TAX_EXEMPT_PURP.rds"</span> )</span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">merge</span>( d, purpose.cats )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>New labeled version examples:</p>
+<pre><code>|                                                    BMF_TAX_EXEMPT_PURP|      Freq|
+|----------------------------------------------------------------------:|---------:|
+|                                                                     NA| 1,570,547|
+|                                      Charitable Organization (501C3-1)|   722,351|
+|                                       Religious Organization (501C3-7)|   265,283|
+|Charitable Organization (501C3-1) ;; Educational Organization (501C3-2)|   229,645|
+|                                     Educational Organization (501C3-2)|   214,094|
+|                       Pleasure, Recreational, or Social Club (501C7-1)|    48,616|
+|  Charitable Organization (501C3-1) ;; Religious Organization (501C3-7)|    47,822|
+|                                  Social Welfare Organization (501C4-3)|    42,408|
+|          Fraternal Beneficiary Society, Order or Association (501C8-1)|    38,498|
+|                                              Business League (501C6-2)|    37,744|
+|                                           Labor Organization (501C5-3)|    34,396|
+|                        Post or Organization of War Veterans (501C19-1)|    26,790|
+|                                                 Civic League (501C4-1)|    24,938|</code></pre>
+</section>
+<section id="filing-requirement-codes" class="level3" data-number="1.6.2">
+<h3 data-number="1.6.2" class="anchored" data-anchor-id="filing-requirement-codes"><span class="header-section-number">1.6.2</span> Filing Requirement Codes</h3>
+<p>Combine BMF_FILING_REQ_CODE and BMF_PF_FILING_REQ_CODE.</p>
+<p>Currently private foundations appear in the “not required to file” category (00) in BMF_FILING_REQ_CODE. This is confusing because the field contains every type of 990 form except the 990-PF, so combining BMF_FILING_REQ_CODE and BMF_PF_FILING_REQ_CODE avoids confusion.</p>
+<pre><code># |CODE |FORM              |FRC                        |
+# |:----|:-----------------|:--------------------------|
+# |01   |990/990-EZ        |990/990-EZ (01)            |
+# |02   |990-N             |990-N (02)                 |
+# |PF   |990-PF            |990-PF (00+PF={1,2,3})     |  # new group
+# |03   |GROUP RETURN      |GROUP RETURN (03)          |
+# |04   |990-BL            |990-BL (04)                |
+# |06   |NOT RQ: CHURCH    |NOT RQ: CHURCH (06)        |
+# |07   |NOT RQ: 501C1 GOV |NOT RQ: 501C1 GOV (07)     |
+# |13   |NOT RQ: RELIG ORG |NOT RQ: RELIG ORG (13)     |
+# |14   |NOT RQ: STATE DIV |NOT RQ: STATE DIV (14)     |
+# |00   |NOT RQ: ALL OTHER |NOT RQ: ALL OTHER (00)     |
+# |11   |UNKNOWN           |Undocumented Category (11) |</code></pre>
+<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>frc <span class="ot">&lt;-</span> </span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a><span class="fu">structure</span>(<span class="fu">list</span>(<span class="at">CODE =</span> <span class="fu">c</span>(<span class="st">"01"</span>, <span class="st">"02"</span>, <span class="st">"PF"</span>, <span class="st">"03"</span>, <span class="st">"04"</span>, <span class="st">"06"</span>, <span class="st">"07"</span>, <span class="st">"13"</span>, </span>
+<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a><span class="st">"14"</span>, <span class="st">"00"</span>,<span class="st">"11"</span>), <span class="at">FORM =</span> <span class="fu">c</span>(<span class="st">"990/990-EZ"</span>, <span class="st">"990-N"</span>, <span class="st">"990-PF"</span>, <span class="st">"GROUP RETURN"</span>, <span class="st">"990-BL"</span>, </span>
+<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a><span class="st">"NOT RQ: CHURCH"</span>, <span class="st">"NOT RQ: 501C1 GOV"</span>, <span class="st">"NOT RQ: RELIG ORG"</span>, <span class="st">"NOT RQ: STATE DIV"</span>, </span>
+<span id="cb41-5"><a href="#cb41-5" aria-hidden="true" tabindex="-1"></a><span class="st">"NOT RQ: ALL OTHER"</span>,<span class="st">"UNKNOWN"</span>), <span class="at">FRC =</span> <span class="fu">c</span>(<span class="st">"990/990EZ (01)"</span>, <span class="st">"990-N (02)"</span>, <span class="st">"990PF (00+PF={1,2,3})"</span>, <span class="st">"GROUP RETURN (03)"</span>, </span>
+<span id="cb41-6"><a href="#cb41-6" aria-hidden="true" tabindex="-1"></a><span class="st">"990-BL (04)"</span>, <span class="st">"NRQ: CHURCH (06)"</span>, <span class="st">"NRQ: 501C1 GOV (07)"</span>, <span class="st">"NOT RQ: RELIG ORG (13)"</span>, </span>
+<span id="cb41-7"><a href="#cb41-7" aria-hidden="true" tabindex="-1"></a><span class="st">"NOT RQ: STATE DIV (14)"</span>, <span class="st">"NOT RQ: ALL OTHER (00)"</span>,<span class="st">"Undocumented Category (11)"</span>)), <span class="at">row.names =</span> <span class="fu">c</span>(<span class="cn">NA</span>, </span>
+<span id="cb41-8"><a href="#cb41-8" aria-hidden="true" tabindex="-1"></a><span class="sc">-</span><span class="dv">11</span>L), <span class="at">class =</span> <span class="st">"data.frame"</span>)</span>
+<span id="cb41-9"><a href="#cb41-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-10"><a href="#cb41-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-11"><a href="#cb41-11" aria-hidden="true" tabindex="-1"></a><span class="co">#  unique(x) %&gt;% as.character() %&gt;% dput()</span></span>
+<span id="cb41-12"><a href="#cb41-12" aria-hidden="true" tabindex="-1"></a><span class="co">#  c(NA, "10", "20", "1", "0", "2", "6", "60", "3", "11", "30", </span></span>
+<span id="cb41-13"><a href="#cb41-13" aria-hidden="true" tabindex="-1"></a><span class="co">#   "13", "130", "140", "70", "21", "7", "40", "14", "4", "888")</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<pre><code># |BMF_FILING_REQ_CODE |      Freq|
+# |:-------------------|---------:|
+# |0                   |   221,065|
+# |1                   |   570,568|
+# |2                   | 1,126,372|
+# |3                   |     6,856|
+# |4                   |        14|
+# |6                   |   279,358|
+# |7                   |       747|
+# |10                  |   118,332|  # recode as 1
+# |11                  |       671|
+# |13                  |     8,701|
+# |14                  |     2,602|
+# |20                  |   475,818| # recode as 2
+# |21                  |        64|
+# |30                  |       179| # recode as 3
+# |40                  |        17| # recode as 4
+# |60                  |    12,620| # recode as 6
+# |70                  |        27| # recode as 7
+# |130                 |     1,213| # recode as 13
+# |140                 |        67| # recode as 14
+# |888                 |         1|
+# |NA                  |   637,707| </code></pre>
+<pre><code># PF FILING REQUIREMENT CODE
+
+# |BMF_PF_FILING_REQ_CODE |      Freq|
+# |:----------------------|---------:|
+# |0                      | 1,793,444|
+# |NA                     | 1,518,639|
+# |1                      |   150,658|  # private operating foundation 
+# |3                      |       237|  # private non-operating foundation
+# |2                      |        21|  # private non-operating foundation</code></pre>
+<div class="sourceCode cell-code" id="cb44"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> d<span class="sc">$</span>BMF_FILING_REQ_CODE</span>
+<span id="cb44-2"><a href="#cb44-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-3"><a href="#cb44-3" aria-hidden="true" tabindex="-1"></a><span class="co"># DROP ZEROS AT THE </span><span class="re">END</span><span class="co"> </span></span>
+<span id="cb44-4"><a href="#cb44-4" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">gsub</span>( <span class="st">"([0-9]{2})(0$)"</span>, <span class="st">"</span><span class="sc">\\</span><span class="st">1"</span>, x )</span>
+<span id="cb44-5"><a href="#cb44-5" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">gsub</span>( <span class="st">"([0-9]{1})(0$)"</span>, <span class="st">"</span><span class="sc">\\</span><span class="st">1"</span>, x )</span>
+<span id="cb44-6"><a href="#cb44-6" aria-hidden="true" tabindex="-1"></a>x[ x <span class="sc">==</span> <span class="dv">888</span> ] <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb44-7"><a href="#cb44-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-8"><a href="#cb44-8" aria-hidden="true" tabindex="-1"></a><span class="co"># ADD LEADING ZEROS</span></span>
+<span id="cb44-9"><a href="#cb44-9" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">str_pad</span>( x, <span class="at">width=</span><span class="dv">2</span>, <span class="at">side=</span><span class="st">"left"</span>, <span class="at">pad=</span><span class="st">"0"</span> ) </span>
+<span id="cb44-10"><a href="#cb44-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-11"><a href="#cb44-11" aria-hidden="true" tabindex="-1"></a><span class="co"># FIX PF: IS LISTED AS "NOT REQUIRED (00)" OTHERWISE </span></span>
+<span id="cb44-12"><a href="#cb44-12" aria-hidden="true" tabindex="-1"></a>x[ d<span class="sc">$</span>BMF_PF_FILING_REQ_CODE <span class="sc">%in%</span> <span class="fu">c</span>(<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>) ] <span class="ot">&lt;-</span> <span class="st">"PF"</span></span>
+<span id="cb44-13"><a href="#cb44-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-14"><a href="#cb44-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-15"><a href="#cb44-15" aria-hidden="true" tabindex="-1"></a><span class="do">######</span></span>
+<span id="cb44-16"><a href="#cb44-16" aria-hidden="true" tabindex="-1"></a><span class="do">######  BMF_FILING_REQ_CODE</span></span>
+<span id="cb44-17"><a href="#cb44-17" aria-hidden="true" tabindex="-1"></a><span class="do">######</span></span>
+<span id="cb44-18"><a href="#cb44-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-19"><a href="#cb44-19" aria-hidden="true" tabindex="-1"></a><span class="co"># CONVERT TO FACTORS</span></span>
+<span id="cb44-20"><a href="#cb44-20" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>BMF_FILING_REQ_CODE <span class="ot">&lt;-</span> </span>
+<span id="cb44-21"><a href="#cb44-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">factor</span>( x, </span>
+<span id="cb44-22"><a href="#cb44-22" aria-hidden="true" tabindex="-1"></a>          <span class="at">levels=</span>frc<span class="sc">$</span>CODE, </span>
+<span id="cb44-23"><a href="#cb44-23" aria-hidden="true" tabindex="-1"></a>          <span class="at">labels=</span>frc<span class="sc">$</span>FRC )</span>
+<span id="cb44-24"><a href="#cb44-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb44-25"><a href="#cb44-25" aria-hidden="true" tabindex="-1"></a><span class="fu">fable</span>( d<span class="sc">$</span>BMF_FILING_REQ_CODE )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<table class="table">
+<thead>
+<tr class="header">
+<th style="text-align: right;">BMF_FILING_REQ_CODE</th>
+<th style="text-align: right;">Freq</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">990/990EZ (01)</td>
+<td style="text-align: right;">696,890</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">990-N (02)</td>
+<td style="text-align: right;">1,628,405</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">990PF (00+PF={1,2,3})</td>
+<td style="text-align: right;">151,568</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">GROUP RETURN (03)</td>
+<td style="text-align: right;">7,399</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">990-BL (04)</td>
+<td style="text-align: right;">31</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">NRQ: CHURCH (06)</td>
+<td style="text-align: right;">293,132</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">NRQ: 501C1 GOV (07)</td>
+<td style="text-align: right;">782</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">NOT RQ: RELIG ORG (13)</td>
+<td style="text-align: right;">10,162</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">NOT RQ: STATE DIV (14)</td>
+<td style="text-align: right;">2,673</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">NOT RQ: ALL OTHER (00)</td>
+<td style="text-align: right;">71,408</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">Undocumented Category (11)</td>
+<td style="text-align: right;">671</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">653,446</td>
+</tr>
+</tbody>
+</table>
+<div class="sourceCode cell-code" id="cb45"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a><span class="do">######</span></span>
+<span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a><span class="do">######  BMF_PF_FILING_REQ_CODE</span></span>
+<span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a><span class="do">######</span></span>
+<span id="cb45-4"><a href="#cb45-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-5"><a href="#cb45-5" aria-hidden="true" tabindex="-1"></a>pf.labels <span class="ot">&lt;-</span> </span>
+<span id="cb45-6"><a href="#cb45-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">c</span>( <span class="st">"NON-PF (0)"</span>,<span class="st">"OPERATING PF (1)"</span>,</span>
+<span id="cb45-7"><a href="#cb45-7" aria-hidden="true" tabindex="-1"></a>     <span class="st">"NON-OPERATING PF (2)"</span>,<span class="st">"NON-OPERATING PF (3)"</span> )</span>
+<span id="cb45-8"><a href="#cb45-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-9"><a href="#cb45-9" aria-hidden="true" tabindex="-1"></a>pf.levels <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">0</span>,<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>)</span>
+<span id="cb45-10"><a href="#cb45-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-11"><a href="#cb45-11" aria-hidden="true" tabindex="-1"></a>frc.pf <span class="ot">&lt;-</span> <span class="fu">data.frame</span>( <span class="at">code=</span>pf.levels, <span class="at">label=</span>pf.labels )</span>
+<span id="cb45-12"><a href="#cb45-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-13"><a href="#cb45-13" aria-hidden="true" tabindex="-1"></a>d<span class="sc">$</span>BMF_PF_FILING_REQ_CODE <span class="ot">&lt;-</span> </span>
+<span id="cb45-14"><a href="#cb45-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">factor</span>( d<span class="sc">$</span>BMF_PF_FILING_REQ_CODE, </span>
+<span id="cb45-15"><a href="#cb45-15" aria-hidden="true" tabindex="-1"></a>          <span class="at">levels=</span><span class="fu">c</span>(<span class="dv">0</span>,<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>),</span>
+<span id="cb45-16"><a href="#cb45-16" aria-hidden="true" tabindex="-1"></a>          <span class="at">labels=</span>pf.labels )</span>
+<span id="cb45-17"><a href="#cb45-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-18"><a href="#cb45-18" aria-hidden="true" tabindex="-1"></a><span class="fu">fable</span>( d<span class="sc">$</span>BMF_PF_FILING_REQ_CODE )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<table class="table">
+<thead>
+<tr class="header">
+<th style="text-align: right;">BMF_PF_FILING_REQ_CODE</th>
+<th style="text-align: right;">Freq</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">NON-PF (0)</td>
+<td style="text-align: right;">2,232,678</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">OPERATING PF (1)</td>
+<td style="text-align: right;">151,310</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">NON-OPERATING PF (2)</td>
+<td style="text-align: right;">21</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">NON-OPERATING PF (3)</td>
+<td style="text-align: right;">237</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">1,132,321</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="select-variables" class="level2" data-number="1.7">
+<h2 data-number="1.7" class="anchored" data-anchor-id="select-variables"><span class="header-section-number">1.7</span> Select Variables</h2>
+<div class="sourceCode cell-code" id="cb46"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a>final.order <span class="ot">&lt;-</span> <span class="fu">c</span>( </span>
+<span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb46-3"><a href="#cb46-3" aria-hidden="true" tabindex="-1"></a>  <span class="st">"EIN"</span>, <span class="st">"EIN2"</span>, </span>
+<span id="cb46-4"><a href="#cb46-4" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ORG_NAME"</span>, </span>
+<span id="cb46-5"><a href="#cb46-5" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ORG_NAME_SEC"</span>, </span>
+<span id="cb46-6"><a href="#cb46-6" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ORG_PERS_ICO"</span>, </span>
+<span id="cb46-7"><a href="#cb46-7" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ORG_FISCAL_PERIOD"</span>, </span>
+<span id="cb46-8"><a href="#cb46-8" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ORG_TYPE_501C"</span>, </span>
+<span id="cb46-9"><a href="#cb46-9" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ORG_TYPE_PF"</span>,</span>
+<span id="cb46-10"><a href="#cb46-10" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ORG_CORP_FORM"</span>,</span>
+<span id="cb46-11"><a href="#cb46-11" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ORG_RULING_DATE"</span>, </span>
+<span id="cb46-12"><a href="#cb46-12" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ORG_RULING_YEAR"</span>,</span>
+<span id="cb46-13"><a href="#cb46-13" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ORG_YEAR_FIRST"</span>, </span>
+<span id="cb46-14"><a href="#cb46-14" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ORG_YEAR_LAST"</span>, </span>
+<span id="cb46-15"><a href="#cb46-15" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ORG_YEAR_COUNT"</span>, </span>
+<span id="cb46-16"><a href="#cb46-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb46-17"><a href="#cb46-17" aria-hidden="true" tabindex="-1"></a>  <span class="st">"NTEE_IRS"</span>, </span>
+<span id="cb46-18"><a href="#cb46-18" aria-hidden="true" tabindex="-1"></a>  <span class="st">"NTEE_NCCS"</span>,  </span>
+<span id="cb46-19"><a href="#cb46-19" aria-hidden="true" tabindex="-1"></a>  <span class="st">"NTEEV2"</span>, </span>
+<span id="cb46-20"><a href="#cb46-20" aria-hidden="true" tabindex="-1"></a>  <span class="st">"NCCS_LEVEL_1"</span>, </span>
+<span id="cb46-21"><a href="#cb46-21" aria-hidden="true" tabindex="-1"></a>  <span class="st">"NCCS_LEVEL_2"</span>, </span>
+<span id="cb46-22"><a href="#cb46-22" aria-hidden="true" tabindex="-1"></a>  <span class="st">"NCCS_LEVEL_3"</span>,</span>
+<span id="cb46-23"><a href="#cb46-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb46-24"><a href="#cb46-24" aria-hidden="true" tabindex="-1"></a>  <span class="st">"BMF_SUBSECTION_CODE"</span>,    </span>
+<span id="cb46-25"><a href="#cb46-25" aria-hidden="true" tabindex="-1"></a>  <span class="st">"BMF_TAX_EXEMPT_PURP"</span>,</span>
+<span id="cb46-26"><a href="#cb46-26" aria-hidden="true" tabindex="-1"></a>  <span class="st">"BMF_CLASSIFICATION_CODE"</span>,</span>
+<span id="cb46-27"><a href="#cb46-27" aria-hidden="true" tabindex="-1"></a>  <span class="st">"BMF_DEDUCTIBILITY_CODE"</span>, </span>
+<span id="cb46-28"><a href="#cb46-28" aria-hidden="true" tabindex="-1"></a>  <span class="st">"BMF_FILING_REQ_CODE"</span>, </span>
+<span id="cb46-29"><a href="#cb46-29" aria-hidden="true" tabindex="-1"></a>  <span class="st">"BMF_PF_FILING_REQ_CODE"</span>,</span>
+<span id="cb46-30"><a href="#cb46-30" aria-hidden="true" tabindex="-1"></a>  <span class="st">"BMF_FOUNDATION_CODE"</span>,    </span>
+<span id="cb46-31"><a href="#cb46-31" aria-hidden="true" tabindex="-1"></a>  <span class="st">"BMF_STATUS_CODE"</span>, </span>
+<span id="cb46-32"><a href="#cb46-32" aria-hidden="true" tabindex="-1"></a>  <span class="st">"BMF_AFFILIATION_CODE"</span>,   </span>
+<span id="cb46-33"><a href="#cb46-33" aria-hidden="true" tabindex="-1"></a>  <span class="st">"BMF_GROUP_EXEMPT_NUM"</span>,</span>
+<span id="cb46-34"><a href="#cb46-34" aria-hidden="true" tabindex="-1"></a>  <span class="st">"BMF_INCOME_LEVEL"</span>,        </span>
+<span id="cb46-35"><a href="#cb46-35" aria-hidden="true" tabindex="-1"></a>  <span class="st">"BMF_ASSET_LEVEL"</span>, </span>
+<span id="cb46-36"><a href="#cb46-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb46-37"><a href="#cb46-37" aria-hidden="true" tabindex="-1"></a>  <span class="st">"F990_FORM_YEAR"</span>,</span>
+<span id="cb46-38"><a href="#cb46-38" aria-hidden="true" tabindex="-1"></a>  <span class="st">"F990_TOTAL_REVENUE_RECENT"</span>, </span>
+<span id="cb46-39"><a href="#cb46-39" aria-hidden="true" tabindex="-1"></a>  <span class="st">"F990_TOTAL_INCOME_RECENT"</span>, </span>
+<span id="cb46-40"><a href="#cb46-40" aria-hidden="true" tabindex="-1"></a>  <span class="st">"F990_TOTAL_ASSETS_RECENT"</span>,   </span>
+<span id="cb46-41"><a href="#cb46-41" aria-hidden="true" tabindex="-1"></a> </span>
+<span id="cb46-42"><a href="#cb46-42" aria-hidden="true" tabindex="-1"></a>  <span class="st">"F990_ORG_ADDR_STREET"</span>,</span>
+<span id="cb46-43"><a href="#cb46-43" aria-hidden="true" tabindex="-1"></a>  <span class="st">"F990_ORG_ADDR_CITY"</span>, </span>
+<span id="cb46-44"><a href="#cb46-44" aria-hidden="true" tabindex="-1"></a>  <span class="st">"F990_ORG_ADDR_STATE"</span>, </span>
+<span id="cb46-45"><a href="#cb46-45" aria-hidden="true" tabindex="-1"></a>  <span class="st">"F990_ORG_ADDR_ZIP"</span>, </span>
+<span id="cb46-46"><a href="#cb46-46" aria-hidden="true" tabindex="-1"></a> </span>
+<span id="cb46-47"><a href="#cb46-47" aria-hidden="true" tabindex="-1"></a>  <span class="st">"CENSUS_URBAN_AREA"</span>,</span>
+<span id="cb46-48"><a href="#cb46-48" aria-hidden="true" tabindex="-1"></a>  <span class="st">"CENSUS_STATE_ABBR"</span>,</span>
+<span id="cb46-49"><a href="#cb46-49" aria-hidden="true" tabindex="-1"></a>  <span class="st">"CENSUS_COUNTY_NAME"</span>,</span>
+<span id="cb46-50"><a href="#cb46-50" aria-hidden="true" tabindex="-1"></a>  <span class="st">"CENSUS_CBSA_NAME"</span>, </span>
+<span id="cb46-51"><a href="#cb46-51" aria-hidden="true" tabindex="-1"></a>  <span class="st">"CENSUS_CBSA_FIPS"</span>,</span>
+<span id="cb46-52"><a href="#cb46-52" aria-hidden="true" tabindex="-1"></a>  <span class="st">"CENSUS_BLOCK_FIPS"</span>,</span>
+<span id="cb46-53"><a href="#cb46-53" aria-hidden="true" tabindex="-1"></a>   </span>
+<span id="cb46-54"><a href="#cb46-54" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ORG_ADDR_FULL"</span>, </span>
+<span id="cb46-55"><a href="#cb46-55" aria-hidden="true" tabindex="-1"></a>  <span class="st">"ORG_ADDR_MATCH"</span>, </span>
+<span id="cb46-56"><a href="#cb46-56" aria-hidden="true" tabindex="-1"></a>  <span class="st">"LATITUDE"</span>, </span>
+<span id="cb46-57"><a href="#cb46-57" aria-hidden="true" tabindex="-1"></a>  <span class="st">"LONGITUDE"</span>, </span>
+<span id="cb46-58"><a href="#cb46-58" aria-hidden="true" tabindex="-1"></a>  <span class="st">"GEOCODER_SCORE"</span>, </span>
+<span id="cb46-59"><a href="#cb46-59" aria-hidden="true" tabindex="-1"></a>  <span class="st">"GEOCODER_MATCH"</span>  )</span>
+<span id="cb46-60"><a href="#cb46-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb46-61"><a href="#cb46-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb46-62"><a href="#cb46-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb46-63"><a href="#cb46-63" aria-hidden="true" tabindex="-1"></a><span class="co"># MAKE SURE ALL LISTED VARIABLES EXIST </span></span>
+<span id="cb46-64"><a href="#cb46-64" aria-hidden="true" tabindex="-1"></a><span class="fu">setdiff</span>( final.order, <span class="fu">names</span>(d) )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>character(0)</p>
+<div class="sourceCode cell-code" id="cb47"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a><span class="co"># DROPPED VARIABLES </span></span>
+<span id="cb47-2"><a href="#cb47-2" aria-hidden="true" tabindex="-1"></a><span class="fu">setdiff</span>( <span class="fu">names</span>(d), final.order )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>character(0)</p>
+<div class="sourceCode cell-code" id="cb48"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> <span class="fu">select</span>( d, <span class="fu">all_of</span>( final.order ) )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</section>
+<section id="save-objects" class="level2" data-number="1.8">
+<h2 data-number="1.8" class="anchored" data-anchor-id="save-objects"><span class="header-section-number">1.8</span> Save Objects</h2>
+<div class="sourceCode cell-code" id="cb49"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>( d, <span class="st">"data/BMF-LABELED-TEMP.rds"</span> )</span>
+<span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a><span class="fu">write_csv</span>( d, <span class="st">"data/BMF-LABELED-TEMP.csv"</span>, <span class="at">na=</span><span class="st">""</span> )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb50"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a>dictionaries <span class="ot">&lt;-</span> </span>
+<span id="cb50-2"><a href="#cb50-2" aria-hidden="true" tabindex="-1"></a> <span class="fu">list</span>(</span>
+<span id="cb50-3"><a href="#cb50-3" aria-hidden="true" tabindex="-1"></a>   <span class="at">ORG_CORP_FORM =</span> corp,</span>
+<span id="cb50-4"><a href="#cb50-4" aria-hidden="true" tabindex="-1"></a>   <span class="at">ORG_FISCAL_PERIOD =</span> fiscal.codes,</span>
+<span id="cb50-5"><a href="#cb50-5" aria-hidden="true" tabindex="-1"></a>   <span class="at">BMF_AFFILIATION_CODE =</span> aff.codes,</span>
+<span id="cb50-6"><a href="#cb50-6" aria-hidden="true" tabindex="-1"></a>   <span class="at">BMF_ASSET_LEVEL =</span> asset.level,</span>
+<span id="cb50-7"><a href="#cb50-7" aria-hidden="true" tabindex="-1"></a>   <span class="at">BMF_DEDUCTIBILITY_CODE =</span> deduct,</span>
+<span id="cb50-8"><a href="#cb50-8" aria-hidden="true" tabindex="-1"></a>   <span class="at">BMF_FILING_REQ_CODE =</span> frc,</span>
+<span id="cb50-9"><a href="#cb50-9" aria-hidden="true" tabindex="-1"></a>   <span class="at">BMF_FOUNDATION_CODE =</span> fnd,</span>
+<span id="cb50-10"><a href="#cb50-10" aria-hidden="true" tabindex="-1"></a>   <span class="at">BMF_INCOME_LEVEL =</span> asset.level,</span>
+<span id="cb50-11"><a href="#cb50-11" aria-hidden="true" tabindex="-1"></a>   <span class="at">BMF_PF_FILING_REQ_CODE =</span> frc.pf,</span>
+<span id="cb50-12"><a href="#cb50-12" aria-hidden="true" tabindex="-1"></a>   <span class="at">BMF_STATUS_CODE =</span> status,</span>
+<span id="cb50-13"><a href="#cb50-13" aria-hidden="true" tabindex="-1"></a>   <span class="at">BMF_TAX_EXEMPT_PURP =</span> taxexp.purp,</span>
+<span id="cb50-14"><a href="#cb50-14" aria-hidden="true" tabindex="-1"></a>   <span class="at">NCCS_LEVEL_1 =</span> level1.codes,</span>
+<span id="cb50-15"><a href="#cb50-15" aria-hidden="true" tabindex="-1"></a>   <span class="at">NCCS_LEVEL_2 =</span> level2.codes,</span>
+<span id="cb50-16"><a href="#cb50-16" aria-hidden="true" tabindex="-1"></a>   <span class="at">NCCS_LEVEL_3 =</span> level3.codes    )</span>
+<span id="cb50-17"><a href="#cb50-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb50-18"><a href="#cb50-18" aria-hidden="true" tabindex="-1"></a><span class="fu">dump</span>( <span class="st">"dictionaries"</span>, <span class="at">file=</span><span class="st">"data/DICTIONARIES.R"</span> )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<style>
+
+h1, h2 {
+  margin-top: 80px;
+}
+
+h3 {
+  margin-bottom: 20px;
+}
+
+.codebook-entry {
+   background-color: beige;
+   margin-top: 20px;
+}
+
+table table.table {
+   width: fit-content;
+}
+
+</style>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="./2_00-refinement.html" class="pagination-link" aria-label="Data Refinement">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Data Refinement</span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="./3_00-documentation.html" class="pagination-link" aria-label="DOCUMENTATION">
+        <span class="nav-page-text">DOCUMENTATION</span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

@@ -1,5 +1,5 @@
 ---
-title: "Mission Fields"
+title: "Mission Fields (NTEE)"
 format: html
 execute:
   warning: false
@@ -68,18 +68,85 @@ ntee_irs1  <- substr( d$NTEE_IRS, 1, 1 )
 ntee_nccs1 <- substr( d$NTEE_NCCS, 1, 1 )
 fable( ntee_irs1,  as.factor=T )
 fable( ntee_nccs1, as.factor=T )
-
-kable( table( ntee_irs1, ntee_nccs1 ))
 ```
 
+
+The difference between IRS and NCCS versions:  
+
+```{r}
+kable( table( ntee_irs1, ntee_nccs1 ))
+```
 
 
 ### NTEE Version 2 (NTEEV2)
 
 
-```{r nteev2}
-head( d$NTEEV2 )
+A new version of the NTEE codes are being added to NCCS data files. NTEE-V2 contains the same information as the original but in a format that is better suited for analytics. The original NTEE codes combined mission groups with organizational type, making them confusing at times. The also required frequent cross-referencing of NTEE major group letters with industry labels, making them more difficult to interpret.   
+
+The new version uses a 3-part "tidy" format that makes the organizational type an explicit level and includes the higher-level industry code for convenience. 
+
 ```
+Old:   B29            (charter school)
+New:   EDU-B29-RG     (RG = "regular" or non-specialized nonprofit)
+
+Old:   B01            (advocacy broadly for the education sector)
+New:   EDU-B00-AA     (AA = advocacy organization) 
+
+Old:   B0129          (advocacy specifically for charter schools)
+New:   EDU-B29-AA
+```
+  
+![](https://raw.githubusercontent.com/UrbanInstitute/nccs/main/public/img/resources/ntee-v1-vs-v2.png)
+
+![](https://nccs.urban.org/nccs/_stories/nccsdata/ntee2-structure.png)
+
+
+
+**Industry Group Definitions XXX-xxx-xx**
+
+```
+ART - Arts, Culture, and Humanities (A)
+EDU - Education (B minus universities)
+ENV - Environment and Animals (C,D)
+HEL - Health (E,F,G,H minus hospitals)
+HMS - Human Services (I,J,K,L,M,N,O,P)
+IFA - International, Foreign Affairs (Q)
+PSB - Public, Societal Benefit (R,S,T,U,V,W)
+REL - Religion Related (X)
+MMB - Mutual/Membership Benefit (Y)
+UNU - Unknown, Unclassified (Z)
+UNI - Universities (B40, B41, B42, B43, and B50)
+HOS - Hospitals (E20, E21, E22, and E24)
+```
+
+**Major Group and Divisions xxx-XXX-xxx**
+
+These will be the same as the traditional NTEE codes except specialty organizations (x01-x19) are replaced with zeroes (x00) and the common codes (01-19) have been recoded as organizational types. 
+
+```
+B  EDUCATION                                   (MAJOR GROUP)
++--  B20 ELEMENTARY AND SECONDARY SCHOOLS      (division)
+¦ +--B21 Preschools                            (subdivision)
+¦ +--B24 Primary & Elementary Schools
+¦ +--B25 Secondary & High Schools
+¦ +--B28 Special Education
+¦ +--B29 Charter School
+```
+
+**Organizational Type xxx-xxx-XX**
+
+```
+RG - Regular Nonprofit  
+AA - Alliance/Advocacy Organizations (*formerly 01*) 
+MT - Management and Technical Assistance (*formerly 02*) 
+PA - Professional Societies/Associations (*formerly 03*) 
+RP - Research Institutes and/or Public Policy Analysis (*formerly 05*) 
+MS - Monetary Support - Single Organization (*formerly 11*) 
+MM - Monetary Support - Multiple Organizations (*formerly 12*) 
+NS - Nonmonetary Support Not Elsewhere Classified (N.E.C.) (*formerly 19*) 
+```
+
+![](https://nccs.urban.org/nccs/_stories/nccsdata/nteev2-example.png)
 
 
 ### NCSS_LEVEL Fields 
@@ -95,7 +162,7 @@ fable( d$NCCS_LEVEL_3, p=T )
 
 
 
-```{r nccs-level2, results="asis"}
+```{r nccs-level1, results="asis"}
 fable( d$NCCS_LEVEL_1, p=T )
 ```
 
@@ -113,9 +180,9 @@ Definition of a [Mutual Member Benefit Corporation](https://en.wikipedia.org/wik
 > 
 > Mutual benefit corporations have their roots in the benefit societies that sprang up to offer services and solidarity to workers during the Industrial Revolution, although most today do not have any particular connection to labor movements.
 
-```
-Wikipedia contributors. (2022, March 5). Mutual-benefit nonprofit corporation. In Wikipedia, The Free Encyclopedia. Retrieved 21:14, June 5, 2024, from "Mutual-benefit_nonprofit_corporation"
-```
+
+*Mutual-Benefit Nonprofit Corporation: From Wikipedia, The Free Encyclopedia. Retrieved 21:14, June 5, 2024.*
+
 
 
 ```{r nccs-level2, results="asis"}
@@ -123,11 +190,13 @@ fable( d$NCCS_LEVEL_2, p=T )
 ```
 
 
-#### NCCS_LEVEL_1
+#### NCCS_LEVEL_3
 
-```{r nccs-level2, results="asis"}
+```{r nccs-level3, results="asis"}
 fable( d$NCCS_LEVEL_3, p=T )
 ```
+
+
 
 
 

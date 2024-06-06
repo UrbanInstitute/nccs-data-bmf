@@ -1,5 +1,5 @@
 ---
-title: "Documentation"
+title: "Data Dictionary"
 format: html
 execute:
   warning: false
@@ -9,34 +9,123 @@ execute:
 ---
 
 
+<br>
+<br>
+<br>
 
 
-```{r}
-## Packages
+## [Organizational Traits](3_02-org-fields.html)
 
-library( tidyverse )   # data wrangling 
-library( data.table )  # data wrangling 
-library( pander )      # pretty tables 
-library( knitr )       # pretty tables
-library( DiagrammeR )  # drawing diagrams
-library( ggthemes )    # graphics 
-library( gridExtra )   # graphics
+<br>
+<hr>
+<br>
 
-# CUSTOM FUNCTIONS: fable()
-source( "R/functions.R" )
+- **EIN**: Employer Identification Number
+- **EIN2**:  Formatted version (EIN-XX-XXXXXXX)
+- **ORG_NAME**: Nonprofit name 
+- **ORG_NAME_SEC**: A secondary name or abbreviated name used by the nonprofit 
+- **ORG_PERS_ICO**: Person In Care of Organization; the director or board chair. 
+- **ORG_FISCAL_PERIOD**:  
+- **ORG_TYPE_501C**:  
+- **ORG_TYPE_PF**: 
+- **ORG_CORP_FORM**: 
+- **ORG_RULING_DATE**:  
+- **ORG_RULING_YEAR**: 
+- **ORG_YEAR_FIRST**:  
+- **ORG_YEAR_LAST**:  
+- **ORG_YEAR_COUNT**:  
 
-# FACTOR LABELS  
-source( "data/DICTIONARIES.R" )
-```
+<br>
+<hr>
+<br>
 
 
-## Data from Step-00 PreProcessing
 
-```{r, cache=T}
-d <- readRDS( "data/BMF-LABELED-TEMP.rds" )
-```
+## [Mission Taxonomies](3_03-mission-fields.html)
+
+<br>
+<hr>
+<br>
+
+- **NTEE_IRS**:  
+- **NTEE_NCCS**:   
+- **NTEEV2**:  
+- **NCCS_LEVEL_1**:  
+- **NCCS_LEVEL_2**:  
+- **NCCS_LEVEL_3**: 
+
+<br>
+<hr>
+<br>
 
 
+## [IRS BMF Fields](3_04-bmf-fields.html) 
+
+<br>
+<hr>
+<br>
+
+- **BMF_SUBSECTION_CODE**:     
+- **BMF_TAX_EXEMPT_PURP**:  
+- **BMF_CLASSIFICATION_CODE**: 
+- **BMF_DEDUCTIBILITY_CODE**:  
+- **BMF_FILING_REQ_CODE**:  
+- **BMF_PF_FILING_REQ_CODE**: 
+- **BMF_FOUNDATION_CODE**:     
+- **BMF_STATUS_CODE**:  
+- **BMF_AFFIL_CODE**: 
+- **BMF_AFFILIATION_CODE**:    
+- **BMF_GROUP_EXEMPT_NUM**: 
+- **BMF_INCOME_LEVEL**:         
+- **BMF_ASSET_LEVEL**:  
+
+<br>
+<hr>
+<br>
+
+
+## [Form 990 Financials](3_05-f990-fields.html) 
+
+<br>
+<hr>
+<br>
+
+- **F990_FORM_YEAR**: 
+- **F990_TOTAL_REVENUE_RECENT**:  
+- **F990_TOTAL_INCOME_RECENT**:  
+- **F990_TOTAL_ASSETS_RECENT**:    
+
+<br>
+<hr>
+<br>
+
+
+## [Geographic Variables](3_06-geo-fields.html) 
+
+<br>
+<hr>
+<br>
+
+- **F990_ORG_ADDR_STREET**: 
+- **F990_ORG_ADDR_CITY**:  
+- **F990_ORG_ADDR_STATE**:  
+- **F990_ORG_ADDR_ZIP**:  
+- **CENSUS_URBAN_AREA**: 
+- **CENSUS_STATE_ABBR**: 
+- **CENSUS_COUNTY_NAME**: 
+- **CENSUS_CBSA_NAME**:  
+- **CENSUS_CBSA_FIPS**: 
+- **CENSUS_BLOCK_FIPS**: 
+- **ORG_ADDR_FULL**:  
+- **ORG_ADDR_MATCH**:  
+- **LATITUDE**:  
+- **LONGITUDE**:  
+- **GEOCODER_SCORE**:  
+- **GEOCODER_MATCH**:  
+
+<br>
+<hr>
+<br>
 
 
 
@@ -51,6 +140,16 @@ h1, h2 {
 .codebook-entry {
    background-color: beige;
    margin-top: 20px;
+}
+
+strong {
+  font-weight: bold;
+  font-family: monospace;
+  color: #886608;
+}
+
+a{
+  color: #1485bb;
 }
 </style>
 
