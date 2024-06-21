@@ -21,26 +21,51 @@ library( knitr )       # pretty tables
 library( DiagrammeR )  # drawing diagrams
 library( ggthemes )    # graphics 
 library( gridExtra )   # graphics
+library( log4r )
 
 # CUSTOM FUNCTIONS: fable()
 source( "R/functions.R" )
 
 # FACTOR LABELS  
 source( "data/DICTIONARIES.R" )
+
+# Logging
+harmonize_logger = create_logger(
+  logfile_path = "logs/bmf_download_log.txt"
+  )
 ```
 
 
-## Data from Step-00 PreProcessing
+# Preprocessing the BMFs
 
-```{r, cache=T}
-d <- readRDS( "data/BMF-LABELED-TEMP.rds" )
+## Retrieving BMF urls
+
+There are 2 sources of BMFs that undergo harmonization.
+
+1. NCCS'BMF archive (legacy BMF)
+2. Newly released BMFs from the IRS (raw BMF)
+
+```{r, cache=T, eval=FALSE}
+bmf_url_ls <- c(
+  get_s3_bucket_contents( bucket_name = "nccsdata",
+                          bucket_folder = "raw/bmf/",
+                          bucket_url = BUCKET_LS$nccsdata ),
+  get_s3_bucket_contents( bucket_name = "nccsdata",
+                          bucket_folder = "legacy/bmf/",
+                          bucket_url = BUCKET_LS$nccsdata )
+)
 ```
 
+## Downloading BMFs
 
+```{r, eval=FALSE}
+download_files(
+  urls_ls = bmf_url_ls, 
+  dest_folder = "data/raw/"
+)
+```
 
-
-
-
+Legacy and raw BMF should now be saved to the `data/raw/` folder.
 
 <style>
 
