@@ -21,9 +21,13 @@ library( knitr )       # pretty tables
 library( DiagrammeR )  # drawing diagrams
 library( ggthemes )    # graphics 
 library( gridExtra )   # graphics
+library(log4r)
 
 # CUSTOM FUNCTIONS: fable()
 source( "R/functions.R" )
+
+# Global Variables
+source("R/config.R")
 
 # FACTOR LABELS  
 source( "data/DICTIONARIES.R" )
@@ -32,14 +36,42 @@ source( "data/DICTIONARIES.R" )
 
 ## Data from Step-00 PreProcessing
 
-```{r, cache=T}
-d <- readRDS( "data/BMF-LABELED-TEMP.rds" )
+First, get the list of legacy BMFs from the `raw` folder.
+
+```{r, cache=T, eval=FALSE}
+raw_bmf_files_ls <-
+  get_files(folder_name = FILE_PATH_LS$raw, scope = "BMF")
 ```
 
 
+## Harmonize Files by Tax Year
 
+Next, run the harmonization function. This function:
 
+1. Renames variables based on the provided crosswalk.
+2. Saves files according to tax year and not calendar year.
+  i) Legacy BMFs are labelled by the year they are released. (e.g. a BMF released today by the IRS will be labelled as a 2024 BMF).
+  ii) However, the records present in them are derived from tax forms that are filed by **tax year** (e.g. filing a return for tax year 2022 in calendar year 2024).
+  iii) Extracting the year from the column containing tax period information allows us to reorganize files by tax year such that the data set for "2022" will actually contain filings from the "2022" tax season.
+  iv) The calendar year and month the data set was released in will now be saved under the `ORG_FISCAL_YEAR` and `ORG_FISCAL_MONTH` column respectively.
+  v) If the column containing the tax year is not found, the calendar year is assumed to be the tax year.
+3. Creates an EIN2 Column which takes EINs and performs the following:
+  1) Adds leading zeroes if EINs are less than 9 characters long until they are 9 characters long.
+  2) Reformats EINs into `EIN-XXXXXXX-XX`. This allows EIN2 to serve as a unique character ID without coercion into an integer, which correspondingly results in leading zeros being removed.
 
+```{r, cache=TRUE, eval=FALSE}
+run_harmonization(
+  raw_paths = raw_bmf_files_ls,
+  logger = harmonize_logger,
+  xwalk_df = BMF_XWALK,
+  ds = "BMF",
+  scope = "501CX-NONPROFIT-PX",
+  destfolder = FILE_PATH_LS$harmonized,
+  tax_year_column = "F990_TAX_PERIOD_END_DATE"
+)
+```
+
+ 
 
 
 <style>
