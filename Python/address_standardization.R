@@ -43,4 +43,4 @@ sample_100 <- difficult_addy |>
 
 # Export the sample to a csv
 
-readr::write_csv(sample_100, "C:/Users/cprinvil/Downloads/sample_addresses.csv")
+readr::write_csv(sample_100, "C:/Users/cprinvil/Documents/nccs-nptrends/nccs-data-bmf/nccs-data-bmf/Python/sample_addresses.csv")
