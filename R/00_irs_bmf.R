@@ -27,11 +27,32 @@ data.table::fwrite(bmf_2025_raw, "data/raw/bmf_2025.csv")
 
 # Transformation Layer
 
+# EIN
 bmf_2025_preprocessed <- bmf_2025_raw |>
   dplyr::mutate(ein = clean_and_format_ein(EIN))
 
-## EIN2?
+## NAME
+raw_names <- bmf_2025_raw$NAME
+
+bmf_2025_raw[, c("org_name_raw",
+                 "org_name_join",
+                 "org_name_display",
+                 "org_legal_suffix") := as.list(clean_names(raw_names, 
+                                                            suffix_map, 
+                                                            standardization_lookup, 
+                                                            name_lookup))]
+
+
+## ICO Name
+bmf_2025_raw <- transform_ico_name(bmf_2025_raw)
+
+## GEN
+
+bmf_2025_raw <- transform_group_exemption_number(bmf_2025_raw)
 
 # TODO
+# create copies, don't overwrite, make functions pure, preserve data lineage it must be clear that we are making changes outside the function
 # Merge raw bmf path vector and raw bmf urls together
 # complement names with efile names, since NAME is incorrect.
+# Metadata tables:
+# organization name, ico name

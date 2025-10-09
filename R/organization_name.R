@@ -1,23 +1,20 @@
 # Formatting organization name
 
+# Parameters
 suffix_map <- list(
   # Common Corporation variations
   "INC" = c("INC", "INC-", "INC\\.", "INCORPORATED", " I N C", "IN C", "I NC", " INC ", " INC - "),
   "CORP" = c("CORP", "CORP\\.", "CORPORATION", "COR P", "CO RP", "A NONPROFIT CORPORATION"),
   "CO" = c("CO", "CO\\.", "COMPANY"),
-  
   # Limited Liability Company variations
   "LLC" = c("LLC", "LLC\\.", "L L C", "L\\.L\\.C.", "LIMITED LIABILITY CO"),
   "LTD" = c("LTD", "LTD\\.", "LIMITED"),
-  
   # Professional Corporation variations
   "PC" = c("PC", "PC\\.", "P C"),
-  
   # Trust variations
   "TR" = c("TR", "TR\\.", "TRUST", " TR "),
   "TUA" = c("TUA", "TUA\\.", "T\\.U\\.A.", "TRUST UNDER AGREEMENT"),
   "TUW" = c("TUW", "TUW\\.", "T\\.U\\.W.", "TRUST UNDER WILL", "TR UW"),
-  
   # Org Variations
   "ORG" = c("DOT ORG", "\\sORG$"),
   "NFP" = c("NFP")
@@ -28,46 +25,8 @@ suffix_map <- list(
                 standard_suffix = as.character(standard_suffix)) |>
   dplyr::arrange(dplyr::desc(length))
 
-clean_names <- function(names){
-  # Remove suffixes
-  # Remove punctuation and special characters - display name (sentence case)
-  # Extract suffixes to a separate column
-  # Unique lookup table
-}
-
-# simple random sample at 99% confidence interval
-test_names <- sample(bmf_2025_raw$NAME, 666)
-
-results <- data.frame(
-  org_name_raw = test_names,
-  org_name_join= NA_character_, 
-  org_name_display = NA_character_,
-  org_legal_suffix = NA_character_,   
-  stringsAsFactors = FALSE
-)
-
-for (i in 1:nrow(suffix_map)){
-  variation <- suffix_map$variation[i]
-  standard_suffix <- suffix_map$standard_suffix[i]
-  pattern <- pattern <- paste0("\\s*", variation, "\\s*$")
+name_lookup <- readxl::read_xlsx("data/validate/lookup/standardized_organization_names.xlsx")  
   
-  uncleaned_indices <- which(is.na(results$org_legal_suffix))
-  names_to_check <- results$org_name_raw[uncleaned_indices]
-  
-  matches_mask <- stringr::str_detect(names_to_check, pattern)
-  global_match_indices <- uncleaned_indices[matches_mask]
-  
-  results$org_legal_suffix[global_match_indices] <- standard_suffix
-  
-  results$org_name_join[global_match_indices] <- 
-    stringr::str_replace(results$org_name_raw[global_match_indices],
-                         pattern,
-                         " ")
-  results$org_name_display[global_match_indices] <- 
-    stringr::str_to_title(results$org_name_join[global_match_indices])
-}
-results$org_name_join <- stringr::str_squish(results$org_name_join)
-
 standardization_lookup <- tibble::tribble(
   ~variation, ~standardized_word,
   "Assoc\\s*$", "Association",
@@ -80,8 +39,6 @@ standardization_lookup <- tibble::tribble(
   "Dmv", "DMV",
   "FBO", "",
   "\\s.*Pba\\s*", "PBA",
-  "Educationfoundation", "Education Foundation",
-  "Youthlacrosse", "Youth Lacrosse",
   "\\sPs\\s", " PS ",
   "Jgb\\s", "JGB ",
   "Camg-F", "CAMG",
@@ -91,60 +48,80 @@ standardization_lookup <- tibble::tribble(
   "%", "\\s",
   "\\sNea$", " NEA",
   "\\sUsa\\s", " USA ",
-  "Fwc Scholarship Foundation", "FWC Scholarship Foundation",
-  "Ppep First American Resources & Services", "PPEP First American Resources & Services",
-  "Aarp", "AARP",
-  "Tsg Foundation", "TSG Foundation",
   "\\sNj\\s", " NJ ",
   "\\sDc\\s*", " DC ",
-  "Yc Travel Msc Mariners Benefit Foundation", "YC Travel MSC Mariners Benefit Foundation",
-  "Equallyoked", "Equally Yoked",
-  "Templo Oasis Ad Levittown", "Templo Oasis Asambleas de Dios Levittown",
-  "Friends Of Iglfa", "Friends Of IGLFA",
-  "Society For Preservation & Encrgmnt Of Barbershop Quartet Singing Amer",
-  "Society for the Preservation and Encouragement of Barber Shop Quartet Singing in America",
-  "Fdru", "FDRU",
-  "Moremarrowdonorsorg", "More Marrow Donors Org", # need to add ORG suffix
-  "United Residents In Academy Homes Ii", "United Residents In Academy Homes II ", "Ddd Foundation", "DDD Foundation",
-  "Cc Ball Family Foundation", "The Ball Family Foundation",
-  "Monroe Mi Home Non-Profit Housing", "HOME",
-  "Monument Bpw", "BPW",
-  "Hsapss Pa", "HSAPSS PA"
 )
 
-
-results <- results |>
-  dplyr::mutate(
-    org_name_join = ifelse(is.na(org_name_join), org_name_raw, org_name_join),
-    org_name_display = ifelse(
-      is.na(org_name_display),
-      stringr::str_to_title(org_name_join),
-      org_name_display
-    )
-  )
-
-for (i in 1:nrow(standardization_lookup)){
-  variation <- standardization_lookup[["variation"]][i]
-  standardized_word <- standardization_lookup[["standardized_word"]][i]
-  global_indices <- 1:nrow(results)
-  
-  variation_mask <- stringr::str_detect(results$org_name_display, variation)
-  variation_indices <- global_indices[variation_mask]
-  
-  results$org_name_display[variation_indices] <- stringr::str_replace(
-    results$org_name_display[variation_indices],
-    variation,
-    standardized_word
+#' @title Function to clean organization names in the BMF `NAME` column
+clean_names <- function(raw_names,
+                        suffix_map,
+                        standardization_lookup,
+                        name_lookup) {
+  results <- data.table::data.table(
+    org_name_raw = raw_names,
+    org_name_join = NA_character_,
+    org_name_display = NA_character_,
+    org_legal_suffix = NA_character_
   )
   
+  # First data cleaning process - extract suffixes and create new name variables
+  for (i in 1:nrow(suffix_map)) {
+    variation <- suffix_map$variation[i]
+    standard_suffix <- suffix_map$standard_suffix[i]
+    pattern <- pattern <- paste0("\\s*", variation, "\\s*$")
+    
+    results[is.na(org_legal_suffix) &
+              stringr::str_detect(org_name_raw, pattern), `:=`(
+                org_legal_suffix = standard_suffix,
+                org_name_join = stringr::str_replace(org_name_raw, pattern, " "),
+                org_name_display = stringr::str_to_title(stringr::str_replace(org_name_raw, pattern, " "))
+              )]
+  }
+  
+  processed_name_cols <- c("org_name_join", "org_name_display", "org_legal_suffix")
+  results[, (processed_name_cols) := lapply(.SD, stringr::str_squish), .SDcols = processed_name_cols]
+  
+  results[, org_name_join := data.table::fifelse(is.na(org_name_join), 
+                                                 org_name_raw, 
+                                                 org_name_join)]
+  
+  results[, org_name_display := data.table::fifelse(is.na(org_name_display),
+                                                    stringr::str_to_title(org_name_join),
+                                                    org_name_display)]
+  
+  # 2nd data cleaning process - standardizing patterns
+  for (i in 1:nrow(standardization_lookup)) {
+    variation <- standardization_lookup[["variation"]][i]
+    standardized_word <- standardization_lookup[["standardized_word"]][i]
+    
+    results[stringr::str_detect(org_name_display, variation), `:=` (
+      org_name_display = stringr::str_replace(org_name_display, variation, standardized_word)
+    )]
+    
+  }
+  
+  # 3rd data cleaning process - unique name recodings
+  for (i in 1:nrow(name_lookup)) {
+    results[org_name_raw == name_lookup$org_name_raw[i], `:=` (
+      org_name_join = name_lookup$org_name_join[i],
+      org_name_display = name_lookup$org_name_display[i],
+      org_legal_suffix = name_lookup$org_legal_suffix[i]
+    ) ]
+  }
+  
+  results[, (processed_name_cols) := lapply(.SD, stringr::str_squish), .SDcols = processed_name_cols]
+  
+  return(results)
 }
 
-data.table::fwrite(results, "data/validate/manual/org_names.csv")
+# Code for testing and validation
 
-bmf_2025_raw[grepl("PPEP", bmf_2025_raw$NAME), ] |> View()
+# Code for testing and validation
 
-
-stringr::str_detect("LOWER BUCKS COUNTY ATHLETIC ASSN", " ASSN ")
-
-# TODO
-# NA values in org_name_cleaned need to be org_name_raw comverted to sentence case
+# 666 records are in the 99% CI for a SRS, add names in the name lookup to validate
+# test_names <- c(
+#   sample(bmf_2025_raw$NAME, 666),
+#   bmf_2025_raw[NAME %in% name_lookup$org_name_raw, NAME]
+# ) 
+# rs <- clean_names(test_names, suffix_map, standardization_lookup, name_lookup)
+# data.table::fwrite(rs, "data/validate/manual/org_names.csv")
