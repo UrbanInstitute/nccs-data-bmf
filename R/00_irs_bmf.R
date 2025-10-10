@@ -50,6 +50,8 @@ bmf_2025_raw <- transform_ico_name(bmf_2025_raw)
 
 bmf_2025_raw <- transform_group_exemption_number(bmf_2025_raw)
 
+## EO SUBSECTION AND CLASSIFICATION CODES
+
 # TODO
 # create copies, don't overwrite, make functions pure, preserve data lineage it must be clear that we are making changes outside the function
 # Merge raw bmf path vector and raw bmf urls together
