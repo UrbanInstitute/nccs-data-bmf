@@ -1,0 +1,62 @@
+﻿subsection_code,classification_code,classification_description,exempt_organization_type,effective_start_date,effective_end_date
+1,1,Government instrumentality,501(c)(1),20241213,99991231
+2,1,Title-holding corporation,501(c)(2),20241213,99991231
+3,1,Charitable Organization,501(c)(3),20241213,99991231
+3,2,Educational organization,501(c)(3),20241213,99991231
+3,3,Literary organization,501(c)(3),20241213,99991231
+3,4,Organization to prevent cruelty to animals,501(c)(3),20241213,99991231
+3,5,Organization to prevent cruelty to children,501(c)(3),20241213,99991231
+3,6,Organization for public safety testing,501(c)(3),20241213,99991231
+3,7,Religious organization,501(c)(3),20241213,99991231
+3,8,Scientific organization,501(c)(3),20241213,99991231
+4,1,Civic league,501(c)(4),20241213,99991231
+4,2,Local association of employees,501(c)(4),20241213,99991231
+4,3,Social welfare organization,501(c)(4),20241213,99991231
+5,1,Agriculture organization,501(c)(5),20241213,99991231
+5,2,Horticulture organization,501(c)(5),20241213,99991231
+5,3,Labor organization,501(c)(5),20241213,99991231
+6,1,Board of Trade,501(c)(6),20241213,99991231
+6,2,Business league,501(c)(6),20241213,99991231
+6,3,Chamber of Commerce,501(c)(6),20241213,99991231
+6,4,Real estate board,501(c)(6),20241213,99991231
+7,1,"Pleasure, recreational, or social club",501(c)(7),20241213,99991231
+8,1,"Fraternal beneficiary society, order or association",501(c)(8),20241213,99991231
+9,1,Voluntary employees’ beneficiary association (Non-government),501(c)(9),20241213,99991231
+9,2,Voluntary employees’ beneficiary association (Government emp.’s),501(c)(9),20241213,99991231
+10,1,Domestic fraternal societies and associations,501(c)(10),20241213,99991231
+11,1,Teachers’ retirement fund association,501(c)(11),20241213,99991231
+12,1,Benevolent life insurance association,501(c)(12),20241213,99991231
+12,2,Mutual ditch or irrigation company,501(c)(12),20241213,99991231
+12,3,Mutual or cooperative telephone company,501(c)(12),20241213,99991231
+12,4,"Mutual electric company, mutual water company, etc.",501(c)(12),20241213,99991231
+13,1,Burial association,501(c)(13),20241213,99991231
+13,2,Cemetery company,501(c)(13),20241213,99991231
+14,1,Credit Union,501(c)(14),20241213,99991231
+14,2,Other mutual corporation or association,501(c)(14),20241213,99991231
+15,1,Mutual insurance company or association other than life or marine,501(c)(15),20241213,99991231
+16,1,Corporation financing crop operation,501(c)(16),20241213,99991231
+17,1,Supplemental unemployment compensation trust or plan,501(c)(17),20241213,99991231
+18,1,Employee funded pension trust (created before 6–25–59),501(c)(18),20241213,99991231
+19,1,Post or organization of war veterans,501(c)(19),20241213,99991231
+20,1,Legal Services Organization,501(c)(20),20241213,99991231
+21,1,Black Lung,501(c)(21),20241213,99991231
+22,1,Multiemployer Pension Plan,501(c)(22),20241213,99991231
+23,1,Veterans Association Founded Prior to 1880,501(c)(23),20241213,99991231
+24,1,Trust described in Section 4049 of ERISA,501(c)(24),20241213,99991231
+25,1,Title Holding Corporation or Trust,501(c)(25),20241213,99991231
+26,1,State-sponsored High-Risk Health Insurance Org. Effective (1/1/99),501(c)(26),20241213,99991231
+27,1,State-sponsored Worker’s Compensation Reinsurance Organization (Effective 1/1/99),501(c)(27),20241213,99991231
+28,1,National Railroad Retirement Investment Trust Classification,501(c)(28),20241213,99991231
+29,1,Qualified non profit Health Insurance Issuers,501(c)(29),20241213,99991231
+40,1,Apostolic and religious organization,501(d),20241213,99991231
+50,1,Cooperative hospital service organization,501(e),20241213,99991231
+60,1,Cooperative service organizations of operating education org’s,501(f),20241213,99991231
+70,1,Child care under 501(k),501(k),20241213,99991231
+71,1,Charitable Risk Pool (Effective 1/1/99),501(n),20241213,99991231
+80,1,Farmers’ Cooperative,521,20241213,99991231
+81,1,Qualified State-Sponsored Tuition Program,529,20241213,99991231
+82,1,IRC 527,82,20241213,99991231
+90,1,Non-exempt charitable trust 4947(a)(2) (Split Interest),4947(a)(2),20241213,99991231
+91,1,Non-exempt charitable trust (Public Charity),4947(a)(1),20241213,99991231
+92,1,Non-exempt charitable trust (Trust treated as Private Foundation),4947(a)(1),20241213,99991231
+93,1,Taxable Farmer’s Cooperative,1381(a)(2),20241213,99991231
