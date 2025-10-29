@@ -13,3 +13,7 @@ bmf_2025_raw_paths <- c(
   "data/raw/bmf_2025_gulf.and.pacific.coast_region.csv",
   "data/raw/bmf_2025_international.pr_region.csv"
 )
+
+# Paths
+subsection_classification_code_lookup_path <- "data/lookup/classification_subsection_code_lookup.csv"
+affiliation_code_lookup_path <- "data/lookup/affiliation_code_lookup.csv"
