@@ -1,4 +1,5 @@
 # Script to process raw bmf from the IRS
+# IRM: https://www.irs.gov/irm/part25/irm_25-007-001
 
 # Library
 library(data.table)
@@ -11,6 +12,7 @@ source(here::here("R", "ico_name.R"))
 source(here::here("R", "group_exemption_number.R"))
 source(here::here("R", "affiliation_code.R"))
 source(here::here("R", "ruling_date.R"))
+source(here::here("R", "deductibility_code.R"))
 
 # Extraction Layer
 
@@ -70,6 +72,17 @@ bmf_2025_preprocessed <- transform_affiliation_code(bmf_2025_preprocessed,
 
 ## Ruling date
 bmf_2025_preprocessed <- transform_ruling_date(bmf_2025_preprocessed)
+
+## Deductibility code
+
+bmf_2025_preprocessed <- transform_deductibility_code(bmf_2025_preprocessed)
+
+## Foundation code
+
+bmf_2025_preprocessed <- transform_foundation_code(bmf_2025_preprocessed)
+# missing: 6,7 , 25
+
+## Activity Code - 3 sets, make sure to pad
 
 # TODO
 # create copies, don't overwrite, make functions pure, preserve data lineage it must be clear that we are making changes outside the function
