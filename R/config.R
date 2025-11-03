@@ -17,3 +17,5 @@ bmf_2025_raw_paths <- c(
 # Paths
 subsection_classification_code_lookup_path <- "data/lookup/classification_subsection_code_lookup.csv"
 affiliation_code_lookup_path <- "data/lookup/affiliation_code_lookup.csv"
+deductibility_code_lookup_path <- "data/lookup/deductibility_code_lookup.csv"
+foundation_code_lookup_path <- "data/lookup/foundation_code_lookup.csv"
