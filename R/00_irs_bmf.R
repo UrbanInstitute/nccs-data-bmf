@@ -83,8 +83,53 @@ bmf_2025_preprocessed <- transform_foundation_code(bmf_2025_preprocessed)
 # missing: 6,7 , 25
 
 ## Activity Code - 3 sets, make sure to pad
+activity_code_dim_table <- create_activity_code_dim_table(bmf_2025_preprocessed,
+                                                          activity_code_lookup)
+
+bmf_2025_preprocessed <- transform_activity_code(bmf_2025_preprocessed,
+                                                 activity_code_dim_table)
+
+## Organization Code
+
+bmf_2025_preprocessed <- transform_organization_code(bmf_2025_preprocessed,
+                                                     input_col = "ORGANIZATION")
+
+
+## Status Code
+bmf_2025_preprocessed <- transform_status_code(
+  bmf_2025_preprocessed,
+  input_col = "STATUS",
+  lookup = lookup_ls$status_code,
+  lookup_cols = c("status_code", "status_code_definition")
+)
+
+# Tax Period 404425 NA values
+
+bmf_2025_preprocessed <- transform_tax_period(bmf_2025_preprocessed,
+                                              input_col = "TAX_PERIOD")
+
+# Asset code derived from Total Assets EOY
+bmf_2025_preprocessed <- transform_financial_code(
+  dt = bmf_2025_preprocessed,
+  lookup = lookup_ls$asset_code,
+  input_col = "ASSET_CD",
+  lookup_key = "asset_code",
+  definition_col = "asset_code_definition"
+)
+
+# Income Code derived from Total Income EOY
+bmf_2025_preprocessed <- transform_financial_code(
+  dt = bmf_2025_preprocessed,
+  lookup = lookup_ls$income_code,
+  input_col = "INCOME_CD",
+  lookup_key = "income_code",
+  definition_col = "income_code_definition"
+)
+
+
 
 # TODO
+# NA values checking
 # create copies, don't overwrite, make functions pure, preserve data lineage it must be clear that we are making changes outside the function
 # Merge raw bmf path vector and raw bmf urls together
 # complement names with efile names, since NAME is incorrect.
