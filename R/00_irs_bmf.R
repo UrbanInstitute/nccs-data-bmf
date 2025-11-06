@@ -126,7 +126,59 @@ bmf_2025_preprocessed <- transform_financial_code(
   definition_col = "income_code_definition"
 )
 
+# Filing requirement code: no NA values
 
+bmf_2025_preprocessed <- transform_code(
+  dt = bmf_2025_preprocessed,
+  input_col = "FILING_REQ_CD",
+  lookup_key = "filing_requirement_code",
+  definition_col = "filing_requirement_code_definition",
+  type_conversion_func = as.integer,
+  lookup = lookup_ls$filing_requirement_code
+)
+
+# PF Filing requirement code: no NA values
+
+bmf_2025_preprocessed <- transform_code(
+  dt = bmf_2025_preprocessed,
+  input_col = "PF_FILING_REQ_CD",
+  lookup_key = "pf_filing_requirement_code",
+  definition_col = "pf_filing_requirement_code_definition",
+  type_conversion_func = as.integer,
+  lookup = lookup_ls$pf_filing_requirement_code
+)
+
+bmf_2025_preprocessed <- transform_code(
+  dt = bmf_2025_preprocessed,
+  input_col = "PF_FILING_REQ_CD",
+  lookup_key = "pf_filing_requirement_code",
+  definition_col = "pf_filing_requirement_code_description",
+  type_conversion_func = as.integer,
+  lookup = lookup_ls$pf_filing_requirement_code
+)
+
+# Accounting Period: ACCT_PD. No NA Values
+
+bmf_2025_preprocessed <- transform_accounting_period(bmf_2025_preprocessed)
+
+# Asset amount: ASSET_AMT, 424064 NA values
+
+bmf_2025_preprocessed <- transform_financials(bmf_2025_preprocessed,
+                                                input_col = "ASSET_AMT",
+                                                output_col = "asset_amount")
+
+# Income amount: INCOME_AMT, 424064 NA values, negative values present
+
+bmf_2025_preprocessed <- transform_financials(bmf_2025_preprocessed,
+                                              input_col = "INCOME_AMT",
+                                              output_col = "income_amount")
+
+# Revenue amount: REVENUE_AMT, 548409 NA values, negative values present
+
+
+bmf_2025_preprocessed <- transform_financials(bmf_2025_preprocessed,
+                                              input_col = "REVENUE_AMT",
+                                              output_col = "revenue_amount")
 
 # TODO
 # NA values checking
