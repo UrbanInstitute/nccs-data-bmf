@@ -180,6 +180,25 @@ bmf_2025_preprocessed <- transform_financials(bmf_2025_preprocessed,
                                               input_col = "REVENUE_AMT",
                                               output_col = "revenue_amount")
 
+# NTEE and NTEEV2 code
+
+# Create SCD table with all NTEE and NTEEV2 codes
+ntee_dim_table <- create_ntee_code_dim_table(
+  bmf_2025_preprocessed,
+  lookup_ls$ntee_code,
+  input_ntee_col = "NTEE_CD",
+  year = "2024"
+)
+
+bmf_2025_preprocessed <- transform_ntee_code(
+  bmf_2025_preprocessed,
+  ntee_dim_table,
+  lookup_ls$ntee_code,
+  input_ntee_col = "NTEE_CD"
+)
+
+
+
 # TODO
 # NA values checking
 # create copies, don't overwrite, make functions pure, preserve data lineage it must be clear that we are making changes outside the function
