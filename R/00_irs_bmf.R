@@ -182,22 +182,18 @@ bmf_2025_preprocessed <- transform_financials(bmf_2025_preprocessed,
 
 # NTEE and NTEEV2 code
 
-# Create SCD table with all NTEE and NTEEV2 codes
-ntee_dim_table <- create_ntee_code_dim_table(
-  bmf_2025_preprocessed,
-  lookup_ls$ntee_code,
-  input_ntee_col = "NTEE_CD",
-  year = "2024"
-)
-
 bmf_2025_preprocessed <- transform_ntee_code(
-  bmf_2025_preprocessed,
-  ntee_dim_table,
-  lookup_ls$ntee_code,
-  input_ntee_col = "NTEE_CD"
+  bmf_2025_raw,
+  ntee_code_lookup = lookup_ls$ntee_code,
+  ntee_major_group_lookup = lookup_ls$ntee_code_major_group,
+  activity_code_lookup = lookup_ls$ntee_code_activity_type,
+  input_ntee_col = "NTEE_CD",
+  year = "2025",
+  path = "data/ntee_test.csv"
 )
 
 
+# SORT name
 
 # TODO
 # NA values checking
