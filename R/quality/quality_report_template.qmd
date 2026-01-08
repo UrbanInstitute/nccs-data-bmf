@@ -1,0 +1,354 @@
+---
+title: "BMF Pipeline Quality Report"
+subtitle: "Post-Transformation Validation Results"
+date: "`r Sys.time()`"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    theme: cosmo
+    code-fold: true
+    self-contained: true
+  pdf:
+    toc: true
+    toc-depth: 2
+params:
+  report_data_path: NULL
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 10,
+  fig.height = 6
+)
+
+library(ggplot2)
+library(data.table)
+library(scales)
+
+# Load report data from RDS file
+if (!is.null(params$report_data_path) && file.exists(params$report_data_path)) {
+  report <- readRDS(params$report_data_path)
+} else {
+  stop("Report data not found. Please provide a valid report_data_path parameter.")
+}
+```
+
+# Executive Summary
+
+```{r summary-badge}
+status_color <- if (report$passed) "#28a745" else "#dc3545"
+status_text <- if (report$passed) "PASSED" else "FAILED"
+```
+
+::: {.callout-note appearance="simple" style="background-color: `r status_color`20; border-left-color: `r status_color`;"}
+## Overall Status: `r status_text`
+
+**Timestamp:** `r format(report$timestamp, "%Y-%m-%d %H:%M:%S")`
+:::
+
+```{r summary-table}
+summary_df <- data.frame(
+  Metric = c(
+    "Final Row Count",
+    "Final Column Count",
+    "Row Preservation",
+    "Missing Expected Columns",
+    "Unique EINs"
+  ),
+  Value = c(
+    format(report$row_count, big.mark = ","),
+    as.character(report$column_count),
+    if (report$row_preservation) "Yes" else "No",
+    as.character(length(report$missing_columns)),
+    if (!is.null(report$summary_stats$unique_eins))
+      format(report$summary_stats$unique_eins, big.mark = ",") else "N/A"
+  )
+)
+
+knitr::kable(summary_df, col.names = c("Metric", "Value"), align = c("l", "r"))
+```
+
+```{r missing-cols, results='asis'}
+if (length(report$missing_columns) > 0) {
+  cat("\n### Missing Expected Columns\n\n")
+  cat("The following columns were expected but not found:\n\n")
+  for (col in report$missing_columns) {
+    cat(sprintf("- `%s`\n", col))
+  }
+}
+```
+
+```{r critical-issues, results='asis'}
+if (length(report$critical_field_issues) > 0) {
+  cat("\n### Critical Field Issues\n\n")
+  cat("::: {.callout-warning}\n")
+  cat("The following critical fields have NULL values:\n\n")
+  for (field in names(report$critical_field_issues)) {
+    cat(sprintf("- **%s**: %s NULL values\n",
+                field,
+                format(report$critical_field_issues[[field]], big.mark = ",")))
+  }
+  cat(":::\n")
+}
+```
+
+---
+
+# Field Completeness
+
+This table shows the completeness percentage for each output field. Fields with less than 100% completeness are highlighted.
+
+```{r completeness-table}
+if (length(report$completeness) > 0) {
+  completeness_df <- data.frame(
+    Field = names(report$completeness),
+    Completeness = report$completeness,
+    stringsAsFactors = FALSE
+  )
+  completeness_df <- completeness_df[order(completeness_df$Completeness), ]
+  completeness_df$Status <- ifelse(
+    completeness_df$Completeness >= 100, "Complete",
+    ifelse(completeness_df$Completeness >= 90, "Good",
+    ifelse(completeness_df$Completeness >= 70, "Fair", "Low"))
+  )
+  completeness_df$Completeness <- sprintf("%.1f%%", completeness_df$Completeness)
+
+  knitr::kable(
+    completeness_df,
+    col.names = c("Field", "Completeness", "Status"),
+    align = c("l", "r", "c"),
+    row.names = FALSE
+  )
+} else {
+  cat("No completeness data available.")
+}
+```
+
+```{r completeness-chart, fig.cap="Field Completeness Distribution"}
+if (length(report$completeness) > 0) {
+  completeness_df <- data.frame(
+    Field = names(report$completeness),
+    Completeness = as.numeric(report$completeness),
+    stringsAsFactors = FALSE
+  )
+
+  # Show only fields with < 100% completeness for the chart
+  incomplete_df <- completeness_df[completeness_df$Completeness < 100, ]
+
+  if (nrow(incomplete_df) > 0) {
+    incomplete_df <- incomplete_df[order(incomplete_df$Completeness), ]
+    incomplete_df$Field <- factor(incomplete_df$Field, levels = incomplete_df$Field)
+
+    ggplot(incomplete_df, aes(x = Field, y = Completeness)) +
+      geom_col(aes(fill = Completeness), width = 0.7) +
+      geom_hline(yintercept = 90, linetype = "dashed", color = "orange", linewidth = 0.8) +
+      geom_hline(yintercept = 70, linetype = "dashed", color = "red", linewidth = 0.8) +
+      scale_fill_gradient2(
+        low = "#dc3545",
+        mid = "#ffc107",
+        high = "#28a745",
+        midpoint = 85,
+        limits = c(0, 100)
+      ) +
+      coord_flip() +
+      labs(
+        title = "Fields with Incomplete Data",
+        subtitle = "Orange line = 90%, Red line = 70%",
+        x = NULL,
+        y = "Completeness (%)"
+      ) +
+      theme_minimal() +
+      theme(
+        legend.position = "none",
+        panel.grid.major.y = element_blank(),
+        axis.text.y = element_text(size = 10)
+      ) +
+      scale_y_continuous(limits = c(0, 100), breaks = seq(0, 100, 20))
+  } else {
+    cat("All fields have 100% completeness.")
+  }
+}
+```
+
+---
+
+# Subsection Distribution
+
+Distribution of organizations by IRS subsection code (e.g., 501(c)(3), 501(c)(4), etc.).
+
+```{r subsection-chart, fig.cap="Organizations by Subsection Code"}
+if (!is.null(report$summary_stats$subsection_distribution)) {
+  subsection_dt <- as.data.table(report$summary_stats$subsection_distribution)
+  setnames(subsection_dt, c("subsection_code", "N"))
+
+  # Calculate percentage
+  subsection_dt[, pct := 100 * N / sum(N)]
+  subsection_dt[, label := sprintf("%s\n(%s)",
+                                    format(N, big.mark = ","),
+                                    sprintf("%.1f%%", pct))]
+
+  # Order by count descending
+  subsection_dt <- subsection_dt[order(-N)]
+  subsection_dt[, subsection_code := factor(subsection_code, levels = rev(subsection_code))]
+
+  ggplot(subsection_dt, aes(x = subsection_code, y = N)) +
+    geom_col(fill = "#4e79a7", width = 0.7) +
+    geom_text(aes(label = format(N, big.mark = ",")),
+              hjust = -0.1, size = 3.5) +
+    coord_flip() +
+    scale_y_continuous(
+      labels = label_comma(),
+      expand = expansion(mult = c(0, 0.15))
+    ) +
+    labs(
+      title = "Organizations by Subsection Code",
+      subtitle = sprintf("Total: %s organizations", format(sum(subsection_dt$N), big.mark = ",")),
+      x = "Subsection Code",
+      y = "Number of Organizations"
+    ) +
+    theme_minimal() +
+    theme(
+      panel.grid.major.y = element_blank(),
+      axis.text.y = element_text(size = 11, face = "bold")
+    )
+} else {
+  cat("Subsection distribution data not available.")
+}
+```
+
+```{r subsection-table}
+if (!is.null(report$summary_stats$subsection_distribution)) {
+  subsection_dt <- as.data.table(report$summary_stats$subsection_distribution)
+  setnames(subsection_dt, c("subsection_code", "N"))
+  subsection_dt[, Percentage := sprintf("%.2f%%", 100 * N / sum(N))]
+  subsection_dt[, N := format(N, big.mark = ",")]
+  setnames(subsection_dt, c("Subsection Code", "Count", "Percentage"))
+
+  knitr::kable(subsection_dt, align = c("l", "r", "r"))
+}
+```
+
+---
+
+# Organization Type Distribution
+
+Distribution of organizations by exempt organization type (top 15 shown).
+
+```{r orgtype-chart, fig.cap="Organizations by Type"}
+if (!is.null(report$summary_stats$orgtype_distribution)) {
+  orgtype_dt <- as.data.table(report$summary_stats$orgtype_distribution)
+  setnames(orgtype_dt, c("exempt_organization_type", "N"))
+
+  # Take top 15
+  orgtype_dt <- orgtype_dt[order(-N)][1:min(15, .N)]
+  orgtype_dt <- orgtype_dt[!is.na(exempt_organization_type)]
+
+  # Truncate long names
+  orgtype_dt[, display_name := ifelse(
+    nchar(exempt_organization_type) > 40,
+    paste0(substr(exempt_organization_type, 1, 37), "..."),
+    exempt_organization_type
+  )]
+
+  # Order for plotting
+  orgtype_dt[, display_name := factor(display_name, levels = rev(display_name))]
+
+  ggplot(orgtype_dt, aes(x = display_name, y = N)) +
+    geom_col(fill = "#59a14f", width = 0.7) +
+    geom_text(aes(label = format(N, big.mark = ",")),
+              hjust = -0.1, size = 3.5) +
+    coord_flip() +
+    scale_y_continuous(
+      labels = label_comma(),
+      expand = expansion(mult = c(0, 0.15))
+    ) +
+    labs(
+      title = "Organizations by Exempt Organization Type",
+      subtitle = "Top 15 types shown",
+      x = NULL,
+      y = "Number of Organizations"
+    ) +
+    theme_minimal() +
+    theme(
+      panel.grid.major.y = element_blank(),
+      axis.text.y = element_text(size = 9)
+    )
+} else {
+  cat("Organization type distribution data not available.")
+}
+```
+
+```{r orgtype-table}
+if (!is.null(report$summary_stats$orgtype_distribution)) {
+  orgtype_dt <- as.data.table(report$summary_stats$orgtype_distribution)
+  setnames(orgtype_dt, c("exempt_organization_type", "N"))
+  orgtype_dt[, Percentage := sprintf("%.2f%%", 100 * N / sum(N))]
+  orgtype_dt[, N := format(N, big.mark = ",")]
+  setnames(orgtype_dt, c("Organization Type", "Count", "Percentage"))
+
+  knitr::kable(head(orgtype_dt, 15), align = c("l", "r", "r"))
+}
+```
+
+---
+
+# Financial Summary
+
+```{r financial-summary}
+if (!is.null(report$summary_stats$total_assets) || !is.null(report$summary_stats$median_assets)) {
+  financial_df <- data.frame(
+    Metric = character(),
+    Value = character(),
+    stringsAsFactors = FALSE
+  )
+
+  if (!is.null(report$summary_stats$total_assets)) {
+    financial_df <- rbind(financial_df, data.frame(
+      Metric = "Total Assets",
+      Value = paste0("$", format(report$summary_stats$total_assets, big.mark = ",", scientific = FALSE))
+    ))
+  }
+
+  if (!is.null(report$summary_stats$median_assets)) {
+    financial_df <- rbind(financial_df, data.frame(
+      Metric = "Median Assets",
+      Value = paste0("$", format(report$summary_stats$median_assets, big.mark = ",", scientific = FALSE))
+    ))
+  }
+
+  knitr::kable(financial_df, col.names = c("Metric", "Value"), align = c("l", "r"))
+} else {
+  cat("Financial summary data not available.")
+}
+```
+
+---
+
+# Report Metadata
+
+```{r metadata}
+meta_df <- data.frame(
+  Property = c(
+    "Report Generated",
+    "Pipeline Timestamp",
+    "Row Preservation Check",
+    "Overall Result"
+  ),
+  Value = c(
+    format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+    format(report$timestamp, "%Y-%m-%d %H:%M:%S"),
+    if (report$row_preservation) "Passed" else "Failed",
+    if (report$passed) "PASSED" else "FAILED"
+  )
+)
+
+knitr::kable(meta_df, col.names = c("Property", "Value"), align = c("l", "l"))
+```
+
+---
+
+*Generated by BMF Pipeline Quality System*

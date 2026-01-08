@@ -1,0 +1,438 @@
+---
+title: "Developer Guide"
+---
+
+# Developer Guide
+
+This chapter covers code patterns, contribution guidelines, and how to extend the pipeline.
+
+## Code Patterns
+
+### Transform Function Template
+
+All transform functions follow this pattern:
+
+```r
+# ============================================================================
+# module_name.R
+# Brief description of what this module transforms
+# ============================================================================
+
+# ============================================================================
+# Module Constants
+# ============================================================================
+
+# Expected columns in lookup table
+MODULE_LOOKUP_COLS <- c("code", "code_definition")
+
+# Sentinel values
+MODULE_MISSING_VALUE <- "UNDEFINED"
+
+# ============================================================================
+# Transformation Function
+# ============================================================================
+
+#' Transform Module Name
+#'
+#' @description
+#' Detailed description of what this function does.
+#'
+#' @param dt data.table containing BMF data with required column
+#' @param input_col character name of input column (default: "COLUMN")
+#' @param lookup data.table lookup table for code definitions
+#'
+#' @return data.table with new columns:
+#'   \itemize{
+#'     \item column_code - Standardized code
+#'     \item column_code_definition - Human-readable definition
+#'   }
+#'
+#' @examples
+#' \dontrun{
+#' bmf <- transform_module(bmf_raw, lookup = module_lookup)
+#' }
+#'
+#' @export
+transform_module <- function(dt,
+                             input_col = "COLUMN",
+                             lookup = module_lookup) {
+
+  # Input validation
+  validate_data_table(dt, input_col, context = "BMF data")
+  validate_lookup(lookup, MODULE_LOOKUP_COLS, "module_lookup")
+
+  # Safe copy (don't mutate input)
+  dt_safe <- data.table::copy(dt)
+
+  # Transformation logic
+  dt_safe[, column_code := as.integer(get(input_col))]
+
+  # Join with lookup
+  dt_safe[lookup, column_code_definition := i.code_definition,
+          on = .(column_code = code)]
+
+  # Validate join success
+  validate_join_success(
+    dt_safe,
+    key_col = "column_code",
+    result_col = "column_code_definition",
+    lookup_name = "module_lookup"
+  )
+
+  # Quality report
+  message(sprintf(
+    "Module: %s records processed",
+    format(nrow(dt_safe), big.mark = ",")
+  ))
+
+  return(dt_safe)
+}
+```
+
+### Key Principles
+
+1. **Pure Functions**: Don't mutate input - use `data.table::copy()`
+2. **Validate Early**: Check inputs before processing
+3. **Fail Fast**: Stop on errors, warn on data quality issues
+4. **Document**: Full roxygen2 documentation
+5. **Report Quality**: Log processing metrics
+
+---
+
+## Adding a New Transform
+
+### Step 1: Create the Transform File
+
+Create `R/new_field.R`:
+
+```r
+# ============================================================================
+# new_field.R
+# Transform NEW_FIELD column
+# ============================================================================
+
+# Module Constants
+NEW_FIELD_LOOKUP_COLS <- c("new_field_code", "new_field_definition")
+
+# Load lookup (if external CSV)
+new_field_lookup <- data.table::fread(
+  "data/lookup/new_field_lookup.csv",
+  select = NEW_FIELD_LOOKUP_COLS,
+  colClasses = list(character = NEW_FIELD_LOOKUP_COLS)
+)
+
+#' Transform New Field
+#' @export
+transform_new_field <- function(dt, input_col = "NEW_FIELD") {
+  # ... implementation
+}
+```
+
+### Step 2: Create Lookup Table (if needed)
+
+Add `data/lookup/new_field_lookup.csv`:
+
+```csv
+new_field_code,new_field_definition
+1,First Value
+2,Second Value
+```
+
+### Step 3: Add to Orchestrator
+
+Edit `R/00_irs_bmf.R`:
+
+```r
+# Source the new file
+source(here::here("R", "new_field.R"))
+
+# Add transformation call (in appropriate phase)
+log_transform_start("New Field")
+bmf <- transform_new_field(bmf)
+```
+
+### Step 4: Update Quality Checks
+
+Add expected output columns to `R/quality/post_checks.R`:
+
+```r
+BMF_OUTPUT_COLUMNS <- c(
+  # ... existing columns
+  "new_field_code",
+  "new_field_definition"
+)
+```
+
+### Step 5: Update Documentation
+
+Add to this guidebook:
+- Data lineage entry
+- Transform reference entry
+- Lookup table schema
+
+---
+
+## Validation Functions
+
+### validate_data_table()
+
+```r
+validate_data_table <- function(dt, required_cols, context = "data") {
+  if (!data.table::is.data.table(dt)) {
+    stop(sprintf("%s must be a data.table", context))
+  }
+
+  missing_cols <- setdiff(required_cols, names(dt))
+  if (length(missing_cols) > 0) {
+    stop(sprintf(
+      "%s is missing required columns: %s",
+      context, paste(missing_cols, collapse = ", ")
+    ))
+  }
+}
+```
+
+### validate_lookup()
+
+```r
+validate_lookup <- function(lookup, required_cols, lookup_name) {
+  if (!data.table::is.data.table(lookup)) {
+    stop(sprintf("%s must be a data.table", lookup_name))
+  }
+
+  if (nrow(lookup) == 0) {
+    stop(sprintf("%s is empty", lookup_name))
+  }
+
+  missing_cols <- setdiff(required_cols, names(lookup))
+  if (length(missing_cols) > 0) {
+    stop(sprintf(
+      "%s missing required columns: %s",
+      lookup_name, paste(missing_cols, collapse = ", ")
+    ))
+  }
+}
+```
+
+### validate_join_success()
+
+```r
+validate_join_success <- function(dt, key_col, result_col, lookup_name) {
+  unmatched <- dt[!is.na(get(key_col)) & is.na(get(result_col)), .N]
+  total <- dt[!is.na(get(key_col)), .N]
+
+  if (unmatched > 0) {
+    pct <- 100 * unmatched / total
+    if (pct > 1) {
+      warning(sprintf(
+        "%s: %.1f%% unmatched (%d of %d)",
+        lookup_name, pct, unmatched, total
+      ))
+    }
+  }
+}
+```
+
+---
+
+## Logging Functions
+
+### log_info()
+
+```r
+log_info <- function(msg) {
+  message(sprintf("[%s] INFO: %s", format(Sys.time(), "%H:%M:%S"), msg))
+}
+```
+
+### log_phase_start()
+
+```r
+log_phase_start <- function(phase_name) {
+  message("")
+  message(sprintf("========== PHASE: %s ==========", toupper(phase_name)))
+  message("")
+}
+```
+
+### log_transform_start()
+
+```r
+log_transform_start <- function(transform_name) {
+  message(sprintf("  > %s", transform_name))
+}
+```
+
+---
+
+## Testing
+
+### Manual Testing Pattern
+
+```r
+# Load a checkpoint
+bmf <- load_checkpoint("02_identity")
+
+# Test single transform
+result <- transform_new_field(bmf)
+
+# Verify outputs
+names(result)
+result[, .N, by = new_field_code]
+result[is.na(new_field_definition)]
+```
+
+### Creating Test Data
+
+```r
+# Minimal test data.table
+test_dt <- data.table::data.table(
+  EIN = c("123456789", "987654321"),
+  NEW_FIELD = c("A", "B")
+)
+
+# Run transform
+result <- transform_new_field(test_dt)
+
+# Assert expected outcomes
+stopifnot(nrow(result) == 2)
+stopifnot("new_field_code" %in% names(result))
+```
+
+---
+
+## Git Workflow
+
+### Branch Naming
+
+- `feature/add-new-field-transform`
+- `fix/affiliation-code-validation`
+- `docs/update-data-lineage`
+
+### Commit Messages
+
+```
+feat: add transform for NEW_FIELD column
+
+- Create new_field.R with transform function
+- Add lookup table to data/lookup/
+- Update orchestrator to include new transform
+- Update documentation
+```
+
+### Pull Request Checklist
+
+- [ ] Transform follows standard pattern
+- [ ] Input validation added
+- [ ] Lookup table created (if needed)
+- [ ] Orchestrator updated
+- [ ] Quality checks updated
+- [ ] Documentation updated
+- [ ] Tested with sample data
+
+---
+
+## Common Issues
+
+### Issue: "object 'xxx_lookup' not found"
+
+**Cause:** Lookup table not loaded before transform is called
+
+**Fix:** Ensure `source()` order in orchestrator loads config.R first:
+```r
+source(here::here("R", "config.R"))  # Loads lookups
+source(here::here("R", "new_field.R"))  # Uses lookups
+```
+
+### Issue: "Column 'xxx' not found"
+
+**Cause:** Transform expects different column name than in data
+
+**Fix:** Check input column name matches BMF schema:
+```r
+# Verify column exists
+"NEW_FIELD" %in% names(bmf_raw)
+```
+
+### Issue: Join produces all NAs
+
+**Cause:** Key column types don't match between data and lookup
+
+**Fix:** Ensure consistent types:
+```r
+# In transform
+dt_safe[, code := as.integer(get(input_col))]
+
+# In lookup loading
+lookup <- fread(..., colClasses = list(integer = "code"))
+```
+
+### Issue: Checkpoint won't load
+
+**Cause:** Arrow/Parquet version mismatch or corrupt file
+
+**Fix:**
+```r
+# Check if file exists and is readable
+file.exists("data/checkpoints/bmf_2025_02_identity.parquet")
+
+# Try reading directly
+arrow::read_parquet("data/checkpoints/bmf_2025_02_identity.parquet")
+```
+
+---
+
+## Performance Tips
+
+### Use data.table Efficiently
+
+```r
+# Good: Update by reference
+dt[, new_col := transform(old_col)]
+
+# Bad: Create copy with base R
+dt$new_col <- transform(dt$old_col)
+```
+
+### Minimize Copies
+
+```r
+# Good: Single copy at start
+dt_safe <- data.table::copy(dt)
+# ... all operations on dt_safe
+
+# Bad: Multiple intermediate copies
+dt1 <- copy(dt)
+dt2 <- copy(dt1)
+```
+
+### Use Keys for Joins
+
+```r
+# Good: Set keys before join
+setkey(lookup, code)
+setkey(dt, code_col)
+dt[lookup, definition := i.definition]
+
+# Okay: Specify on= for ad-hoc join
+dt[lookup, definition := i.definition, on = .(code_col = code)]
+```
+
+---
+
+## Future Enhancements
+
+### Planned Improvements
+
+1. **targets Integration**: Migrate to targets package for DAG-based orchestration
+2. **Unit Tests**: Add testthat test suite
+3. **DuckDB Backend**: For larger-than-memory processing
+4. **Address Geocoding**: Add lat/long from addresses
+5. **E-file Integration**: Complement BMF with Form 990 e-file data
+
+### Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Follow code patterns documented above
+4. Submit a pull request with documentation updates

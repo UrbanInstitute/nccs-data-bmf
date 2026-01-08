@@ -1,0 +1,337 @@
+---
+title: "Configuration"
+---
+
+# Configuration Reference
+
+This chapter documents all configuration files, lookup tables, and dependencies.
+
+## Pipeline Configuration
+
+**File:** `R/00_irs_bmf.R` (top section)
+
+```r
+# Enable checkpointing (saves intermediate results to parquet)
+ENABLE_CHECKPOINTS <- TRUE
+CHECKPOINT_DIR <- "data/checkpoints"
+
+# Enable strict quality gates (stops on validation failure)
+STRICT_QUALITY_GATES <- TRUE
+
+# Processing year
+PROCESSING_YEAR <- "2025"
+```
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `ENABLE_CHECKPOINTS` | logical | TRUE | Save intermediate results after each phase |
+| `CHECKPOINT_DIR` | character | "data/checkpoints" | Directory for checkpoint files |
+| `STRICT_QUALITY_GATES` | logical | TRUE | Stop pipeline on validation failure |
+| `PROCESSING_YEAR` | character | "2025" | Year being processed (used in file names) |
+
+---
+
+## Data Source Configuration
+
+**File:** `R/config.R`
+
+### IRS BMF URLs
+
+```r
+bmf_2025_url_ls <- list(
+  northeast_region = "https://www.irs.gov/pub/irs-soi/eo1.csv",
+  mid.atlantic_region = "https://www.irs.gov/pub/irs-soi/eo2.csv",
+  gulf.and.pacific.coast_region = "https://www.irs.gov/pub/irs-soi/eo3.csv",
+  international.pr_region = "https://www.irs.gov/pub/irs-soi/eo4.csv"
+)
+```
+
+| Region | File | URL |
+|--------|------|-----|
+| Northeast | eo1.csv | `https://www.irs.gov/pub/irs-soi/eo1.csv` |
+| Mid-Atlantic | eo2.csv | `https://www.irs.gov/pub/irs-soi/eo2.csv` |
+| Gulf & Pacific | eo3.csv | `https://www.irs.gov/pub/irs-soi/eo3.csv` |
+| International/PR | eo4.csv | `https://www.irs.gov/pub/irs-soi/eo4.csv` |
+
+### Raw File Paths
+
+```r
+bmf_2025_raw_paths <- c(
+  "data/raw/bmf_2025_northeast_region.csv",
+  "data/raw/bmf_2025_mid.atlantic_region.csv",
+  "data/raw/bmf_2025_gulf.and.pacific.coast_region.csv",
+  "data/raw/bmf_2025_international.pr_region.csv"
+)
+```
+
+---
+
+## Lookup Table Configuration
+
+**File:** `R/config.R`
+
+### CSV Lookup Tables
+
+```r
+# Paths to CSV lookup tables
+subsection_classification_code_lookup_path <- "data/lookup/classification_subsection_code_lookup.csv"
+affiliation_code_lookup_path <- "data/lookup/affiliation_code_lookup.csv"
+deductibility_code_lookup_path <- "data/lookup/deductibility_code_lookup.csv"
+foundation_code_lookup_path <- "data/lookup/foundation_code_lookup.csv"
+activity_code_lookup_path <- "data/lookup/activity_code_lookup.csv"
+organization_code_lookup_path <- "data/lookup/organization_code_lookup.csv"
+```
+
+### Excel Lookup Workbook
+
+```r
+lookup_path <- "data/lookup/bmf_code_lookup.xlsx"
+lookup_ls <- openxlsx::getSheetNames(lookup_path) |>
+  purrr::set_names() |>
+  purrr::map(~ {
+    df <- openxlsx::read.xlsx(xlsxFile = lookup_path, sheet = .x)
+    data.table::setDT(df)
+  })
+```
+
+**Sheets in `bmf_code_lookup.xlsx`:**
+
+| Sheet Name | Used By | Key Column |
+|------------|---------|------------|
+| `status_code` | `transform_status_code()` | status_code |
+| `asset_code` | `transform_asset_code()` | asset_code |
+| `income_code` | `transform_income_code()` | income_code |
+| `filing_requirement_code` | `transform_code()` | filing_requirement_code |
+| `pf_filing_requirement_code` | `transform_code()` | pf_filing_requirement_code |
+| `ntee_code` | `transform_ntee_code()` | ntee_code |
+| `ntee_code_major_group` | `transform_ntee_code()` | ntee_code_major_group |
+| `ntee_code_activity_type` | `transform_ntee_code()` | activity_type |
+| `accounting_period` | `transform_accounting_period()` | accounting_period_code |
+
+---
+
+# Lookup Table Schemas
+
+## affiliation_code_lookup.csv
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `affiliation_code` | integer | IRS affiliation code (1-9) |
+| `affiliation_code_definition` | character | Code description |
+
+**Values:**
+```
+affiliation_code,affiliation_code_definition
+1,Central organization
+2,Intermediate organization
+3,Independent organization
+6,Central organization (group ruling)
+7,Intermediate organization (group ruling)
+8,Central organization (no group ruling)
+9,Subordinate organization (group ruling)
+```
+
+## deductibility_code_lookup.csv
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `deductibility_code` | integer | Deductibility status |
+| `deductibility_code_definition` | character | Description |
+
+## foundation_code_lookup.csv
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `foundation_code` | integer | Foundation type code |
+| `foundation_code_definition` | character | Foundation type description |
+
+## organization_code_lookup.csv
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `organization_code` | integer | Organization structure code |
+| `organization_code_definition` | character | Organization type |
+
+## activity_code_lookup.csv
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `activity_code` | character | 3-character activity code |
+| `activity_code_category` | character | Activity category |
+| `activity_code_definition` | character | Activity description |
+
+## classification_subsection_code_lookup.csv
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `subsection_code` | character | IRC subsection (e.g., "03") |
+| `classification_code` | character | Single-char classification |
+| `classification_description` | character | Classification description |
+| `exempt_organization_type` | character | Organization type name |
+| `effective_start_date` | date | When code became effective |
+| `effective_end_date` | date | When code was retired (if applicable) |
+
+---
+
+# Directory Structure
+
+```
+nccs-data-bmf/
+├── R/                              # Source code
+│   ├── 00_irs_bmf.R               # Orchestrator
+│   ├── config.R                    # Configuration
+│   ├── input_validation.R          # Validation functions
+│   ├── utils/
+│   │   ├── logging.R              # Logging functions
+│   │   └── transform_utils.R      # Shared utilities
+│   ├── quality/
+│   │   ├── pre_checks.R           # Pre-validation
+│   │   └── post_checks.R          # Post-validation
+│   └── [transform files]           # 17 transform modules
+│
+├── data/
+│   ├── raw/                        # Downloaded IRS files
+│   │   ├── bmf_2025_northeast_region.csv
+│   │   ├── bmf_2025_mid.atlantic_region.csv
+│   │   ├── bmf_2025_gulf.and.pacific.coast_region.csv
+│   │   ├── bmf_2025_international.pr_region.csv
+│   │   └── bmf_2025.csv           # Combined raw file
+│   │
+│   ├── lookup/                     # Reference tables
+│   │   ├── bmf_code_lookup.xlsx   # Multi-sheet workbook
+│   │   ├── affiliation_code_lookup.csv
+│   │   ├── deductibility_code_lookup.csv
+│   │   ├── foundation_code_lookup.csv
+│   │   ├── organization_code_lookup.csv
+│   │   ├── activity_code_lookup.csv
+│   │   └── classification_subsection_code_lookup.csv
+│   │
+│   ├── checkpoints/                # Intermediate saves
+│   │   ├── bmf_2025_01_raw.parquet
+│   │   ├── bmf_2025_02_identity.parquet
+│   │   ├── bmf_2025_03_classification.parquet
+│   │   ├── bmf_2025_04_activity.parquet
+│   │   ├── bmf_2025_05_temporal.parquet
+│   │   ├── bmf_2025_06_financial.parquet
+│   │   └── bmf_2025_07_filing.parquet
+│   │
+│   ├── processed/                  # Final outputs
+│   │   ├── bmf_2025_processed.parquet
+│   │   ├── dim_activity_2025.parquet
+│   │   └── dim_classification_2025.parquet
+│   │
+│   └── quality/                    # Quality reports
+│       └── bmf_2025_quality_report.json
+│
+└── 00-documentation/               # This guidebook
+    ├── _quarto.yml
+    ├── index.qmd
+    └── [chapter files]
+```
+
+---
+
+# Dependencies
+
+## Required R Packages
+
+```r
+# Core data manipulation
+library(data.table)     # High-performance data.table operations
+
+# File I/O
+library(arrow)          # Parquet read/write
+library(openxlsx)       # Excel file reading
+
+# String operations
+library(stringr)        # String manipulation
+
+# Date handling
+library(lubridate)      # Date parsing
+
+# Utilities
+library(here)           # Project-relative paths
+library(purrr)          # Functional programming
+
+# Optional: Excel reading alternative
+library(readxl)         # For organization name lookup
+
+# Quality report rendering (optional)
+library(quarto)         # Quarto document rendering
+library(ggplot2)        # Visualization for quality reports
+library(scales)         # Number formatting for charts
+```
+
+## Installation
+
+```r
+# Core packages
+install.packages(c(
+  "data.table",
+  "arrow",
+  "openxlsx",
+  "stringr",
+  "lubridate",
+  "here",
+  "purrr",
+  "readxl"
+))
+
+# For quality report rendering (optional)
+install.packages(c("quarto", "ggplot2", "scales"))
+```
+
+## Version Requirements
+
+| Package | Minimum Version | Notes |
+|---------|-----------------|-------|
+| R | 4.1.0 | For native pipe `|>` |
+| data.table | 1.14.0 | For `:=` and `.SD` operations |
+| arrow | 10.0.0 | For Parquet support |
+
+---
+
+# Environment Variables
+
+No environment variables are currently required. All configuration is done in R files.
+
+## Future Considerations
+
+For production deployment, consider:
+
+```r
+# Example .Renviron file
+BMF_YEAR=2025
+BMF_STRICT_MODE=TRUE
+BMF_CHECKPOINT_DIR=/data/bmf/checkpoints
+```
+
+---
+
+# Updating for New Years
+
+When processing a new BMF year:
+
+1. **Update config.R:**
+   ```r
+   PROCESSING_YEAR <- "2026"
+   ```
+
+2. **Check IRS URLs:**
+   - Verify URLs haven't changed
+   - Update if needed
+
+3. **Update expected row count:**
+   ```r
+   # In R/quality/pre_checks.R
+   BMF_2026_EXPECTED_ROWS <- <new count from IRS website>
+   ```
+
+4. **Check for schema changes:**
+   - Download sample file
+   - Compare columns to `BMF_REQUIRED_COLUMNS`
+   - Update if IRS added/removed columns
+
+5. **Update lookup tables:**
+   - Check for new codes in IRS documentation
+   - Add any new values to lookup CSVs/XLSX

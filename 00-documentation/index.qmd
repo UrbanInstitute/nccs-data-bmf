@@ -1,4 +1,106 @@
-# Preface {.unnumbered}
+---
+title: "BMF Data Pipeline Guide"
+---
 
-This is a Guide Book for preparing survey data from the Nonprofit Trends project. 
+# Overview
 
+This guide documents the **IRS Business Master File (BMF) Data Processing Pipeline** developed by the National Center for Charitable Statistics (NCCS) at the Urban Institute.
+
+The BMF is the IRS's comprehensive database of tax-exempt organizations, containing information on approximately **1.9 million nonprofits** in the United States.
+
+## What This Pipeline Does
+
+```{mermaid}
+flowchart LR
+    A[("IRS BMF<br/>4 Regional CSVs")] --> B["ETL Pipeline<br/>(R/data.table)"]
+    B --> C[("Processed BMF<br/>Parquet")]
+    B --> D[("Dimension Tables<br/>Parquet")]
+```
+
+The pipeline:
+
+1. **Extracts** raw BMF data from the IRS website (4 regional CSV files)
+2. **Transforms** 27 raw columns into ~50 standardized, validated columns
+3. **Loads** processed data as Parquet files for efficient downstream analysis
+
+## Quick Start
+
+### Prerequisites
+
+```r
+# Required packages
+install.packages(c(
+  "data.table",   # High-performance data manipulation
+  "arrow",        # Parquet I/O
+  "stringr",      # String operations
+  "lubridate",    # Date parsing
+  "openxlsx",     # Excel lookup files
+  "here",         # Path management
+  "purrr"         # Functional programming
+))
+```
+
+### Run the Pipeline
+
+```r
+# From the project root directory
+source("R/00_irs_bmf.R")
+```
+
+The pipeline will:
+
+- Download 4 regional BMF files from the IRS (~5 min)
+- Run pre-transformation validation
+- Execute 17 transformation functions across 10 phases
+- Save checkpoints after each phase
+- Generate a quality report
+- Output final Parquet files to `data/processed/`
+
+## Pipeline Outputs
+
+| Output File | Description | Rows |
+|-------------|-------------|------|
+| `bmf_2025_processed.parquet` | Main fact table with all transformed columns | ~1.9M |
+| `dim_activity_2025.parquet` | Activity codes dimension table | ~3M |
+| `dim_classification_2025.parquet` | Classification codes dimension table | ~2M |
+| `bmf_2025_quality_report.json` | Quality metrics and validation results | - |
+
+## Documentation Structure
+
+| Chapter | Description |
+|---------|-------------|
+| [Architecture](01-architecture.qmd) | 10-phase pipeline overview, orchestration, checkpointing |
+| [Data Lineage](02-data-lineage.qmd) | Column mappings, transformation flows, data dictionary |
+| [Transform Reference](03-transforms-reference.qmd) | All 17 transform functions with inputs/outputs |
+| [Dimension Tables](04-dimension-tables.qmd) | SCD Type 2 patterns, schemas, join examples |
+| [Quality Gates](05-quality-gates.qmd) | Pre/post validation, troubleshooting |
+| [Configuration](06-configuration.qmd) | Config files, lookup tables, dependencies |
+| [Developer Guide](07-developer-guide.qmd) | Code patterns, contributing, testing |
+
+## IRS BMF Source
+
+The raw BMF data is published by the IRS at:
+[IRS Exempt Organizations BMF Extract](https://www.irs.gov/charities-non-profits/exempt-organizations-business-master-file-extract-eo-bmf)
+
+Field definitions are documented in the IRS Internal Revenue Manual:
+[IRM 25.7.1](https://www.irs.gov/irm/part25/irm_25-007-001)
+
+## Repository Structure
+
+```
+nccs-data-bmf/
+├── R/
+│   ├── 00_irs_bmf.R              # Pipeline orchestrator
+│   ├── config.R                   # Configuration and paths
+│   ├── input_validation.R         # Shared validation functions
+│   ├── utils/                     # Logging and utilities
+│   ├── quality/                   # Pre/post quality checks
+│   └── [transform files]          # 17 transformation modules
+├── data/
+│   ├── raw/                       # Downloaded IRS files
+│   ├── lookup/                    # Reference/lookup tables
+│   ├── checkpoints/               # Intermediate saves
+│   ├── processed/                 # Final output files
+│   └── quality/                   # Quality reports
+└── 00-documentation/              # This guidebook
+```
