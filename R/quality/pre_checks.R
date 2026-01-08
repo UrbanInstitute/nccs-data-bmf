@@ -17,11 +17,6 @@ BMF_REQUIRED_COLUMNS <- c(
   "REVENUE_AMT", "NTEE_CD", "SORT_NAME"
 )
 
-# Expected row count from IRS website (approximate, for sanity check)
-# Update this value when processing new years
-BMF_2025_EXPECTED_ROWS <- 1898175
-BMF_ROW_TOLERANCE <- 0.05  # 5% tolerance for row count validation
-
 # ============================================================================
 # Pre-Check Functions
 # ============================================================================
@@ -30,11 +25,10 @@ BMF_ROW_TOLERANCE <- 0.05  # 5% tolerance for row count validation
 #'
 #' @description
 #' Validates that the raw BMF data has the expected structure before
-#' transformation. Checks for required columns, row counts, and basic
-#' data quality indicators.
+#' transformation. Checks for required columns, and basic data quality 
+#' indicators.
 #'
 #' @param dt data.table raw BMF data
-#' @param expected_rows numeric expected row count (with tolerance applied)
 #' @param required_cols character vector of required column names
 #' @param strict logical if TRUE, stop on validation failures; if FALSE,
 #'   return validation results without stopping
@@ -59,7 +53,6 @@ BMF_ROW_TOLERANCE <- 0.05  # 5% tolerance for row count validation
 #'
 #' @export
 validate_raw_bmf_structure <- function(dt,
-                                       expected_rows = BMF_2025_EXPECTED_ROWS,
                                        required_cols = BMF_REQUIRED_COLUMNS,
                                        strict = TRUE) {
 
@@ -75,21 +68,7 @@ validate_raw_bmf_structure <- function(dt,
     messages = character(0)
   )
 
-  # Check 1: Row count within tolerance
-  row_diff <- abs(nrow(dt) - expected_rows) / expected_rows
-  if (row_diff > BMF_ROW_TOLERANCE) {
-    msg <- sprintf(
-      "Row count %s differs from expected %s by %.1f%% (tolerance: %.1f%%)",
-      format(nrow(dt), big.mark = ","),
-      format(expected_rows, big.mark = ","),
-      row_diff * 100,
-      BMF_ROW_TOLERANCE * 100
-    )
-    results$messages <- c(results$messages, msg)
-    results$passed <- FALSE
-  }
-
-  # Check 2: Required columns exist
+  # Check 1: Required columns exist
   results$missing_columns <- setdiff(required_cols, names(dt))
   if (length(results$missing_columns) > 0) {
     msg <- sprintf(
@@ -100,7 +79,7 @@ validate_raw_bmf_structure <- function(dt,
     results$passed <- FALSE
   }
 
-  # Check 3: Extra columns (informational, not a failure)
+  # Check 2: Extra columns (informational, not a failure)
   results$extra_columns <- setdiff(names(dt), required_cols)
   if (length(results$extra_columns) > 0) {
     msg <- sprintf(
@@ -112,7 +91,7 @@ validate_raw_bmf_structure <- function(dt,
     # Not a failure, just informational
   }
 
-  # Check 4: Duplicate EINs
+  # Check 3: Duplicate EINs
   if ("EIN" %in% names(dt)) {
     results$duplicate_eins <- nrow(dt) - data.table::uniqueN(dt$EIN)
     if (results$duplicate_eins > 0) {
@@ -125,7 +104,7 @@ validate_raw_bmf_structure <- function(dt,
     }
   }
 
-  # Check 5: NULL counts for required columns
+  # Check 4: NULL counts for required columns
   present_required <- intersect(required_cols, names(dt))
   results$null_counts <- sapply(present_required, function(col) {
     sum(is.na(dt[[col]]) | dt[[col]] == "")
@@ -163,72 +142,6 @@ validate_raw_bmf_structure <- function(dt,
       paste(results$messages, collapse = "; ")
     ))
   }
-
-  return(results)
-}
-
-#' Validate Regional BMF Files Before Merge
-#'
-#' @description
-#' Validates individual regional BMF files before combining them.
-#' Checks for consistent columns and expected file sizes.
-#'
-#' @param file_paths character vector of paths to regional BMF CSV files
-#' @param required_cols character vector of required column names
-#'
-#' @return list with validation results per file
-#'
-#' @export
-validate_regional_files <- function(file_paths,
-                                    required_cols = BMF_REQUIRED_COLUMNS) {
-
-  results <- list(
-    passed = TRUE,
-    file_results = list(),
-    total_rows = 0L
-  )
-
-  message("Validating regional BMF files...")
-
-  for (path in file_paths) {
-    file_result <- list(
-      path = path,
-      exists = file.exists(path),
-      row_count = NA_integer_,
-      column_match = FALSE
-    )
-
-    if (file_result$exists) {
-      # Read just the header to check columns
-      header <- data.table::fread(path, nrows = 0)
-      file_result$columns <- names(header)
-      file_result$column_match <- all(required_cols %in% names(header))
-
-      # Count rows (fast method)
-      file_result$row_count <- length(data.table::fread(
-        path,
-        select = 1,
-        header = TRUE
-      )[[1]])
-
-      results$total_rows <- results$total_rows + file_result$row_count
-    } else {
-      results$passed <- FALSE
-    }
-
-    results$file_results[[basename(path)]] <- file_result
-
-    message(sprintf(
-      "  %s: %s rows, columns %s",
-      basename(path),
-      ifelse(is.na(file_result$row_count), "N/A",
-             format(file_result$row_count, big.mark = ",")),
-      ifelse(file_result$column_match, "OK", "MISMATCH")
-    ))
-  }
-
-  message(sprintf("Total rows across files: %s",
-                  format(results$total_rows, big.mark = ",")))
 
   return(results)
 }

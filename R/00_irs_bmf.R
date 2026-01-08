@@ -64,56 +64,8 @@ source(here::here("R", "financial_codes.R"))
 source(here::here("R", "asset_amount.R"))
 source(here::here("R", "transform_ntee_code.R"))
 
-# ============================================================================
-# Helper Functions
-# ============================================================================
-
-#' Save Checkpoint
-#'
-#' @description Saves intermediate data to parquet file for recovery
-#' @param dt data.table to save
-#' @param checkpoint_name character name of checkpoint
-#' @noRd
-save_checkpoint <- function(dt, checkpoint_name) {
-  if (!ENABLE_CHECKPOINTS) return(invisible(NULL))
-
-  if (!dir.exists(CHECKPOINT_DIR)) {
-    dir.create(CHECKPOINT_DIR, recursive = TRUE)
-  }
-
-  path <- file.path(
-    CHECKPOINT_DIR,
-    sprintf("bmf_%s_%s.parquet", PROCESSING_YEAR, checkpoint_name)
-  )
-
-  arrow::write_parquet(dt, path)
-  log_info(sprintf("Checkpoint saved: %s (%s rows)",
-                   checkpoint_name,
-                   format(nrow(dt), big.mark = ",")))
-}
-
-#' Load Checkpoint
-#'
-#' @description Loads data from a checkpoint file
-#' @param checkpoint_name character name of checkpoint
-#' @return data.table or NULL if checkpoint doesn't exist
-#' @noRd
-load_checkpoint <- function(checkpoint_name) {
-  path <- file.path(
-    CHECKPOINT_DIR,
-    sprintf("bmf_%s_%s.parquet", PROCESSING_YEAR, checkpoint_name)
-  )
-
-  if (file.exists(path)) {
-    dt <- data.table::as.data.table(arrow::read_parquet(path))
-    log_info(sprintf("Checkpoint loaded: %s (%s rows)",
-                     checkpoint_name,
-                     format(nrow(dt), big.mark = ",")))
-    return(dt)
-  }
-
-  return(NULL)
-}
+# save/load data
+source(here::here("R", "checkpoints.R"))
 
 # ============================================================================
 # PHASE 1: EXTRACTION
@@ -121,27 +73,11 @@ load_checkpoint <- function(checkpoint_name) {
 
 log_phase_start("EXTRACTION")
 
-# IRS BMF source: https://www.irs.gov/charities-non-profits/exempt-organizations-business-master-file-extract-eo-bmf
+# NCCS BMF source: https://us-east-1.console.aws.amazon.com/s3/object/nccsdata?region=us-east-1&prefix=raw/bmf/2026-01-BMF.csv
 
-# Download 4 regional BMF files
-log_info("Downloading regional BMF files...")
-regional_downloads <- purrr::imap(bmf_2025_url_ls, function(url, region) {
-  dest_file <- paste0("data/raw/bmf_", PROCESSING_YEAR, "_", region, ".csv")
-  log_info(sprintf("Downloading: %s", region))
-  download.file(url, destfile = dest_file, quiet = TRUE)
-  return(dest_file)
-})
-
-# Read and combine all regional files
-log_info("Reading and combining regional files...")
-regional_bmfs <- purrr::map(
-  bmf_2025_raw_paths,
-  data.table::fread,
-  .progress = TRUE
-)
-
-bmf_raw <- data.table::rbindlist(regional_bmfs)
-log_info(sprintf("Combined BMF: %s rows", format(nrow(bmf_raw), big.mark = ",")))
+# Download BMF from S3 Bucket
+log_info("Downloading BMF from S3")
+bmf_raw <- data.table::fread(bmf_raw_url)
 
 # Save raw combined file
 data.table::fwrite(bmf_raw, sprintf("data/raw/bmf_%s.csv", PROCESSING_YEAR))
