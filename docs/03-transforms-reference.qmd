@@ -1,0 +1,528 @@
+---
+title: "Transform Reference"
+---
+
+# Transform Functions
+
+This chapter documents all 18 transform functions in the BMF pipeline. Each function follows a consistent pattern:
+
+1. Input validation
+2. Safe copy of input data
+3. Transformation logic
+4. Output validation
+5. Return transformed data.table
+
+## Function Signature Pattern
+
+```r
+transform_<field> <- function(
+  dt,                    # data.table with required columns
+  input_col = "COLUMN",  # Source column name
+  lookup = <lookup_table> # Reference table (if applicable)
+)
+```
+
+---
+
+# Identity Transforms
+
+## transform_ein()
+
+**File:** `R/ein.R`
+
+Formats EIN (Employer Identification Number) to standard XX-XXXXXXX format.
+
+```r
+transform_ein(dt, input_col = "EIN")
+```
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `dt` | data.table | required | BMF data with EIN column |
+| `input_col` | character | "EIN" | Source column name |
+
+**Output Columns:**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `ein_raw` | character | Original EIN value |
+| `ein` | character | Formatted as XX-XXXXXXX |
+
+**Validation:**
+- Removes non-numeric characters
+- Left-pads to 9 digits
+- Warns if format mismatch after processing
+
+---
+
+## transform_organization_name()
+
+**File:** `R/organization_name.R`
+
+Cleans and standardizes organization names, extracting legal suffixes.
+
+```r
+transform_organization_name(dt, input_col = "NAME", name_lookup_path = NULL)
+```
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `dt` | data.table | required | BMF data with NAME column |
+| `input_col` | character | "NAME" | Source column name |
+| `name_lookup_path` | character | NULL | Optional path to manual overrides |
+
+**Output Columns:**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `org_name_raw` | character | Original organization name |
+| `org_name_join` | character | Cleaned name for matching/joining |
+| `org_name_display` | character | Title-cased display name |
+| `org_legal_suffix` | character | Extracted suffix (INC, CORP, LLC, etc.) |
+
+**Processing Steps:**
+1. Extract legal suffixes using pattern matching
+2. Apply word standardizations (Assn → Association, etc.)
+3. Apply manual overrides (if lookup provided)
+4. Title-case display names
+
+---
+
+## transform_ico_name()
+
+**File:** `R/ico_name.R`
+
+Cleans In-Care-Of name field.
+
+```r
+transform_ico_name(dt, input_col = "ICO")
+```
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `dt` | data.table | required | BMF data with ICO column |
+| `input_col` | character | "ICO" | Source column name |
+
+**Output Columns:**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `in_care_of_name_raw` | character | Original ICO value |
+| `in_care_of_name_clean` | character | Cleaned and title-cased |
+| `in_care_of_name_provided` | logical | TRUE if ICO was provided |
+
+---
+
+## transform_group_exemption_number()
+
+**File:** `R/group_exemption_number.R`
+
+Standardizes Group Exemption Number (GEN).
+
+```r
+transform_group_exemption_number(dt, input_col = "GROUP")
+```
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `dt` | data.table | required | BMF data with GROUP column |
+| `input_col` | character | "GROUP" | Source column name |
+
+**Output Columns:**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `group_exemption_number_raw` | character | Original GROUP value |
+| `group_exemption_number` | character | Padded 4-digit GEN |
+| `group_exemption_is_member` | logical | TRUE if org is part of group exemption (GEN ≠ 0) |
+
+---
+
+## transform_ruling_date()
+
+**File:** `R/ruling_date.R`
+
+Parses IRS ruling/determination date.
+
+```r
+transform_ruling_date(dt, input_col = "RULING")
+```
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `dt` | data.table | required | BMF data with RULING column |
+| `input_col` | character | "RULING" | Source column name |
+
+**Output Columns:**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `ruling_date_ym_str` | character | Original YYYYMM string |
+| `ruling_date` | Date | Parsed date (YYYY-MM-01) |
+| `ruling_date_is_missing` | logical | TRUE if missing/invalid |
+
+**Sentinel Value:** Missing dates are set to 1900-01-01
+
+---
+
+## transform_address()
+
+**File:** `R/address.R`
+
+Standardizes address components using USPS conventions and generates geocoding-ready output with quality flags.
+
+```r
+transform_address(dt, street_col = "STREET", city_col = "CITY",
+                  state_col = "STATE", zip_col = "ZIP")
+```
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `dt` | data.table | required | BMF data with address columns |
+| `street_col` | character | "STREET" | Street address column |
+| `city_col` | character | "CITY" | City column |
+| `state_col` | character | "STATE" | State column |
+| `zip_col` | character | "ZIP" | ZIP code column |
+
+**Output Columns (17 total):**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `org_addr_street_raw` | character | Original street value |
+| `org_addr_street` | character | USPS-standardized street |
+| `org_addr_city_raw` | character | Original city value |
+| `org_addr_city` | character | Cleaned city name |
+| `org_addr_state_raw` | character | Original state value |
+| `org_addr_state` | character | Validated 2-letter abbreviation |
+| `org_addr_zip_raw` | character | Original ZIP value |
+| `org_addr_zip5` | character | 5-digit ZIP code |
+| `org_addr_zip4` | character | ZIP+4 extension (if present) |
+| `org_addr_zip` | character | Full ZIP (XXXXX or XXXXX-XXXX) |
+| `org_addr_full` | character | Full formatted address string |
+| `org_addr_is_missing` | logical | TRUE if all address fields empty |
+| `org_addr_is_po_box` | logical | TRUE if P.O. Box address |
+| `org_addr_is_rural_route` | logical | TRUE if rural route address |
+| `org_addr_has_special_chars` | logical | TRUE if unusual characters |
+| `org_addr_missing_number` | logical | TRUE if no street number |
+| `org_addr_state_invalid` | logical | TRUE if not valid US state/territory |
+
+**USPS Standardizations Applied:**
+- 165+ street type abbreviations (STREET → ST, AVENUE → AVE)
+- Directional standardization (NORTH → N, SOUTHWEST → SW)
+- Unit type abbreviations (APARTMENT → APT, SUITE → STE)
+- State name to abbreviation conversion
+- ZIP code parsing and validation
+
+---
+
+# Classification Transforms
+
+## transform_subsection_classification_codes()
+
+**File:** `R/subsection_classification_codes.R`
+
+Transforms SUBSECTION and CLASSIFICATION columns with dimension table creation.
+
+```r
+# Step 1: Create dimension table
+cl_dim <- create_cl_code_dim_table(dt, lookup, year)
+
+# Step 2: Transform main table
+transform_subsection_classification_codes(dt, dim_table, orgtype_lookup)
+```
+
+**create_cl_code_dim_table():**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `dt` | data.table | BMF data with ein, SUBSECTION, CLASSIFICATION |
+| `lookup` | data.table | classification_code_lookup |
+| `year` | character | Effective year (e.g., "2025") |
+
+**transform_subsection_classification_codes():**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `dt` | data.table | BMF data |
+| `dim_table` | data.table | From create_cl_code_dim_table() |
+| `orgtype_lookup` | data.table | subsection_orgtype_lookup |
+
+**Output Columns:**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `subsection_code` | character | IRC subsection code |
+| `classification_code` | character | Raw classification codes |
+| `exempt_organization_type` | character | Human-readable org type |
+| `all_classifications_string` | character | Semicolon-separated descriptions |
+
+---
+
+## transform_affiliation_code()
+
+**File:** `R/affiliation_code.R`
+
+```r
+transform_affiliation_code(dt, input_col = "AFFILIATION", lookup = affiliation_code_lookup)
+```
+
+**Output Columns:**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `affiliation_code` | integer | Affiliation type code |
+| `affiliation_code_definition` | character | Affiliation description |
+
+**Affiliation Codes:**
+- 1 = Central organization
+- 2 = Intermediate organization
+- 3 = Independent organization
+- 6 = Central organization (group ruling)
+- 7 = Intermediate organization (group ruling)
+- 8 = Central organization (no group ruling)
+- 9 = Subordinate organization (group ruling)
+
+---
+
+## transform_deductibility_code()
+
+**File:** `R/deductibility_code.R`
+
+```r
+transform_deductibility_code(dt, input_col = "DEDUCTIBILITY", lookup = deductibility_code_lookup)
+```
+
+**Output Columns:**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `deductibility_code` | integer | Deductibility status |
+| `deductibility_code_definition` | character | Deductibility description |
+
+---
+
+## transform_foundation_code()
+
+**File:** `R/foundation_code.R`
+
+```r
+transform_foundation_code(dt, input_col = "FOUNDATION", lookup = foundation_code_lookup)
+```
+
+**Output Columns:**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `foundation_code` | integer | Foundation type code |
+| `foundation_code_definition` | character | Foundation type description |
+
+---
+
+## transform_organization_code()
+
+**File:** `R/organization_code.R`
+
+```r
+transform_organization_code(dt, input_col = "ORGANIZATION", lookup = organization_code_lookup)
+```
+
+**Output Columns:**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `organization_code` | integer | Organization structure code |
+| `organization_code_definition` | character | Organization type description |
+
+---
+
+## transform_status_code()
+
+**File:** `R/status_code.R`
+
+```r
+transform_status_code(dt, input_col = "STATUS", lookup = lookup_ls$status_code)
+```
+
+**Output Columns:**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `status_code` | integer | IRS exempt status code |
+| `status_code_definition` | character | Status description |
+
+---
+
+# Activity Transforms
+
+## create_activity_code_dim_table() / transform_activity_code()
+
+**File:** `R/activity_code.R`
+
+```r
+# Step 1: Create dimension table
+activity_dim <- create_activity_code_dim_table(dt, lookup = activity_code_lookup)
+
+# Step 2: Aggregate back to main table
+transform_activity_code(dt, dim_table = activity_dim)
+```
+
+**Output Columns (transform):**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `activity_code_definitions` | character | Semicolon-separated activity descriptions |
+| `activity_code_categories` | character | Semicolon-separated activity categories |
+
+**Dimension Table Schema:**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `ein` | character | Employer ID |
+| `activity_code` | character | 3-character activity code |
+| `activity_code_definition` | character | Activity description |
+| `activity_code_category` | character | Activity category |
+
+---
+
+## transform_ntee_code()
+
+**File:** `R/transform_ntee_code.R`
+
+Complex NTEE code transformation with multiple lookups.
+
+```r
+transform_ntee_code(
+  dt,
+  ntee_code_lookup,
+  ntee_major_group_lookup,
+  activity_code_lookup,
+  input_ntee_col = "NTEE_CD",
+  year,
+  write_scd = FALSE
+)
+```
+
+**Output Columns:**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `ntee_code` | character | Cleaned NTEE code |
+| `ntee_code_definition` | character | NTEE category description |
+| `ntee_code_major_group` | character | Major group (first character) |
+| `naics_code` | character | Mapped NAICS industry code |
+| `nteev2_code` | character | NTEE Version 2 code |
+| `nteev2_subsector` | character | NTEEV2 subsector |
+| `nteev2_org_type` | character | NTEEV2 organization type |
+
+---
+
+# Temporal Transforms
+
+## transform_tax_period()
+
+**File:** `R/transform_tax_period.R`
+
+```r
+transform_tax_period(dt, input_col = "TAX_PERIOD")
+```
+
+**Output Columns:**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `tax_period_ymd` | Date | Tax period end date |
+| `tax_period_is_missing` | logical | TRUE if missing/invalid |
+
+**Sentinel Value:** Missing dates set to 1900-01-01
+
+---
+
+## transform_accounting_period()
+
+**File:** `R/accounting_period.R`
+
+```r
+transform_accounting_period(dt, input_col = "ACCT_PD", lookup = lookup_ls$accounting_period)
+```
+
+**Output Columns:**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `accounting_period_code` | integer | Fiscal year end month (1-12) |
+| `accounting_period_definition` | character | Month name |
+
+---
+
+# Financial Transforms
+
+## transform_asset_code() / transform_income_code()
+
+**File:** `R/financial_codes.R`
+
+```r
+transform_asset_code(dt, lookup = lookup_ls$asset_code)
+transform_income_code(dt, lookup = lookup_ls$income_code)
+```
+
+**Output Columns:**
+
+| Transform | Code Column | Definition Column |
+|-----------|-------------|-------------------|
+| Asset | `asset_code` | `asset_code_definition` |
+| Income | `income_code` | `income_code_definition` |
+
+**Code Ranges (Asset/Income):**
+- 0 = $0
+- 1 = $1 - $9,999
+- 2 = $10,000 - $24,999
+- 3 = $25,000 - $99,999
+- 4 = $100,000 - $499,999
+- 5 = $500,000 - $999,999
+- 6 = $1,000,000 - $4,999,999
+- 7 = $5,000,000 - $9,999,999
+- 8 = $10,000,000 - $49,999,999
+- 9 = $50,000,000 or more
+
+---
+
+## transform_asset_amount() / transform_income_amount() / transform_revenue_amount()
+
+**File:** `R/asset_amount.R`
+
+```r
+transform_asset_amount(dt)   # Warns on negative values
+transform_income_amount(dt)  # Allows negative (losses)
+transform_revenue_amount(dt) # Allows negative (adjustments)
+```
+
+**Output Columns:**
+
+| Transform | Output Column | Allows Negative |
+|-----------|---------------|-----------------|
+| Asset | `asset_amount` | No (warns) |
+| Income | `income_amount` | Yes |
+| Revenue | `revenue_amount` | Yes |
+
+---
+
+# Filing Transforms
+
+## transform_code() (Generic)
+
+**File:** `R/filing_requirement_code.R`
+
+```r
+transform_code(
+  dt,
+  input_col,
+  lookup_key,
+  definition_col,
+  type_conversion_func = as.integer,
+  lookup
+)
+```
+
+Used for:
+- FILING_REQ_CD → `filing_requirement_code`, `filing_requirement_code_definition`
+- PF_FILING_REQ_CD → `pf_filing_requirement_code`, `pf_filing_requirement_code_definition`

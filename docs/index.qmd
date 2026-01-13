@@ -1,0 +1,120 @@
+---
+title: "BMF Data Pipeline Guide"
+---
+
+# Overview
+
+This guide documents the **IRS Business Master File (BMF) Data Processing Pipeline** developed by the National Center for Charitable Statistics (NCCS) at the Urban Institute.
+
+The BMF is the IRS's comprehensive database of tax-exempt organizations, containing information on approximately **1.9 million nonprofits** in the United States.
+
+## What This Pipeline Does
+
+```{mermaid}
+flowchart LR
+    A[("S3 Bucket<br/>nccsdata")] --> B["ETL Pipeline<br/>(R/data.table)"]
+    B --> C[("Processed BMF<br/>Parquet")]
+    B --> D[("Quality Report<br/>JSON")]
+```
+
+The pipeline:
+
+1. **Extracts** raw BMF data from S3 bucket (monthly combined CSV)
+2. **Transforms** 27 raw columns into ~60 standardized, validated columns
+3. **Loads** processed data as Parquet files for efficient downstream analysis
+
+## Quick Start
+
+### Prerequisites
+
+```r
+# Required packages
+install.packages(c(
+  "data.table",   # High-performance data manipulation
+  "arrow",        # Parquet I/O
+  "aws.s3",       # S3 bucket operations
+  "stringr",      # String operations
+  "lubridate",    # Date parsing
+  "openxlsx",     # Excel lookup files
+  "here",         # Path management
+  "purrr",        # Functional programming
+  "jsonlite"      # Quality report serialization
+))
+```
+
+AWS credentials must be configured via environment variables or `~/.aws/credentials`.
+
+### Run the Pipeline
+
+```r
+# From the project root directory - downloads most recent BMF from S3
+source("R/run_pipeline.R")
+
+# To process a specific month:
+BMF_YEAR <- 2025
+BMF_MONTH <- 1
+source("R/run_pipeline.R")
+
+# To list available BMF files in S3:
+source("R/config.R")
+list_available_bmf_files()
+```
+
+The pipeline will:
+
+- Download BMF from S3 bucket `nccsdata/raw/bmf/`
+- Run pre-transformation validation
+- Execute 18 transformation functions across 10 phases
+- Save checkpoints after each phase (to `data/checkpoints/`)
+- Generate a quality report
+- Output final Parquet file to `data/processed/`
+
+## Pipeline Outputs
+
+| Output File | Description | Rows |
+|-------------|-------------|------|
+| `bmf_YYYY_MM_processed.parquet` | Main fact table with all transformed columns | ~1.9M |
+| `bmf_YYYY_MM_quality_report.json` | Quality metrics and validation results | - |
+
+Checkpoints are saved to `data/checkpoints/` after each transformation phase.
+
+## Documentation Structure
+
+| Chapter | Description |
+|---------|-------------|
+| [Architecture](01-architecture.qmd) | 10-phase pipeline overview, orchestration, checkpointing |
+| [Data Lineage](02-data-lineage.qmd) | Column mappings, transformation flows, data dictionary |
+| [Transform Reference](03-transforms-reference.qmd) | All 17 transform functions with inputs/outputs |
+| [Dimension Tables](04-dimension-tables.qmd) | SCD Type 2 patterns, schemas, join examples |
+| [Quality Gates](05-quality-gates.qmd) | Pre/post validation, troubleshooting |
+| [Configuration](06-configuration.qmd) | Config files, lookup tables, dependencies |
+| [Developer Guide](07-developer-guide.qmd) | Code patterns, contributing, testing |
+
+## IRS BMF Source
+
+The raw BMF data is published by the IRS at:
+[IRS Exempt Organizations BMF Extract](https://www.irs.gov/charities-non-profits/exempt-organizations-business-master-file-extract-eo-bmf)
+
+Field definitions are documented in the IRS Internal Revenue Manual:
+[IRM 25.7.1](https://www.irs.gov/irm/part25/irm_25-007-001)
+
+## Repository Structure
+
+```
+nccs-data-bmf/
+├── R/
+│   ├── run_pipeline.R             # Pipeline orchestrator
+│   ├── config.R                   # S3 configuration and lookups
+│   ├── checkpoints.R              # Save/load intermediate states
+│   ├── input_validation.R         # Shared validation functions
+│   ├── utils/                     # Logging and utilities
+│   ├── quality/                   # Pre/post quality checks
+│   └── [transform files]          # 18 transformation modules
+├── data/
+│   ├── raw/                       # Downloaded BMF files
+│   ├── lookup/                    # Reference/lookup tables
+│   ├── checkpoints/               # Intermediate saves
+│   ├── processed/                 # Final output files
+│   └── quality/                   # Quality reports
+└── docs/                          # This guidebook
+```
