@@ -4,18 +4,11 @@
 # ============================================================================
 
 # ============================================================================
-# Module Constants
-# ============================================================================
-
-AFFILIATION_CODE_LOOKUP_COLS <- c("affiliation_code", "affiliation_code_definition")
-
-# ============================================================================
 # Lookup Table Loading
 # ============================================================================
 
 affiliation_code_lookup <- data.table::fread(
-  affiliation_code_lookup_path,
-  select = AFFILIATION_CODE_LOOKUP_COLS,
+  here::here("data/lookup/affiliation_code_lookup.csv"),
   colClasses = list(character = "affiliation_code")
 )
 
@@ -42,38 +35,16 @@ affiliation_code_lookup <- data.table::fread(
 #'     \item affiliation_code_definition - Human-readable definition
 #'   }
 #'
-#' @examples
-#' \dontrun{
-#' bmf_transformed <- transform_affiliation_code(bmf_raw)
-#' }
-#'
 #' @export
 transform_affiliation_code <- function(dt,
                                        input_col = "AFFILIATION",
                                        lookup = affiliation_code_lookup) {
-
- # Input validation
-  validate_data_table(dt, input_col, context = "BMF data")
-  validate_lookup(lookup, AFFILIATION_CODE_LOOKUP_COLS, "affiliation_code_lookup")
-
-  # Safe copy
-  dt_safe <- data.table::copy(dt)
-
-  # Type conversion (affiliation codes are single-digit characters)
-  dt_safe[, affiliation_code := as.character(get(input_col))]
-
-  # Lookup join
-  dt_safe[lookup,
-          affiliation_code_definition := i.affiliation_code_definition,
-          on = .(affiliation_code)]
-
-  # Validate join success
-  validate_join_success(
-    dt_safe,
-    key_col = "affiliation_code",
-    result_col = "affiliation_code_definition",
-    lookup_name = "affiliation_code_lookup"
+  transform_code(
+    dt = dt,
+    input_col = input_col,
+    lookup_key = "affiliation_code",
+    definition_col = "affiliation_code_definition",
+    type_conversion_func = as.character,
+    lookup = lookup
   )
-
-  return(dt_safe)
 }

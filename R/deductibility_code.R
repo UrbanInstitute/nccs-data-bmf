@@ -4,18 +4,11 @@
 # ============================================================================
 
 # ============================================================================
-# Module Constants
-# ============================================================================
-
-DEDUCTIBILITY_CODE_LOOKUP_COLS <- c("deductibility_code", "deductibility_code_definition")
-
-# ============================================================================
 # Lookup Table Loading
 # ============================================================================
 
 deductibility_code_lookup <- data.table::fread(
-  deductibility_code_lookup_path,
-  select = DEDUCTIBILITY_CODE_LOOKUP_COLS,
+  here::here("data/lookup/deductibility_code_lookup.csv"),
   colClasses = list(integer = "deductibility_code")
 )
 
@@ -42,38 +35,16 @@ deductibility_code_lookup <- data.table::fread(
 #'     \item deductibility_code_definition - Human-readable definition
 #'   }
 #'
-#' @examples
-#' \dontrun{
-#' bmf_transformed <- transform_deductibility_code(bmf_raw)
-#' }
-#'
 #' @export
 transform_deductibility_code <- function(dt,
                                          input_col = "DEDUCTIBILITY",
                                          lookup = deductibility_code_lookup) {
-
-  # Input validation
-  validate_data_table(dt, input_col, context = "BMF data")
-  validate_lookup(lookup, DEDUCTIBILITY_CODE_LOOKUP_COLS, "deductibility_code_lookup")
-
-  # Safe copy
-  dt_safe <- data.table::copy(dt)
-
-  # Type conversion
-  dt_safe[, deductibility_code := suppressWarnings(as.integer(get(input_col)))]
-
-  # Lookup join
-  dt_safe[lookup,
-          deductibility_code_definition := i.deductibility_code_definition,
-          on = .(deductibility_code)]
-
-  # Validate join success
-  validate_join_success(
-    dt_safe,
-    key_col = "deductibility_code",
-    result_col = "deductibility_code_definition",
-    lookup_name = "deductibility_code_lookup"
+  transform_code(
+    dt = dt,
+    input_col = input_col,
+    lookup_key = "deductibility_code",
+    definition_col = "deductibility_code_definition",
+    type_conversion_func = as.integer,
+    lookup = lookup
   )
-
-  return(dt_safe)
 }
