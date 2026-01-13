@@ -17,6 +17,14 @@ BMF_OUTPUT_COLUMNS <- c(
   "in_care_of_name_raw", "in_care_of_name_clean", "in_care_of_name_provided",
   # Group exemption fields
   "group_exemption_number_raw", "group_exemption_number", "group_exemption_is_member",
+  # Address fields (raw)
+  "org_addr_street_raw", "org_addr_city_raw", "org_addr_state_raw", "org_addr_zip_raw",
+  # Address fields (cleaned)
+  "org_addr_street", "org_addr_city", "org_addr_state",
+  "org_addr_zip5", "org_addr_zip4", "org_addr_zip", "org_addr_full",
+  # Address quality flags
+  "org_addr_is_missing", "org_addr_is_po_box", "org_addr_is_rural_route",
+  "org_addr_has_special_chars", "org_addr_missing_number", "org_addr_state_invalid",
   # Classification fields
   "subsection_code", "classification_code", "exempt_organization_type",
   "all_classifications_string",
@@ -143,6 +151,16 @@ generate_quality_report <- function(dt,
     report$summary_stats$median_assets <- median(dt$asset_amount, na.rm = TRUE)
   }
 
+  # Address quality statistics
+  if ("org_addr_is_missing" %in% names(dt)) {
+    report$summary_stats$address_quality <- list(
+      missing_count = sum(dt$org_addr_is_missing == TRUE, na.rm = TRUE),
+      po_box_count = sum(dt$org_addr_is_po_box == TRUE, na.rm = TRUE),
+      rural_route_count = sum(dt$org_addr_is_rural_route == TRUE, na.rm = TRUE),
+      invalid_state_count = sum(dt$org_addr_state_invalid == TRUE, na.rm = TRUE)
+    )
+  }
+
   return(report)
 }
 
@@ -210,6 +228,14 @@ print_quality_report <- function(report) {
     if (!is.null(report$summary_stats$total_assets)) {
       message(sprintf("  - Total Assets: $%s",
                       format(report$summary_stats$total_assets, big.mark = ",")))
+    }
+    if (!is.null(report$summary_stats$address_quality)) {
+      aq <- report$summary_stats$address_quality
+      message("  - Address Quality:")
+      message(sprintf("      Missing: %s", format(aq$missing_count, big.mark = ",")))
+      message(sprintf("      P.O. Box: %s", format(aq$po_box_count, big.mark = ",")))
+      message(sprintf("      Rural Route: %s", format(aq$rural_route_count, big.mark = ",")))
+      message(sprintf("      Invalid State: %s", format(aq$invalid_state_count, big.mark = ",")))
     }
     message("")
   }
