@@ -5,39 +5,50 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 This repository contains code for harmonizing IRS Business Master File (BMF) data - extracts of nonprofit organizations exempt from federal income tax. The pipeline:
-1. Downloads and combines 4 regional BMF CSVs from the IRS
+1. Downloads BMF from S3 bucket (Lambda ingests monthly from IRS)
 2. Transforms raw fields through standardized cleaning functions
 3. Creates lookup table joins for code definitions
 4. Outputs a unified BMF consolidating ~1.9M nonprofit records
 
-**Documentation**: https://urbaninstitute.github.io/nccs-data-bmf/00-documentation/GUIDEBOOK/index.html
+**Documentation**: https://urbaninstitute.github.io/nccs-data-bmf/docs/GUIDEBOOK/index.html
 
 ## Commands
 
 ### Run the Data Pipeline
 ```r
-# In R/RStudio - sources config first, then runs extraction and transformation
+# In R/RStudio - runs the full BMF processing pipeline
+# Downloads most recent BMF from S3 by default
+source("R/run_pipeline.R")
+
+# To process a specific month:
+BMF_YEAR <- 2025
+BMF_MONTH <- 1
+source("R/run_pipeline.R")
+
+# To list available BMF files in S3:
 source("R/config.R")
-source("R/00_irs_bmf.R")
+list_available_bmf_files()
 ```
 
 ### Build Documentation
 ```bash
-# Generate HTML guidebook from Quarto (run from 00-documentation/)
-cd 00-documentation && quarto render
+# Generate HTML guidebook from Quarto
+cd docs && quarto render
 ```
 
 ## Architecture
 
 ### Data Flow
 ```
-IRS BMF (4 regional CSVs) → Download → Combine → Transform → Unified BMF
+S3 (raw/bmf/YYYY-MM-BMF.csv) → Download → Transform → Validated BMF (parquet)
 ```
 
 ### Key Files
-- `R/00_irs_bmf.R` - Main orchestration script that sequences all transformations
-- `R/config.R` - IRS URLs, file paths, and lookup table initialization from `data/lookup/bmf_code_lookup.xlsx`
+- `R/run_pipeline.R` - Main orchestration script that sequences all transformations (10 phases)
+- `R/config.R` - S3 configuration, download functions, and lookup table initialization
+- `R/checkpoints.R` - Save/load intermediate pipeline states to parquet
 - `R/transform_*.R` and `R/*_code.R` - Individual field transformation functions
+- `R/quality/pre_checks.R` and `R/quality/post_checks.R` - Validation quality gates
 
 ### Transformation Pattern
 Each transformation function:
@@ -58,20 +69,21 @@ Multi-valued fields (activity codes, classification codes) create SCD Type 2 dim
 ## Key Dependencies
 
 - `data.table` - Primary data manipulation (chosen for speed with ~2M rows)
+- `arrow` - Parquet file I/O for checkpoints and output
+- `aws.s3` - S3 bucket operations for downloading BMF
 - `openxlsx` - Excel lookup file reading
 - `here` - Project-relative paths
 - `purrr` - Functional iteration
 - `stringr` - String manipulation
 - `lubridate` - Date parsing
-- `validate` - Data validation rules (in `R/validate.R`)
+- `jsonlite` - Quality report serialization
 
 ## Data Sources
 
-IRS BMF regional endpoints (configured in `config.R`):
-- eo1.csv - Northeast
-- eo2.csv - Mid-Atlantic
-- eo3.csv - Gulf and Pacific Coast
-- eo4.csv - International/PR
+BMF files are downloaded from S3 bucket `nccsdata`:
+- Path: `raw/bmf/YYYY-MM-BMF.csv`
+- A Lambda function ingests monthly BMF files from IRS and deposits them here
+- Use `list_available_bmf_files()` to see available months
 
 ## Conventions
 
@@ -79,4 +91,4 @@ IRS BMF regional endpoints (configured in `config.R`):
 - Transformation functions should be pure (copy input, don't modify in place)
 - New field transforms go in dedicated `R/<field_name>.R` files
 - Add corresponding lookup data to Excel workbook or CSV
-- Call new transforms from `00_irs_bmf.R` in logical sequence
+- Call new transforms from `run_pipeline.R` in logical sequence
