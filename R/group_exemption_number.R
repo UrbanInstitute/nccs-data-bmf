@@ -41,26 +41,26 @@ GEN_OUTPUT_COLS <- c(
 #'     \item group_exemption_number - Padded 4-digit GEN
 #'     \item group_exemption_is_member - Logical flag: TRUE if part of group exemption
 #'   }
-#'
+#' 
+#' @note
+#' BMF pipeline function. Modifies input in place for efficiency. Caller should pass a copy if original must be preserved.
+#' 
 #' @examples
 #' \dontrun{
 #' bmf_transformed <- transform_group_exemption_number(bmf_raw)
 #' }
 #'
 #' @export
-transform_group_exemption_number <- function(dt, input_col = "GROUP") {
+transform_bmf_group_exemption_number <- function(dt, input_col = "GROUP") {
 
   # Input validation
   validate_data_table(dt, input_col, context = "BMF data")
 
-  # Safe copy
-  dt_safe <- data.table::copy(dt)
-
   # Preserve raw value
-  dt_safe[, group_exemption_number_raw := as.character(get(input_col))]
+  dt[, group_exemption_number_raw := as.character(get(input_col))]
 
   # Pad to 4 digits for consistent formatting
-  dt_safe[, group_exemption_number := stringr::str_pad(
+  dt[, group_exemption_number := stringr::str_pad(
     group_exemption_number_raw,
     width = GEN_LENGTH,
     side = "left",
@@ -69,7 +69,7 @@ transform_group_exemption_number <- function(dt, input_col = "GROUP") {
 
   # Flag: is this org part of a group exemption?
   # GEN = 0 means independent (not a group member)
-  dt_safe[, group_exemption_is_member := data.table::fifelse(
+  dt[, group_exemption_is_member := data.table::fifelse(
     group_exemption_number_raw == GEN_ABSENT_VALUE |
       is.na(group_exemption_number_raw) |
       group_exemption_number_raw == "",
@@ -78,8 +78,8 @@ transform_group_exemption_number <- function(dt, input_col = "GROUP") {
   )]
 
   # Quality report
-  member_count <- dt_safe[group_exemption_is_member == TRUE, .N]
-  total_rows <- nrow(dt_safe)
+  member_count <- dt[group_exemption_is_member == TRUE, .N]
+  total_rows <- nrow(dt)
   message(sprintf(
     "Group exemption: %s of %s (%0.1f%%) are group exemption members",
     format(member_count, big.mark = ","),
@@ -88,7 +88,7 @@ transform_group_exemption_number <- function(dt, input_col = "GROUP") {
   ))
 
   # Unique GEN count (excluding 0)
-  unique_gens <- dt_safe[group_exemption_is_member == TRUE,
+  unique_gens <- dt[group_exemption_is_member == TRUE,
                          uniqueN(group_exemption_number)]
   if (unique_gens > 0) {
     message(sprintf(
@@ -97,5 +97,5 @@ transform_group_exemption_number <- function(dt, input_col = "GROUP") {
     ))
   }
 
-  return(dt_safe)
+  return(dt)
 }
