@@ -80,6 +80,9 @@ EIN_FORMAT_REPLACEMENT <- "\\1-\\2"
 #' bmf_transformed <- transform_ein(bmf_raw)
 #' }
 #'
+#' @note
+#' This function creates an internal copy of the input to ensure purity. Safe to call without pre-copying.
+#'
 #' @export
 transform_ein <- function(dt, input_col = "EIN") {
 
@@ -111,15 +114,4 @@ transform_ein <- function(dt, input_col = "EIN") {
   ))
 
   return(dt_safe)
-}
-
-# ============================================================================
-# Backward Compatibility
-# ============================================================================
-
-#' @rdname transform_ein
-#' @description Legacy alias for .clean_and_format_ein()
-#' @export
-clean_and_format_ein <- function(ein_vector) {
-  .clean_and_format_ein(ein_vector)
 }
