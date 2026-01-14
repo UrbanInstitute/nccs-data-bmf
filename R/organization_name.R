@@ -69,6 +69,7 @@ ORG_NAME_OUTPUT_COLS <- c(
   "org_name_raw",
   "org_name_join",
   "org_name_display",
+  "org_parent_name",
   "org_legal_suffix"
 )
 
@@ -138,6 +139,54 @@ ORG_NAME_OUTPUT_COLS <- c(
   return(dt)
 }
 
+#' Apply Parent Organization Lookup
+#'
+#' @description
+#' Matches abbreviations in organization display names against a lookup table
+#' to identify parent organizations. GEN-specific abbreviations take priority
+#' over general abbreviations.
+#'
+#' @param dt data.table with org_name_display column
+#' @param parent_org_lookup data.table with columns: parent_org_name, abbreviation, gen
+#' @param gen_vector character vector of GEN values corresponding to dt rows
+#'
+#' @return data.table modified in place with org_parent_name column
+#'
+#' @noRd
+.apply_parent_org_lookup <- function(dt, parent_org_lookup, gen_vector = NULL) {
+  if (is.null(parent_org_lookup) || nrow(parent_org_lookup) == 0) {
+    return(dt)
+  }
+
+  # Pass 1: GEN-specific matches (higher priority). Don't use Abbreviations if the GEN is present.
+  gen_specific <- parent_org_lookup[!is.na(gen)]
+  if (nrow(gen_specific) > 0 && !is.null(gen_vector)) {
+    for (i in seq_len(nrow(gen_specific))) {
+      parent_name <- gen_specific$parent_org_name[i]
+      lookup_gen <- gen_specific$gen[i]
+ 
+      dt[is.na(org_parent_name) & gen_vector == lookup_gen, 
+         org_parent_name := parent_name]
+    }
+  }
+
+  # Pass 2: General matches (no GEN requirement). Use Abbreviations when no GEN is provided.
+  general <- parent_org_lookup[is.na(gen)]
+  if (nrow(general) > 0) {
+    for (i in seq_len(nrow(general))) {
+      abbrev <- general$abbreviation[i]
+      parent_name <- general$parent_org_name[i]
+      pattern <- paste0("\\b", abbrev, "\\b")
+
+      dt[is.na(org_parent_name) &
+         stringr::str_detect(org_name_raw, stringr::regex(pattern, ignore_case = TRUE)),
+         org_parent_name := parent_name]
+    }
+  }
+
+  return(dt)
+}
+
 #' Apply Manual Name Overrides
 #'
 #' @description
@@ -182,15 +231,17 @@ ORG_NAME_OUTPUT_COLS <- c(
 #' Clean and Standardize Organization Names
 #'
 #' @description
-#' Transforms raw organization names through a three-step cleaning process:
+#' Transforms raw organization names through a four-step cleaning process:
 #' 1. Extract legal suffixes (INC, CORP, LLC, etc.) using pattern matching
 #' 2. Apply word standardizations (abbreviations, acronyms)
-#' 3. Apply manual overrides from lookup table (optional)
+#' 3. Apply parent organization lookup to identify affiliated organizations
+#' 4. Apply manual overrides from lookup table (optional)
 #'
-#' The function produces three output columns:
+#' The function produces output columns:
 #' - `org_name_raw`: Original name (preserved)
 #' - `org_name_join`: Cleaned name suitable for joining/matching
 #' - `org_name_display`: Title-cased name for display purposes
+#' - `org_parent_name`: Parent organization name (if matched)
 #' - `org_legal_suffix`: Extracted and standardized legal suffix
 #'
 #' @param raw_names character vector of raw organization names
@@ -201,9 +252,14 @@ ORG_NAME_OUTPUT_COLS <- c(
 #' @param name_lookup data.table/data.frame with manual overrides. Must have columns:
 #'   org_name_raw, org_name_join, org_name_display, org_legal_suffix.
 #'   Default is NULL (no manual overrides).
+#' @param parent_org_lookup data.table with columns: parent_org_name, abbreviation, gen.
+#'   Used to match abbreviations in org names to parent organizations.
+#'   Default is NULL (no parent org matching).
+#' @param gen_vector character vector of Group Exemption Numbers corresponding to
+#'   raw_names. Used for GEN-specific abbreviation matching. Default is NULL.
 #'
 #' @return data.table with columns: org_name_raw, org_name_join, org_name_display,
-#'   org_legal_suffix
+#'   org_parent_name, org_legal_suffix
 #'
 #' @examples
 #' \dontrun{
@@ -224,7 +280,9 @@ ORG_NAME_OUTPUT_COLS <- c(
 clean_organization_names <- function(raw_names,
                                      suffix_map = SUFFIX_MAP,
                                      standardization_patterns = STANDARDIZATION_PATTERNS,
-                                     name_lookup = NULL) {
+                                     name_lookup = NULL,
+                                     parent_org_lookup = NULL,
+                                     gen_vector = NULL) {
 
 
   # Input validation
@@ -255,6 +313,7 @@ results <- data.table::data.table(
     org_name_raw = raw_names,
     org_name_join = NA_character_,
     org_name_display = NA_character_,
+    org_parent_name = NA_character_,
     org_legal_suffix = NA_character_
   )
 
@@ -262,7 +321,11 @@ results <- data.table::data.table(
   .extract_legal_suffix(results, suffix_map)
 
   # Squish whitespace in processed columns
-  processed_cols <- c("org_name_join", "org_name_display", "org_legal_suffix")
+  processed_cols <- c("org_name_join", 
+                      "org_name_display", 
+                      "org_legal_suffix",
+                      "org_parent_name")
+  
   results[, (processed_cols) := lapply(.SD, stringr::str_squish),
           .SDcols = processed_cols]
 
@@ -276,14 +339,17 @@ results <- data.table::data.table(
   # Step 2: Apply word standardizations
   .apply_standardization_patterns(results, standardization_patterns)
 
-  # Step 3: Apply manual overrides (if provided)
+  # Step 3: Apply parent organization lookup
+  .apply_parent_org_lookup(results, parent_org_lookup, gen_vector)
+
+  # Step 4: Apply manual overrides (if provided)
   .apply_manual_overrides(results, name_lookup)
 
   # Final whitespace cleanup
   results[, (processed_cols) := lapply(.SD, stringr::str_squish),
           .SDcols = processed_cols]
 
-  return(results)
+  return(results[, ORG_NAME_OUTPUT_COLS, with = FALSE])
 }
 
 #' Transform Organization Name Column
@@ -302,8 +368,12 @@ results <- data.table::data.table(
 #'     \item org_name_raw - Original organization name
 #'     \item org_name_join - Cleaned name for matching/joining
 #'     \item org_name_display - Title-cased display name
+#'     \item org_parent_name - Parent organization name (if matched)
 #'     \item org_legal_suffix - Extracted legal suffix (INC, CORP, etc.)
 #'   }
+#'
+#' @note
+#' Use the manual override lookup for ad-hoc cleaning of specific names.
 #'
 #' @examples
 #' \dontrun{
@@ -354,7 +424,9 @@ transform_organization_name <- function(dt,
   # Clean names
   name_results <- clean_organization_names(
     raw_names = raw_names,
-    name_lookup = name_lookup
+    name_lookup = name_lookup,
+    parent_org_lookup = lookup_ls$parent_organization,
+    gen_vector = dt_safe[["GROUP"]]
   )
 
   # Add result columns to main table
@@ -370,24 +442,13 @@ transform_organization_name <- function(dt,
     100 * suffix_counts / total_rows
   ))
 
+  parent_org_counts <- dt_safe[!is.na(org_parent_name), .N]
+  message(sprintf(
+    "Organization names: %s of %s (%0.1f%%) matched to parent organization",
+    format(parent_org_counts, big.mark = ","),
+    format(total_rows, big.mark = ","),
+    100 * parent_org_counts / total_rows
+  ))
+
   return(dt_safe)
-}
-
-# ============================================================================
-# Backward Compatibility
-# ============================================================================
-
-#' @rdname clean_organization_names
-#' @description Legacy alias for clean_organization_names()
-#' @export
-clean_names <- function(raw_names,
-                        suffix_map = SUFFIX_MAP,
-                        standardization_lookup = STANDARDIZATION_PATTERNS,
-                        name_lookup = NULL) {
-  clean_organization_names(
-    raw_names = raw_names,
-    suffix_map = suffix_map,
-    standardization_patterns = standardization_lookup,
-    name_lookup = name_lookup
-  )
 }
