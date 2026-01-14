@@ -9,7 +9,14 @@
 #
 # The ICO field contains names prefixed with "%" followed by a space
 # and sometimes additional characters before the actual name.
-ICO_PREFIX_PATTERN <- "^%\\s.*"
+ICO_PREFIX_PATTERN <- "^%"
+
+# Placeholder values that should be treated as missing
+ICO_PLACEHOLDER_PATTERN <- "^(NA|N/A|NONE|NO|UNKNOWN)$"
+
+# Name suffixes and honorifics to keep uppercase after title case
+ICO_UPPERCASE_SUFFIXES <- c("Jr", "Sr", "Ii", "Iii", "Iv", "Phd", "Esq", "Cpa", "Mba", "Md")
+ICO_UPPERCASE_REPLACE <- c("JR", "SR", "II", "III", "IV", "PHD", "ESQ", "CPA", "MBA", "MD")
 
 # Output column names
 ICO_OUTPUT_COLS <- c(
@@ -40,7 +47,7 @@ ICO_OUTPUT_COLS <- c(
 #'   }
 #' 
 #' @note
-#' Function is bmf-specific and edits data.table in place. Ensure a copy is created before processing BMF with it.
+#' BMF pipeline function. Modifies input in place for efficiency. Caller should pass a copy if original must be preserved.
 #' 
 #' @examples
 #' \dontrun{
@@ -66,9 +73,24 @@ transform_bmf_ico_name <- function(dt, input_col = "ICO") {
   dt[, in_care_of_name_clean := stringr::str_to_title(in_care_of_name_clean)]
   dt[, in_care_of_name_clean := stringr::str_squish(in_care_of_name_clean)]
 
+  # Convert placeholder values to NA
+  dt[stringr::str_detect(in_care_of_name_clean,
+                         stringr::regex(ICO_PLACEHOLDER_PATTERN, ignore_case = TRUE)),
+     in_care_of_name_clean := NA_character_]
+
+  # Restore uppercase for name suffixes and honorifics
+  for (i in seq_along(ICO_UPPERCASE_SUFFIXES)) {
+    pattern <- paste0("\\b", ICO_UPPERCASE_SUFFIXES[i], "\\b")
+    dt[, in_care_of_name_clean := stringr::str_replace_all(
+      in_care_of_name_clean,
+      stringr::regex(pattern, ignore_case = FALSE),
+      ICO_UPPERCASE_REPLACE[i]
+    )]
+  }
+
   # Flag for quality assurance and metadata
   dt[, in_care_of_name_provided := data.table::fifelse(
-    is.na(in_care_of_name_raw) | in_care_of_name_raw == "",
+    is.na(in_care_of_name_raw) | in_care_of_name_raw == "" | is.na(in_care_of_name_clean),
     FALSE,
     TRUE
   )]
