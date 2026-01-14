@@ -7,10 +7,11 @@
 # Lookup Table Loading
 # ============================================================================
 
-affiliation_code_lookup <- data.table::fread(
-  here::here("data/lookup/affiliation_code_lookup.csv"),
-  colClasses = list(character = "affiliation_code")
-)
+affiliation_code_lookup <- lookup_ls$affiliation_code[
+  ,
+  .(affiliation_code = as.character(affiliation_code),
+    affiliation_code_definition)
+]
 
 # ============================================================================
 # Transformation Function
