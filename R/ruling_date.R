@@ -36,26 +36,26 @@ RULING_DATE_MISSING <- as.Date("1900-01-01")
 #'     \item ruling_date - Parsed Date (YYYY-MM-01)
 #'     \item ruling_date_is_missing - Logical flag for missing/invalid values
 #'   }
-#'
+#' 
+#' @note
+#' BMF pipeline function. Modifies input in place for efficiency. Caller should pass a copy if original must be preserved.
+#' 
 #' @examples
 #' \dontrun{
 #' bmf_transformed <- transform_ruling_date(bmf_raw)
 #' }
 #'
 #' @export
-transform_ruling_date <- function(dt, input_col = "RULING") {
+transform_bmf_ruling_date <- function(dt, input_col = "RULING") {
 
   # Input validation
   validate_data_table(dt, input_col, context = "BMF data")
 
-  # Safe copy
-  dt_safe <- data.table::copy(dt)
-
   # Convert to string and preserve original
-  dt_safe[, ruling_date_ym_str := as.character(get(input_col))]
+  dt[, ruling_date_ym_str := as.character(get(input_col))]
 
   # Validate format before parsing
-  invalid_format <- dt_safe[
+  invalid_format <- dt[
     !is.na(ruling_date_ym_str) &
       ruling_date_ym_str != "" &
       ruling_date_ym_str != "0" &
@@ -71,18 +71,18 @@ transform_ruling_date <- function(dt, input_col = "RULING") {
   }
 
   # Parse to date: YYYYMM -> YYYY-MM-01
-  dt_safe[, ruling_date := lubridate::ymd(
+  dt[, ruling_date := lubridate::ymd(
     paste0(ruling_date_ym_str, "01"),
     quiet = TRUE
   )]
 
   # Flag missing values
-  dt_safe[, ruling_date_is_missing := is.na(ruling_date) |
+  dt[, ruling_date_is_missing := is.na(ruling_date) |
             ruling_date_ym_str == "" |
             ruling_date_ym_str == "0"]
 
   # Count missing for quality report
-  missing_count <- dt_safe[ruling_date_is_missing == TRUE, .N]
+  missing_count <- dt[ruling_date_is_missing == TRUE, .N]
   if (missing_count > 0) {
     message(sprintf(
       "Ruling date: %s missing/invalid values flagged",
@@ -91,10 +91,10 @@ transform_ruling_date <- function(dt, input_col = "RULING") {
   }
 
   # Replace NA with sentinel date
-  dt_safe[is.na(ruling_date), ruling_date := RULING_DATE_MISSING]
+  dt[is.na(ruling_date), ruling_date := RULING_DATE_MISSING]
 
   # Quality report
-  total_rows <- nrow(dt_safe)
+  total_rows <- nrow(dt)
   valid_count <- total_rows - missing_count
   message(sprintf(
     "Ruling date: %s of %s (%0.1f%%) successfully parsed",
@@ -103,5 +103,5 @@ transform_ruling_date <- function(dt, input_col = "RULING") {
     100 * valid_count / total_rows
   ))
 
-  return(dt_safe)
+  return(dt)
 }
