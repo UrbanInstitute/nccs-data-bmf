@@ -7,10 +7,7 @@
 # Lookup Table Loading
 # ============================================================================
 
-deductibility_code_lookup <- data.table::fread(
-  here::here("data/lookup/deductibility_code_lookup.csv"),
-  colClasses = list(integer = "deductibility_code")
-)
+deductibility_code_lookup <- lookup_ls$deductibility_code
 
 # ============================================================================
 # Transformation Function
