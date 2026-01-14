@@ -23,16 +23,12 @@ CLASSIFICATION_CODE_UNDEFINED <- "0"
 # Lookup Table Loading
 # ============================================================================
 
-subsection_classification_code_lookup <- data.table::fread(
-  subsection_classification_code_lookup_path,
-  select = SUBSECTION_CLASSIFICATION_LOOKUP_COLS,
-  colClasses = list(character = c(
-    "subsection_code",
-    "classification_code",
-    "classification_description",
-    "exempt_organization_type"
-  ))
-)
+subsection_classification_code_lookup <- lookup_ls$subsection_classification_code[,
+  .(subsection_code = as.character(subsection_code),
+    classification_code = as.character(classification_code),
+    exempt_organization_type,
+    classification_description)
+]
 
 # Derived lookup tables
 subsection_orgtype_lookup <- subsection_classification_code_lookup[,
@@ -174,10 +170,18 @@ create_cl_code_dim_table <- function(dt,
 #' }
 #'
 #' @export
-transform_bmf_subsection_classification_codes <- function(dt,
-                                                      dim_table,
-                                                      orgtype_lookup = subsection_orgtype_lookup) {
+transform_bmf_subsection_classification_codes <- function(
+    dt,
+    orgtype_lookup = subsection_orgtype_lookup
+  ) {
 
+  # Create dim table
+  dim_table <- create_cl_code_dim_table(
+    dt,
+    lookup = classification_code_lookup,
+    year = PROCESSING_YEAR
+  )
+  
   # Input validation
   validate_data_table(dt, c("SUBSECTION", "CLASSIFICATION"), context = "BMF data")
   validate_data_table(dim_table, c("ein", "classification_description"),

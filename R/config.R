@@ -134,7 +134,6 @@ download_bmf_from_s3 <- function(bucket = BMF_S3_BUCKET,
 # ============================================================================
 
 # Paths for lookup files used by transformation modules
-subsection_classification_code_lookup_path <- "data/lookup/classification_subsection_code_lookup.csv"
 activity_code_lookup_path <- "data/lookup/activity_code_lookup.csv"
 
 # ============================================================================
