@@ -49,6 +49,7 @@ source(here::here("R", "quality", "post_checks.R"))
 # Identity transforms
 source(here::here("R", "ein.R"))
 source(here::here("R", "organization_name.R"))
+source(here::here("R", "dba_name.R"))
 source(here::here("R", "ico_name.R"))
 source(here::here("R", "group_exemption_number.R"))
 source(here::here("R", "ruling_date.R"))
@@ -131,17 +132,21 @@ bmf <- transform_ein(bmf)
 log_transform_start("Organization Name")
 bmf <- transform_organization_name(bmf)
 
+# DBA Name
+log_transform_start("DBA Name")
+bmf <- transform_dba_name(bmf)
+
 # In-Care-Of Name
 log_transform_start("ICO Name")
-bmf <- transform_ico_name(bmf)
+bmf <- transform_bmf_ico_name(bmf)
 
 # Group Exemption Number
 log_transform_start("Group Exemption Number")
-bmf <- transform_group_exemption_number(bmf)
+bmf <- transform_bmf_group_exemption_number(bmf)
 
 # Ruling Date
 log_transform_start("Ruling Date")
-bmf <- transform_ruling_date(bmf)
+bmf <- transform_bmf_ruling_date(bmf)
 
 # Address
 log_transform_start("Address")
@@ -157,16 +162,7 @@ log_phase_start("CLASSIFICATION TRANSFORMATIONS")
 
 # Subsection and Classification Codes (dimension table pattern)
 log_transform_start("Subsection/Classification Codes")
-cl_code_dim_table <- create_cl_code_dim_table(
-  bmf,
-  lookup = classification_code_lookup,
-  year = PROCESSING_YEAR
-)
-bmf <- transform_subsection_classification_codes(
-  bmf,
-  dim_table = cl_code_dim_table,
-  orgtype_lookup = subsection_orgtype_lookup
-)
+bmf <- transform_bmf_subsection_classification_codes(bmf)
 
 # Affiliation Code
 log_transform_start("Affiliation Code")
