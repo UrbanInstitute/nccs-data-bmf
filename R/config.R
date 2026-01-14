@@ -71,7 +71,8 @@ download_bmf_from_s3 <- function(bucket = BMF_S3_BUCKET,
                                   month = NULL) {
 
  # List available BMF files in bucket
-  available_files <- aws.s3::get_bucket_df(bucket = bucket, prefix = prefix)
+  available_files <- aws.s3::get_bucket(bucket = bucket, prefix = prefix) |>
+    data.table::rbindlist(fill = TRUE)
 
   # Filter to BMF CSV files matching pattern YYYY-MM-BMF.csv
   bmf_files <- available_files[grepl("\\d{4}-\\d{2}-BMF\\.csv$", available_files$Key), ]
