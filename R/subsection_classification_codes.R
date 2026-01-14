@@ -161,7 +161,10 @@ create_cl_code_dim_table <- function(dt,
 #'     \item exempt_organization_type - Type of exempt organization
 #'     \item all_classifications_string - Semicolon-separated descriptions
 #'   }
-#'
+#' 
+#' @note
+#' BMF pipeline function. Modifies input in place for efficiency. Caller should pass a copy if original must be preserved.
+#' 
 #' @examples
 #' \dontrun{
 #' dim_table <- create_cl_code_dim_table(bmf_raw, classification_code_lookup, "2025")
@@ -171,7 +174,7 @@ create_cl_code_dim_table <- function(dt,
 #' }
 #'
 #' @export
-transform_subsection_classification_codes <- function(dt,
+transform_bmf_subsection_classification_codes <- function(dt,
                                                       dim_table,
                                                       orgtype_lookup = subsection_orgtype_lookup) {
 
@@ -182,12 +185,9 @@ transform_subsection_classification_codes <- function(dt,
   validate_lookup(orgtype_lookup, c("subsection_code", "exempt_organization_type"),
                   "subsection_orgtype_lookup")
 
-  # Safe copy
-  dt_safe <- data.table::copy(dt)
-
   # Add subsection and classification columns
-  dt_safe[, subsection_code := as.character(SUBSECTION)]
-  dt_safe[, classification_code := as.character(CLASSIFICATION)]
+  dt[, subsection_code := as.character(SUBSECTION)]
+  dt[, classification_code := as.character(CLASSIFICATION)]
 
   # Aggregate dimension table: concatenate all descriptions per EIN
   cl_summary <- dim_table[, .(
@@ -195,14 +195,14 @@ transform_subsection_classification_codes <- function(dt,
   ), by = .(ein)]
 
   # Join organization type from subsection
-  dt_safe[orgtype_lookup,
+  dt[orgtype_lookup,
           exempt_organization_type := i.exempt_organization_type,
           on = .(subsection_code)]
 
   # Join classification descriptions
-  dt_safe[cl_summary,
+  dt[cl_summary,
           all_classifications_string := i.all_classifications_string,
           on = .(ein)]
 
-  return(dt_safe)
+  return(dt)
 }
