@@ -13,8 +13,9 @@ BMF_REQUIRED_COLUMNS <- c(
   "GROUP", "SUBSECTION", "AFFILIATION", "CLASSIFICATION",
   "RULING", "DEDUCTIBILITY", "FOUNDATION", "ACTIVITY",
   "ORGANIZATION", "STATUS", "TAX_PERIOD", "ASSET_CD",
-  "INCOME_CD", "FILING_REQ_CD", "ASSET_AMT", "INCOME_AMT",
-  "REVENUE_AMT", "NTEE_CD", "SORT_NAME"
+  "INCOME_CD", "FILING_REQ_CD", "PF_FILING_REQ_CD", 
+  "ASSET_AMT", "INCOME_AMT", "REVENUE_AMT", "NTEE_CD", 
+  "SORT_NAME", "ACCT_PD", "REGION"
 )
 
 # ============================================================================
@@ -27,6 +28,10 @@ BMF_REQUIRED_COLUMNS <- c(
 #' Validates that the raw BMF data has the expected structure before
 #' transformation. Checks for required columns, and basic data quality 
 #' indicators.
+#' 
+#' @details
+#' Failure only occurs if the required columns aren't present
+#' 
 #'
 #' @param dt data.table raw BMF data
 #' @param required_cols character vector of required column names

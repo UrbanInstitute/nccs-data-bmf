@@ -109,7 +109,6 @@ log_phase_start("PRE-TRANSFORMATION VALIDATION")
 
 pre_check_results <- validate_raw_bmf_structure(
   bmf_raw,
-  expected_rows = BMF_2025_EXPECTED_ROWS,
   strict = STRICT_QUALITY_GATES
 )
 
