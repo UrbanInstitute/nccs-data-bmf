@@ -38,44 +38,44 @@ ICO_OUTPUT_COLS <- c(
 #'     \item in_care_of_name_clean - Cleaned and title-cased name
 #'     \item in_care_of_name_provided - Logical flag indicating if ICO was provided
 #'   }
-#'
+#' 
+#' @note
+#' Function is bmf-specific and edits data.table in place. Ensure a copy is created before processing BMF with it.
+#' 
 #' @examples
 #' \dontrun{
 #' bmf_transformed <- transform_ico_name(bmf_raw)
 #' }
 #'
 #' @export
-transform_ico_name <- function(dt, input_col = "ICO") {
+transform_bmf_ico_name <- function(dt, input_col = "ICO") {
 
   # Input validation
   validate_data_table(dt, input_col, context = "BMF data")
 
-  # Safe copy
-  dt_safe <- data.table::copy(dt)
-
   # Preserve raw value (renamed for clarity)
-  dt_safe[, in_care_of_name_raw := as.character(get(input_col))]
+  dt[, in_care_of_name_raw := as.character(get(input_col))]
 
   # Clean: remove % prefix pattern
-  dt_safe[, in_care_of_name_clean := stringr::str_remove(
+  dt[, in_care_of_name_clean := stringr::str_remove(
     in_care_of_name_raw,
     ICO_PREFIX_PATTERN
   )]
 
   # Standardize: title case and squish whitespace
-  dt_safe[, in_care_of_name_clean := stringr::str_to_title(in_care_of_name_clean)]
-  dt_safe[, in_care_of_name_clean := stringr::str_squish(in_care_of_name_clean)]
+  dt[, in_care_of_name_clean := stringr::str_to_title(in_care_of_name_clean)]
+  dt[, in_care_of_name_clean := stringr::str_squish(in_care_of_name_clean)]
 
   # Flag for quality assurance and metadata
-  dt_safe[, in_care_of_name_provided := data.table::fifelse(
+  dt[, in_care_of_name_provided := data.table::fifelse(
     is.na(in_care_of_name_raw) | in_care_of_name_raw == "",
     FALSE,
     TRUE
   )]
 
   # Quality report
-  provided_count <- dt_safe[in_care_of_name_provided == TRUE, .N]
-  total_rows <- nrow(dt_safe)
+  provided_count <- dt[in_care_of_name_provided == TRUE, .N]
+  total_rows <- nrow(dt)
   message(sprintf(
     "In-Care-Of name: %s of %s (%0.1f%%) have ICO names provided",
     format(provided_count, big.mark = ","),
@@ -83,5 +83,5 @@ transform_ico_name <- function(dt, input_col = "ICO") {
     100 * provided_count / total_rows
   ))
 
-  return(dt_safe)
+  return(dt)
 }
