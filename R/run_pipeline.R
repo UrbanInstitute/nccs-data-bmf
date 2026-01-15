@@ -313,8 +313,3 @@ log_info(sprintf("Quality gate: %s",
 # ============================================================================
 # TODO / FUTURE ENHANCEMENTS
 # ============================================================================
-# - Complement organization names with e-file data (NAME field often truncated)
-# - Add SORT_NAME transformation
-# - Migrate to DuckDB for larger-than-memory processing
-# - Create additional metadata/dimension tables
-# - Add geocoding to standardized addresses
