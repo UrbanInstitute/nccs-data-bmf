@@ -20,11 +20,11 @@ ACTIVITY_CODE_UNDEFINED <- "000"
 # Lookup Table Loading
 # ============================================================================
 
-activity_code_lookup <- data.table::fread(
-  activity_code_lookup_path,
-  select = ACTIVITY_CODE_LOOKUP_COLS,
-  colClasses = list(character = ACTIVITY_CODE_LOOKUP_COLS)
-)
+activity_code_lookup <- lookup_ls$activity_code[
+  , 
+  (ACTIVITY_CODE_LOOKUP_COLS) := lapply(.SD, as.character), 
+  .SDcols = ACTIVITY_CODE_LOOKUP_COLS
+]
 
 # ============================================================================
 # Helper Functions
@@ -177,6 +177,9 @@ create_activity_code_dim_table <- function(dt,
 #'     \item activity_code_categories - Semicolon-separated categories
 #'   }
 #'
+#' @note
+#' BMF pipeline function. Modifies input in place for efficiency. Caller should pass a copy if original must be preserved.
+#'
 #' @examples
 #' \dontrun{
 #' dim_table <- create_activity_code_dim_table(bmf_raw, activity_code_lookup)
@@ -184,16 +187,20 @@ create_activity_code_dim_table <- function(dt,
 #' }
 #'
 #' @export
-transform_activity_code <- function(dt, dim_table) {
+transform_bmf_activity_code <- function(dt) {
 
   # Input validation
   validate_data_table(dt, "ein", context = "BMF data")
+  dt <- .clean_activity_code(dt)
+  
+  dim_table <- create_activity_code_dim_table(
+    bmf,
+    lookup = activity_code_lookup
+  )
 
   required_dim_cols <- c("ein", "activity_code_definition", "activity_code_category")
   validate_data_table(dim_table, required_dim_cols, context = "activity code dimension table")
 
-  # Safe copy
-  dt_safe <- data.table::copy(dt)
 
   # Aggregate dimension table: concatenate all definitions and categories per EIN
   dim_summary <- dim_table[, .(
@@ -202,12 +209,12 @@ transform_activity_code <- function(dt, dim_table) {
   ), by = .(ein)]
 
   # Join summary back to main table
-  dt_safe[dim_summary,
+  dt[dim_summary,
           `:=`(
             activity_code_definitions = i.activity_code_definitions,
             activity_code_categories = i.activity_code_categories
           ),
           on = .(ein)]
 
-  return(dt_safe)
+  return(dt)
 }
