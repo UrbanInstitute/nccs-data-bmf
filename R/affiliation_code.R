@@ -30,6 +30,9 @@ affiliation_code_lookup <- lookup_ls$affiliation_code[
 #' @param input_col character name of input column (default: "AFFILIATION")
 #' @param lookup data.table lookup table with affiliation_code and definition
 #'
+#' @note
+#' BMF pipeline function. Modifies input in place for efficiency. Caller should pass a copy if original must be preserved.
+#' 
 #' @return data.table with new columns:
 #'   \itemize{
 #'     \item affiliation_code - Standardized affiliation code (character)
@@ -37,7 +40,7 @@ affiliation_code_lookup <- lookup_ls$affiliation_code[
 #'   }
 #'
 #' @export
-transform_affiliation_code <- function(dt,
+transform_bmf_affiliation_code <- function(dt,
                                        input_col = "AFFILIATION",
                                        lookup = affiliation_code_lookup) {
   transform_code(
