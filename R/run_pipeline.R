@@ -166,26 +166,23 @@ bmf <- transform_bmf_subsection_classification_codes(bmf)
 
 # Affiliation Code
 log_transform_start("Affiliation Code")
-bmf <- transform_affiliation_code(bmf)
+bmf <- transform_bmf_affiliation_code(bmf)
 
 # Deductibility Code
 log_transform_start("Deductibility Code")
-bmf <- transform_deductibility_code(bmf)
+bmf <- transform_bmf_deductibility_code(bmf)
 
 # Foundation Code
 log_transform_start("Foundation Code")
-bmf <- transform_foundation_code(bmf)
+bmf <- transform_bmf_foundation_code(bmf)
 
 # Organization Code
 log_transform_start("Organization Code")
-bmf <- transform_organization_code(bmf)
+bmf <- transform_bmf_organization_code(bmf)
 
 # Status Code
 log_transform_start("Status Code")
-bmf <- transform_status_code(
-  bmf,
-  lookup = lookup_ls$status_code
-)
+bmf <- transform_bmf_status_code(bmf)
 
 save_checkpoint(bmf, "03_classification")
 
@@ -197,23 +194,11 @@ log_phase_start("ACTIVITY TRANSFORMATIONS")
 
 # Activity Code (dimension table pattern)
 log_transform_start("Activity Code")
-activity_dim_table <- create_activity_code_dim_table(
-  bmf,
-  lookup = activity_code_lookup
-)
-bmf <- transform_activity_code(bmf, activity_dim_table)
+bmf <- transform_bmf_activity_code(bmf)
 
 # NTEE Code (dimension table pattern)
 log_transform_start("NTEE Code")
-bmf <- transform_ntee_code(
-  bmf,
-  ntee_code_lookup = lookup_ls$ntee_code,
-  ntee_major_group_lookup = lookup_ls$ntee_code_major_group,
-  activity_code_lookup = lookup_ls$ntee_code_activity_type,
-  input_ntee_col = "NTEE_CD",
-  year = PROCESSING_YEAR,
-  write_scd = FALSE
-)
+bmf <- transform_ntee_code(bmf)
 
 save_checkpoint(bmf, "04_activity")
 
@@ -241,11 +226,11 @@ log_phase_start("FINANCIAL TRANSFORMATIONS")
 
 # Asset Code
 log_transform_start("Asset Code")
-bmf <- transform_asset_code(bmf, lookup = lookup_ls$asset_code)
+bmf <- transform_bmf_asset_code(bmf, lookup = lookup_ls$asset_code)
 
 # Income Code
 log_transform_start("Income Code")
-bmf <- transform_income_code(bmf, lookup = lookup_ls$income_code)
+bmf <- transform_bmf_income_code(bmf, lookup = lookup_ls$income_code)
 
 # Asset Amount
 log_transform_start("Asset Amount")
@@ -269,25 +254,11 @@ log_phase_start("FILING REQUIREMENT TRANSFORMATIONS")
 
 # Filing Requirement Code
 log_transform_start("Filing Requirement Code")
-bmf <- transform_code(
-  dt = bmf,
-  input_col = "FILING_REQ_CD",
-  lookup_key = "filing_requirement_code",
-  definition_col = "filing_requirement_code_definition",
-  type_conversion_func = as.integer,
-  lookup = lookup_ls$filing_requirement_code
-)
+bmf <- transform_bmf_filing_requirement_code(bmf)
 
 # PF Filing Requirement Code
 log_transform_start("PF Filing Requirement Code")
-bmf <- transform_code(
-  dt = bmf,
-  input_col = "PF_FILING_REQ_CD",
-  lookup_key = "pf_filing_requirement_code",
-  definition_col = "pf_filing_requirement_code_definition",
-  type_conversion_func = as.integer,
-  lookup = lookup_ls$pf_filing_requirement_code
-)
+bmf <- transform_bmf_pf_filing_requirement_code(bmf)
 
 save_checkpoint(bmf, "07_filing")
 

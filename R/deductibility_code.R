@@ -25,7 +25,10 @@ deductibility_code_lookup <- lookup_ls$deductibility_code
 #' @param dt data.table containing BMF data with DEDUCTIBILITY column
 #' @param input_col character name of input column (default: "DEDUCTIBILITY")
 #' @param lookup data.table lookup table with deductibility_code and definition
-#'
+#' 
+#' @note
+#' BMF pipeline function. Modifies input in place for efficiency. Caller should pass a copy if original must be preserved.
+#' 
 #' @return data.table with new columns:
 #'   \itemize{
 #'     \item deductibility_code - Standardized deductibility code (integer)
@@ -33,7 +36,7 @@ deductibility_code_lookup <- lookup_ls$deductibility_code
 #'   }
 #'
 #' @export
-transform_deductibility_code <- function(dt,
+transform_bmf_deductibility_code <- function(dt,
                                          input_col = "DEDUCTIBILITY",
                                          lookup = deductibility_code_lookup) {
   transform_code(

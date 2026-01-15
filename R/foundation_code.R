@@ -7,10 +7,7 @@
 # Lookup Table Loading
 # ============================================================================
 
-foundation_code_lookup <- data.table::fread(
-  here::here("data/lookup/foundation_code_lookup.csv"),
-  colClasses = list(integer = "foundation_code")
-)
+foundation_code_lookup <- lookup_ls$foundation_code
 
 # ============================================================================
 # Transformation Function
@@ -28,7 +25,10 @@ foundation_code_lookup <- data.table::fread(
 #' @param dt data.table containing BMF data with FOUNDATION column
 #' @param input_col character name of input column (default: "FOUNDATION")
 #' @param lookup data.table lookup table with foundation_code and definition
-#'
+#' 
+#' @note
+#' BMF pipeline function. Modifies input in place for efficiency. Caller should pass a copy if original must be preserved.
+#' 
 #' @return data.table with new columns:
 #'   \itemize{
 #'     \item foundation_code - Standardized foundation code (integer)
@@ -36,7 +36,7 @@ foundation_code_lookup <- data.table::fread(
 #'   }
 #'
 #' @export
-transform_foundation_code <- function(dt,
+transform_bmf_foundation_code <- function(dt,
                                       input_col = "FOUNDATION",
                                       lookup = foundation_code_lookup) {
   transform_code(

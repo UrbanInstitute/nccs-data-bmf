@@ -7,10 +7,7 @@
 # Lookup Table Loading
 # ============================================================================
 
-organization_code_lookup <- data.table::fread(
-  here::here("data/lookup/organization_code_lookup.csv"),
-  colClasses = list(integer = "organization_code")
-)
+organization_code_lookup <- lookup_ls$organization_code
 
 # ============================================================================
 # Transformation Function
@@ -29,6 +26,9 @@ organization_code_lookup <- data.table::fread(
 #' @param input_col character name of input column (default: "ORGANIZATION")
 #' @param lookup data.table lookup table with organization_code and definition
 #'
+#' @note
+#' BMF pipeline function. Modifies input in place for efficiency. Caller should pass a copy if original must be preserved.
+#' 
 #' @return data.table with new columns:
 #'   \itemize{
 #'     \item organization_code - Standardized organization code (integer)
@@ -36,7 +36,7 @@ organization_code_lookup <- data.table::fread(
 #'   }
 #'
 #' @export
-transform_organization_code <- function(dt,
+transform_bmf_organization_code <- function(dt,
                                         input_col = "ORGANIZATION",
                                         lookup = organization_code_lookup) {
   transform_code(

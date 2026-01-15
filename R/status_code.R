@@ -3,6 +3,14 @@
 # Transform STATUS column to status_code with definition
 # ============================================================================
 
+# ============================================================================
+# Lookup Table Loading
+# ============================================================================
+status_code_lookup <- lookup_ls$status_code
+
+# ============================================================================
+# Transformation Function
+# ============================================================================
 #' Transform Status Code
 #'
 #' @description
@@ -24,9 +32,9 @@
 #'   }
 #'
 #' @export
-transform_status_code <- function(dt,
+transform_bmf_status_code <- function(dt,
                                   input_col = "STATUS",
-                                  lookup) {
+                                  lookup = status_code_lookup) {
   transform_code(
     dt = dt,
     input_col = input_col,

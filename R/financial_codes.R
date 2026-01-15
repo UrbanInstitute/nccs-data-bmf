@@ -115,7 +115,7 @@ transform_financial_code <- function(dt,
 #' @return data.table with asset_code and asset_code_definition columns
 #'
 #' @export
-transform_asset_code <- function(dt, lookup) {
+transform_bmf_asset_code <- function(dt, lookup) {
   transform_financial_code(
     dt = dt,
     lookup = lookup,
@@ -137,7 +137,7 @@ transform_asset_code <- function(dt, lookup) {
 #' @return data.table with income_code and income_code_definition columns
 #'
 #' @export
-transform_income_code <- function(dt, lookup) {
+transform_bmf_income_code <- function(dt, lookup) {
   transform_financial_code(
     dt = dt,
     lookup = lookup,

@@ -14,7 +14,7 @@ NTEE_UNDEFINED <- "UNDEFINED"
 # Required lookup table columns
 NTEE_CODE_LOOKUP_COLS <- c("ntee_code", "naics_code", "ntee_code_definition")
 NTEE_MAJOR_GROUP_LOOKUP_COLS <- c("ntee_code_first_character", "ntee_code_major_group")
-NTEE_ACTIVITY_LOOKUP_COLS <- c("ntee_activity_code", "ntee_activity_code_definition")
+NTEE_COMMON_CODE_LOOKUP_COLS <- c("ntee_common_code", "ntee_common_code_definition")
 
 # Helper column names (dot prefix for internal use)
 HELPER_COLUMNS <- c(".len", ".first", ".last", ".int23", ".char23")
@@ -32,7 +32,7 @@ NTEEV2_SUBSECTOR_HOSPITAL <- c("E20", "E21", "E22", "E24")
 
 .validate_ntee_lookups <- function(ntee_code_lookup,
                                    ntee_major_group_lookup,
-                                   activity_code_lookup) {
+                                   ntee_common_code_lookup) {
 
   # Validate ntee_code lookup
 
@@ -50,12 +50,12 @@ NTEEV2_SUBSECTOR_HOSPITAL <- c("E20", "E21", "E22", "E24")
          paste(missing_major, collapse = ", "))
   }
 
-  # Validate activity code lookup
-  missing_activity <- setdiff(NTEE_ACTIVITY_LOOKUP_COLS,
-                              names(activity_code_lookup))
-  if (length(missing_activity) > 0) {
-    stop("activity_code_lookup missing required columns: ",
-         paste(missing_activity, collapse = ", "))
+  # Validate common code lookup
+  missing_common_code <- setdiff(NTEE_COMMON_CODE_LOOKUP_COLS,
+                              names(ntee_common_code_lookup))
+  if (length(missing_common_code) > 0) {
+    stop("ntee_common_code_lookup missing required columns: ",
+         paste(missing_common_code, collapse = ", "))
   }
 
   invisible(TRUE)
@@ -84,7 +84,7 @@ NTEEV2_SUBSECTOR_HOSPITAL <- c("E20", "E21", "E22", "E24")
     ntee_code_clean,
     ntee_code_definition,
     ntee_code_major_group,
-    ntee_activity_code,
+    ntee_common_code,
     nteev2_code,
     nteev2_subsector,
     nteev2_org_type
@@ -126,8 +126,8 @@ NTEEV2_SUBSECTOR_HOSPITAL <- c("E20", "E21", "E22", "E24")
 #'   \code{ntee_code}, \code{naics_code}, \code{ntee_code_definition}.
 #' @param ntee_major_group_lookup data.table lookup with columns:
 #'   \code{ntee_code_first_character}, \code{ntee_code_major_group}.
-#' @param activity_code_lookup data.table lookup with columns:
-#'   \code{ntee_activity_code}, \code{ntee_activity_code_definition}.
+#' @param common_code_lookup data.table lookup with columns:
+#'   \code{ntee_common_code}, \code{ntee_common_code_definition}.
 #' @param input_ntee_col character name of the column containing raw NTEE
 #'   codes (default: "NTEE_CD").
 #' @param year character year for the SCD table's effective_year column.
@@ -138,8 +138,8 @@ NTEEV2_SUBSECTOR_HOSPITAL <- c("E20", "E21", "E22", "E24")
 #'
 #' @return A data.table with transformed NTEE columns added:
 #'   \code{ntee_code_raw}, \code{ntee_code_clean}, \code{ntee_code_definition},
-#'   \code{ntee_code_major_group}, \code{naics_code}, \code{ntee_activity_code},
-#'   \code{ntee_activity_code_definition}, \code{nteev2_code},
+#'   \code{ntee_code_major_group}, \code{naics_code}, \code{ntee_common_code},
+#'   \code{ntee_common_code_definition}, \code{nteev2_code},
 #'   \code{nteev2_subsector}, \code{nteev2_org_type}, \code{nteev2}.
 #'
 #' @details
@@ -158,7 +158,7 @@ NTEEV2_SUBSECTOR_HOSPITAL <- c("E20", "E21", "E22", "E24")
 #'   bmf_raw,
 #'   ntee_code_lookup = lookup_ls$ntee_code,
 #'   ntee_major_group_lookup = lookup_ls$ntee_code_major_group,
-#'   activity_code_lookup = lookup_ls$ntee_code_activity_type,
+#'   common_code_lookup = lookup_ls$ntee_common_code,
 #'   input_ntee_col = "NTEE_CD",
 #'   year = "2025",
 #'   path = "data/output/ntee_scd.csv"
@@ -166,21 +166,23 @@ NTEEV2_SUBSECTOR_HOSPITAL <- c("E20", "E21", "E22", "E24")
 #' }
 #'
 #' @export
-transform_ntee_code <- function(bmf,
-                                ntee_code_lookup,
-                                ntee_major_group_lookup,
-                                activity_code_lookup,
-                                input_ntee_col = "NTEE_CD",
-                                year,
-                                path = NULL,
-                                write_scd = TRUE) {
+transform_ntee_code <- function(
+    bmf,
+    ntee_code_lookup = lookup_ls$ntee_code,
+    ntee_major_group_lookup = lookup_ls$ntee_code_major_group,
+    ntee_common_code_lookup = lookup_ls$ntee_common_code,
+    input_ntee_col = "NTEE_CD",
+    year = PROCESSING_YEAR,
+    path = NULL,
+    write_scd = TRUE
+  ) {
 
   # ---------------------------------------------------------------------------
   # Input Validation
   # ---------------------------------------------------------------------------
   .validate_ntee_lookups(ntee_code_lookup,
                          ntee_major_group_lookup,
-                         activity_code_lookup)
+                         ntee_common_code_lookup)
   .validate_ntee_input_column(bmf, input_ntee_col)
 
   # ---------------------------------------------------------------------------
@@ -232,28 +234,27 @@ transform_ntee_code <- function(bmf,
      ntee_code_clean := NTEE_INVALID]
 
   # ---------------------------------------------------------------------------
-  # Activity Code Extraction
+  # Common Code Extraction
   # ---------------------------------------------------------------------------
-  dt[, ntee_activity_code := data.table::fcase(
-    .len == 4 & grepl("[A-Z]", .last),  paste0(.last, "00"),
-    .len == 4 & grepl("[0-9]", .last),  substr(ntee_code_raw, 2, 3),
-    default = NTEE_UNDEFINED
+  dt[, ntee_common_code := data.table::fcase(
+    .len == 4 & .char23 == "01", "01",
+    .len == 4 & .char23 == "02", "02",
+    .len == 4 & .char23 == "03", "03",
+    .len == 4 & .char23 == "05", "05",
+    .len == 4 & .char23 == "11", "11",
+    .len == 4 & .char23 == "12", "12",
+    .len == 4 & .char23 == "19", "19",
+    default = "Undefined"
   )]
 
   # ---------------------------------------------------------------------------
   # Lookup Joins
   # ---------------------------------------------------------------------------
 
-  # Activity code definition - primary lookup
-  dt[activity_code_lookup,
-     ntee_activity_code_definition := i.ntee_activity_code_definition,
-     on = .(ntee_activity_code)]
-
-  # Activity code definition - fallback to ntee_code_lookup for secondary codes
-  dt[is.na(ntee_activity_code_definition),
-     ntee_activity_code_definition := ntee_code_lookup$ntee_code_definition[
-       match(ntee_activity_code, ntee_code_lookup$ntee_code)
-     ]]
+  # Common code definition - Primarily lookup
+  dt[ntee_common_code_lookup,
+     ntee_common_code_definition := i.ntee_common_code_definition,
+     on = .(ntee_common_code)]
 
   # Major group lookup (using .first helper column)
   dt[ntee_major_group_lookup,
@@ -321,7 +322,7 @@ transform_ntee_code <- function(bmf,
   dt[, nteev2_code := data.table::fcase(
     .len == 3 & .int23 <= 19, paste0(.first, "00"),
     .len == 4 & .int23 <= 19, paste0(.first, .last, "0"),
-    default = ntee_code_clean
+    default = "Z99"
   )]
 
   # NTEEV2 Subsector
@@ -338,7 +339,7 @@ transform_ntee_code <- function(bmf,
     .first == "X",                                   "REL",
     .first == "Y",                                   "MMB",
     .first == "Z",                                   "UNU",
-    default = NTEE_UNDEFINED
+    default = "UNU"
   )]
 
   # NTEEV2 Organization Type
