@@ -63,6 +63,7 @@ source(here::here("R", "organization_code.R"))
 source(here::here("R", "status_code.R"))
 source(here::here("R", "accounting_period.R"))
 source(here::here("R", "filing_requirement_code.R"))
+source(here::here("R", "transform_code.R"))
 
 # Complex transforms
 source(here::here("R", "activity_code.R"))
