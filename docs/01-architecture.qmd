@@ -1,0 +1,307 @@
+---
+title: "Pipeline Architecture"
+---
+
+# Pipeline Overview
+
+The BMF processing pipeline is organized into **10 sequential phases**, each with a specific responsibility. The pipeline is orchestrated by `R/run_pipeline.R`.
+
+## 10-Phase Pipeline
+
+```{mermaid}
+%%| fig-width: 8
+flowchart TB
+    subgraph Phase1["Phase 1: Extraction"]
+        A1[Download from S3] --> A2[Parse Year/Month]
+        A2 --> A3[Save Raw Local Copy]
+    end
+
+    subgraph Phase2["Phase 2: Pre-Validation"]
+        B1[Validate Column Structure] --> B2[Check Row Count]
+        B2 --> B3[Detect Duplicates]
+    end
+
+    subgraph Phase3["Phase 3: Identity"]
+        C1[EIN] --> C2[Organization Name]
+        C2 --> C3[ICO Name]
+        C3 --> C4[Group Exemption]
+        C4 --> C5[Ruling Date]
+        C5 --> C6[Address]
+    end
+
+    subgraph Phase4["Phase 4: Classification"]
+        D1[Subsection/Classification] --> D2[Affiliation]
+        D2 --> D3[Deductibility]
+        D3 --> D4[Foundation]
+        D4 --> D5[Organization]
+        D5 --> D6[Status]
+    end
+
+    subgraph Phase5["Phase 5: Activity"]
+        E1[Activity Codes] --> E2[NTEE Codes]
+    end
+
+    subgraph Phase6["Phase 6: Temporal"]
+        F1[Tax Period] --> F2[Accounting Period]
+    end
+
+    subgraph Phase7["Phase 7: Financial"]
+        G1[Asset Code] --> G2[Income Code]
+        G2 --> G3[Asset Amount]
+        G3 --> G4[Income Amount]
+        G4 --> G5[Revenue Amount]
+    end
+
+    subgraph Phase8["Phase 8: Filing"]
+        H1[Filing Requirement] --> H2[PF Filing Requirement]
+    end
+
+    subgraph Phase9["Phase 9: Post-Validation"]
+        I1[Quality Metrics] --> I2[Generate Report]
+    end
+
+    subgraph Phase10["Phase 10: Output"]
+        J1[Save Processed BMF] --> J2[Save Quality Report]
+    end
+
+    Phase1 --> Phase2
+    Phase2 --> Phase3
+    Phase3 --> Phase4
+    Phase4 --> Phase5
+    Phase5 --> Phase6
+    Phase6 --> Phase7
+    Phase7 --> Phase8
+    Phase8 --> Phase9
+    Phase9 --> Phase10
+```
+
+## Phase Details
+
+### Phase 1: Extraction
+
+Downloads BMF data from S3 bucket `nccsdata`. A Lambda function ingests monthly BMF files from the IRS and deposits them at `raw/bmf/YYYY-MM-BMF.csv`.
+
+The pipeline:
+1. Connects to S3 using `aws.s3` package
+2. Downloads the most recent BMF file (or a specified year/month)
+3. Extracts processing year and month from filename
+4. Saves local copy to `data/raw/bmf_YYYY_MM.csv`
+
+```r
+# Download most recent BMF
+bmf_raw <- download_bmf_from_s3()
+
+# Download specific month
+bmf_raw <- download_bmf_from_s3(year = 2025, month = 1)
+
+# List available files
+list_available_bmf_files()
+# [1] "2025-01" "2024-12" "2024-11" ...
+```
+
+### Phase 2: Pre-Transformation Validation
+
+Validates the raw data before any transformations:
+
+- **Column Check**: Ensures all 27 required columns exist
+- **Row Count**: Verifies ~1.9M rows (within 5% tolerance)
+- **Duplicate Detection**: Counts duplicate EINs
+- **NULL Inventory**: Reports NULL counts per column
+
+If validation fails in strict mode, the pipeline stops.
+
+### Phase 3: Identity Transformations
+
+Transforms organization identification fields:
+
+| Transform | Input | Outputs |
+|-----------|-------|---------|
+| `transform_ein()` | EIN | `ein`, `ein_raw` |
+| `transform_organization_name()` | NAME | `org_name_raw`, `org_name_join`, `org_name_display`, `org_legal_suffix` |
+| `transform_ico_name()` | ICO | `in_care_of_name_raw`, `in_care_of_name_clean`, `in_care_of_name_provided` |
+| `transform_group_exemption_number()` | GROUP | `group_exemption_number_raw`, `group_exemption_number`, `group_exemption_is_member` |
+| `transform_ruling_date()` | RULING | `ruling_date_ym_str`, `ruling_date`, `ruling_date_is_missing` |
+| `transform_address()` | STREET, CITY, STATE, ZIP | 17 columns (see [Transform Reference](03-transforms-reference.qmd)) |
+
+### Phase 4: Classification Transformations
+
+Adds IRS classification codes with human-readable definitions:
+
+| Transform | Lookup Table | Outputs |
+|-----------|--------------|---------|
+| `transform_subsection_classification_codes()` | `classification_subsection_code_lookup.csv` | `subsection_code`, `classification_code`, `exempt_organization_type`, `all_classifications_string` |
+| `transform_affiliation_code()` | `affiliation_code_lookup.csv` | `affiliation_code`, `affiliation_code_definition` |
+| `transform_deductibility_code()` | `deductibility_code_lookup.csv` | `deductibility_code`, `deductibility_code_definition` |
+| `transform_foundation_code()` | `foundation_code_lookup.csv` | `foundation_code`, `foundation_code_definition` |
+| `transform_organization_code()` | `organization_code_lookup.csv` | `organization_code`, `organization_code_definition` |
+| `transform_status_code()` | `bmf_code_lookup.xlsx` | `status_code`, `status_code_definition` |
+
+### Phase 5: Activity Transformations
+
+Creates dimension tables for multi-valued activity fields:
+
+| Transform | Pattern | Outputs |
+|-----------|---------|---------|
+| `create_activity_code_dim_table()` | SCD Type 2 | `dim_activity_2025.parquet` |
+| `transform_activity_code()` | Aggregate | `activity_code_definitions`, `activity_code_categories` |
+| `transform_ntee_code()` | Complex | `ntee_code`, `ntee_code_definition`, `ntee_code_major_group`, `naics_code`, `nteev2_code`, etc. |
+
+### Phase 6: Temporal Transformations
+
+Parses date and period fields:
+
+| Transform | Input | Outputs |
+|-----------|-------|---------|
+| `transform_tax_period()` | TAX_PERIOD | `tax_period_ymd`, `tax_period_is_missing` |
+| `transform_accounting_period()` | ACCT_PD | `accounting_period_code`, `accounting_period_definition` |
+
+### Phase 7: Financial Transformations
+
+Processes financial codes and amounts:
+
+| Transform | Input | Outputs |
+|-----------|-------|---------|
+| `transform_asset_code()` | ASSET_CD | `asset_code`, `asset_code_definition` |
+| `transform_income_code()` | INCOME_CD | `income_code`, `income_code_definition` |
+| `transform_asset_amount()` | ASSET_AMT | `asset_amount` |
+| `transform_income_amount()` | INCOME_AMT | `income_amount` |
+| `transform_revenue_amount()` | REVENUE_AMT | `revenue_amount` |
+
+### Phase 8: Filing Requirement Transformations
+
+Adds filing requirement classifications:
+
+| Transform | Input | Outputs |
+|-----------|-------|---------|
+| `transform_code()` | FILING_REQ_CD | `filing_requirement_code`, `filing_requirement_code_definition` |
+| `transform_code()` | PF_FILING_REQ_CD | `pf_filing_requirement_code`, `pf_filing_requirement_code_definition` |
+
+### Phase 9: Post-Transformation Validation
+
+Generates a comprehensive quality report:
+
+- Row preservation check (input rows = output rows)
+- Completeness rates for all columns
+- Critical field validation (EIN, subsection_code)
+- Summary statistics
+
+### Phase 10: Output
+
+Saves final outputs locally and optionally uploads to S3:
+
+**Local Files:**
+
+- `data/processed/bmf_YYYY_MM_processed.parquet` - Main fact table with all transformed columns
+- `data/quality/bmf_YYYY_MM_quality_report.json` - Validation metrics and summary statistics
+
+**S3 Upload (when `ENABLE_S3_UPLOAD = TRUE`):**
+
+- `s3://nccsdata/intermediate/bmf/YYYY_MM/bmf_YYYY_MM_processed.parquet`
+- `s3://nccsdata/intermediate/bmf/YYYY_MM/bmf_YYYY_MM_quality_report.json`
+
+## Checkpoint System
+
+The pipeline saves intermediate results as Parquet files after each major phase:
+
+```{mermaid}
+flowchart LR
+    subgraph Checkpoints
+        CP1[01_raw] --> CP2[02_identity]
+        CP2 --> CP3[03_classification]
+        CP3 --> CP4[04_activity]
+        CP4 --> CP5[05_temporal]
+        CP5 --> CP6[06_financial]
+        CP6 --> CP7[07_filing]
+    end
+```
+
+| Checkpoint | Location | After Phase |
+|------------|----------|-------------|
+| `01_raw` | `data/checkpoints/bmf_YYYY_MM_01_raw.parquet` | Extraction |
+| `02_identity` | `data/checkpoints/bmf_YYYY_MM_02_identity.parquet` | Identity |
+| `03_classification` | `data/checkpoints/bmf_YYYY_MM_03_classification.parquet` | Classification |
+| `04_activity` | `data/checkpoints/bmf_YYYY_MM_04_activity.parquet` | Activity |
+| `05_temporal` | `data/checkpoints/bmf_YYYY_MM_05_temporal.parquet` | Temporal |
+| `06_financial` | `data/checkpoints/bmf_YYYY_MM_06_financial.parquet` | Financial |
+| `07_filing` | `data/checkpoints/bmf_YYYY_MM_07_filing.parquet` | Filing |
+
+**Benefits:**
+- Resume from failure without reprocessing
+- Debug specific phases
+- Compare intermediate states
+
+To resume from a checkpoint:
+```r
+bmf <- load_checkpoint("03_classification")
+# Continue processing from Phase 4
+```
+
+## File Organization
+
+```
+R/
+├── run_pipeline.R               # ORCHESTRATOR
+├── config.R                     # S3 configuration and lookups
+├── checkpoints.R                # Save/load pipeline checkpoints
+├── input_validation.R           # Validation functions
+│
+├── utils/
+│   ├── logging.R                # log_info(), log_phase_start()
+│   └── transform_utils.R        # Shared transform utilities
+│
+├── quality/
+│   ├── pre_checks.R             # validate_raw_bmf_structure()
+│   └── post_checks.R            # generate_quality_report()
+│
+├── ein.R                        # Phase 3
+├── organization_name.R          # Phase 3
+├── ico_name.R                   # Phase 3
+├── group_exemption_number.R     # Phase 3
+├── ruling_date.R                # Phase 3
+├── address.R                    # Phase 3 (17 output columns)
+│
+├── subsection_classification_codes.R  # Phase 4
+├── affiliation_code.R           # Phase 4
+├── deductibility_code.R         # Phase 4
+├── foundation_code.R            # Phase 4
+├── organization_code.R          # Phase 4
+├── status_code.R                # Phase 4
+│
+├── activity_code.R              # Phase 5
+├── transform_ntee_code.R        # Phase 5
+│
+├── transform_tax_period.R       # Phase 6
+├── accounting_period.R          # Phase 6
+│
+├── financial_codes.R            # Phase 7
+├── asset_amount.R               # Phase 7
+│
+└── filing_requirement_code.R    # Phase 8
+```
+
+## Configuration
+
+Key configuration in `R/run_pipeline.R`:
+
+```r
+# Pipeline settings (set at top of run_pipeline.R)
+ENABLE_CHECKPOINTS <- TRUE       # Save intermediate results
+CHECKPOINT_DIR <- "data/checkpoints"
+STRICT_QUALITY_GATES <- TRUE     # Stop on validation failure
+
+# Override to process specific month (set before sourcing)
+BMF_YEAR <- NULL   # e.g., 2025
+BMF_MONTH <- NULL  # e.g., 1
+```
+
+S3 configuration in `R/config.R`:
+
+```r
+# S3 bucket configuration
+BMF_S3_BUCKET <- "nccsdata"
+BMF_S3_PREFIX <- "raw/bmf/"
+
+# Download functions
+download_bmf_from_s3(bucket, prefix, year, month)
+list_available_bmf_files(bucket, prefix)
+```

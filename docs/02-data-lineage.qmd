@@ -1,0 +1,438 @@
+---
+title: "Data Lineage"
+---
+
+# Data Flow Overview
+
+This chapter traces data from raw IRS columns through transformations to final output columns.
+
+## High-Level Data Flow
+
+```{mermaid}
+%%| fig-width: 10
+flowchart TB
+    subgraph Sources["Data Sources"]
+        IRS[("IRS BMF<br/>27 Columns")]
+        LOOKUP[("Lookup Tables<br/>CSV/XLSX")]
+    end
+
+    subgraph Transform["Transformation Layer"]
+        T1[Identity Transforms]
+        T2[Classification Transforms]
+        T3[Activity Transforms]
+        T4[Temporal Transforms]
+        T5[Financial Transforms]
+        T6[Filing Transforms]
+    end
+
+    subgraph Outputs["Outputs"]
+        FACT[("Fact Table<br/>~60 Columns")]
+        QUALITY[("Quality Report<br/>JSON")]
+    end
+
+    IRS --> T1
+    IRS --> T2
+    IRS --> T3
+    IRS --> T4
+    IRS --> T5
+    IRS --> T6
+
+    LOOKUP --> T2
+    LOOKUP --> T3
+    LOOKUP --> T5
+    LOOKUP --> T6
+
+    T1 --> FACT
+    T2 --> FACT
+    T3 --> FACT
+    T4 --> FACT
+    T5 --> FACT
+    T6 --> FACT
+    FACT --> QUALITY
+```
+
+## Source-to-Target Column Mapping
+
+### Identity Fields
+
+```{mermaid}
+flowchart LR
+    subgraph Raw["Raw IRS Columns"]
+        EIN_R[EIN]
+        NAME_R[NAME]
+        ICO_R[ICO]
+        GROUP_R[GROUP]
+        RULING_R[RULING]
+    end
+
+    subgraph Output["Output Columns"]
+        ein[ein]
+        ein_raw[ein_raw]
+        org_name[org_name_display]
+        org_join[org_name_join]
+        org_suffix[org_legal_suffix]
+        ico[in_care_of_name_clean]
+        ico_flag[in_care_of_name_provided]
+        gen[group_exemption_number]
+        gen_flag[group_exemption_is_member]
+        ruling[ruling_date]
+        ruling_flag[ruling_date_is_missing]
+    end
+
+    EIN_R --> ein
+    EIN_R --> ein_raw
+    NAME_R --> org_name
+    NAME_R --> org_join
+    NAME_R --> org_suffix
+    ICO_R --> ico
+    ICO_R --> ico_flag
+    GROUP_R --> gen
+    GROUP_R --> gen_flag
+    RULING_R --> ruling
+    RULING_R --> ruling_flag
+```
+
+### Classification Fields
+
+```{mermaid}
+flowchart LR
+    subgraph Raw["Raw IRS Columns"]
+        SUB[SUBSECTION]
+        CLASS[CLASSIFICATION]
+        AFF[AFFILIATION]
+        DED[DEDUCTIBILITY]
+        FND[FOUNDATION]
+        ORG[ORGANIZATION]
+        STAT[STATUS]
+    end
+
+    subgraph Lookup["Lookup Tables"]
+        L1[(classification_subsection)]
+        L2[(affiliation_code)]
+        L3[(deductibility_code)]
+        L4[(foundation_code)]
+        L5[(organization_code)]
+        L6[(status_code)]
+    end
+
+    subgraph Output["Output Columns"]
+        sub_code[subsection_code]
+        class_code[classification_code]
+        org_type[exempt_organization_type]
+        all_class[all_classifications_string]
+        aff_code[affiliation_code + _definition]
+        ded_code[deductibility_code + _definition]
+        fnd_code[foundation_code + _definition]
+        org_code[organization_code + _definition]
+        stat_code[status_code + _definition]
+    end
+
+    SUB --> L1
+    CLASS --> L1
+    L1 --> sub_code
+    L1 --> class_code
+    L1 --> org_type
+    L1 --> all_class
+
+    AFF --> L2 --> aff_code
+    DED --> L3 --> ded_code
+    FND --> L4 --> fnd_code
+    ORG --> L5 --> org_code
+    STAT --> L6 --> stat_code
+```
+
+### Activity and NTEE Fields
+
+```{mermaid}
+flowchart TB
+    subgraph Raw["Raw IRS Columns"]
+        ACT["ACTIVITY<br/>(9 chars)"]
+        NTEE["NTEE_CD<br/>(3-4 chars)"]
+    end
+
+    subgraph Process["Processing"]
+        SPLIT1["Split into 3<br/>activity codes"]
+        NORM["Normalize &<br/>validate"]
+    end
+
+    subgraph Lookup["Lookup Tables"]
+        L1[(activity_code)]
+        L2[(ntee_code)]
+        L3[(ntee_major_group)]
+        L4[(ntee_activity_type)]
+    end
+
+    subgraph DIM["Dimension Tables"]
+        DIM_ACT[dim_activity]
+    end
+
+    subgraph Output["Output Columns"]
+        act_def[activity_code_definitions]
+        act_cat[activity_code_categories]
+        ntee_clean[ntee_code]
+        ntee_def[ntee_code_definition]
+        ntee_major[ntee_code_major_group]
+        naics[naics_code]
+        nteev2[nteev2_code]
+    end
+
+    ACT --> SPLIT1
+    SPLIT1 --> L1
+    L1 --> DIM_ACT
+    DIM_ACT --> act_def
+    DIM_ACT --> act_cat
+
+    NTEE --> NORM
+    NORM --> L2 --> ntee_clean
+    NORM --> L2 --> ntee_def
+    NORM --> L3 --> ntee_major
+    NORM --> L4 --> naics
+    NORM --> L4 --> nteev2
+```
+
+## Complete Column Lineage Matrix
+
+### Raw IRS Columns (27 columns)
+
+| Raw Column | Data Type | Transform | Output Column(s) |
+|------------|-----------|-----------|------------------|
+| EIN | char(9) | `transform_ein()` | `ein`, `ein_raw` |
+| NAME | char | `transform_organization_name()` | `org_name_raw`, `org_name_join`, `org_name_display`, `org_legal_suffix` |
+| ICO | char | `transform_ico_name()` | `in_care_of_name_raw`, `in_care_of_name_clean`, `in_care_of_name_provided` |
+| STREET | char | `transform_address()` | `org_addr_street_raw`, `org_addr_street` |
+| CITY | char | `transform_address()` | `org_addr_city_raw`, `org_addr_city` |
+| STATE | char(2) | `transform_address()` | `org_addr_state_raw`, `org_addr_state` |
+| ZIP | char | `transform_address()` | `org_addr_zip_raw`, `org_addr_zip5`, `org_addr_zip4`, `org_addr_zip` |
+| (derived) | - | `transform_address()` | `org_addr_full`, quality flags (6 columns) |
+| GROUP | int | `transform_group_exemption_number()` | `group_exemption_number_raw`, `group_exemption_number`, `group_exemption_is_member` |
+| SUBSECTION | int | `transform_subsection_classification_codes()` | `subsection_code`, `exempt_organization_type` |
+| AFFILIATION | int | `transform_affiliation_code()` | `affiliation_code`, `affiliation_code_definition` |
+| CLASSIFICATION | char(4) | `transform_subsection_classification_codes()` | `classification_code`, `all_classifications_string` |
+| RULING | int(6) | `transform_ruling_date()` | `ruling_date_ym_str`, `ruling_date`, `ruling_date_is_missing` |
+| DEDUCTIBILITY | int | `transform_deductibility_code()` | `deductibility_code`, `deductibility_code_definition` |
+| FOUNDATION | int | `transform_foundation_code()` | `foundation_code`, `foundation_code_definition` |
+| ACTIVITY | int(9) | `create_activity_code_dim_table()` | `activity_code_definitions`, `activity_code_categories` |
+| ORGANIZATION | int | `transform_organization_code()` | `organization_code`, `organization_code_definition` |
+| STATUS | int | `transform_status_code()` | `status_code`, `status_code_definition` |
+| TAX_PERIOD | int(6) | `transform_tax_period()` | `tax_period_ymd`, `tax_period_is_missing` |
+| ASSET_CD | int | `transform_asset_code()` | `asset_code`, `asset_code_definition` |
+| INCOME_CD | int | `transform_income_code()` | `income_code`, `income_code_definition` |
+| FILING_REQ_CD | int | `transform_code()` | `filing_requirement_code`, `filing_requirement_code_definition` |
+| PF_FILING_REQ_CD | int | `transform_code()` | `pf_filing_requirement_code`, `pf_filing_requirement_code_definition` |
+| ACCT_PD | int | `transform_accounting_period()` | `accounting_period_code`, `accounting_period_definition` |
+| ASSET_AMT | numeric | `transform_asset_amount()` | `asset_amount` |
+| INCOME_AMT | numeric | `transform_income_amount()` | `income_amount` |
+| REVENUE_AMT | numeric | `transform_revenue_amount()` | `revenue_amount` |
+| NTEE_CD | char(4) | `transform_ntee_code()` | `ntee_code`, `ntee_code_definition`, `ntee_code_major_group`, `naics_code`, `nteev2_code`, `nteev2_subsector`, `nteev2_org_type` |
+| SORT_NAME | char | `transform_dba_name()` | `dba_name_raw`, `dba_name` |
+
+### Output Columns by Category
+
+#### Identity Columns
+| Column | Type | Source | Description |
+|--------|------|--------|-------------|
+| `ein` | char(11) | EIN | Formatted as XX-XXXXXXX |
+| `ein_raw` | char | EIN | Original unformatted value |
+| `org_name_raw` | char | NAME | Original organization name |
+| `org_name_join` | char | NAME | Cleaned name for matching |
+| `org_name_display` | char | NAME | Title-cased display name |
+| `org_legal_suffix` | char | NAME | Extracted suffix (INC, CORP, etc.) |
+| `in_care_of_name_raw` | char | ICO | Original ICO value |
+| `in_care_of_name_clean` | char | ICO | Cleaned ICO name |
+| `in_care_of_name_provided` | bool | ICO | TRUE if ICO was provided |
+| `group_exemption_number_raw` | char | GROUP | Original GEN value |
+| `group_exemption_number` | char(4) | GROUP | Padded 4-digit GEN |
+| `group_exemption_is_member` | bool | GROUP | TRUE if part of group exemption |
+| `ruling_date_ym_str` | char(6) | RULING | Original YYYYMM string |
+| `ruling_date` | Date | RULING | Parsed date (YYYY-MM-01) |
+| `ruling_date_is_missing` | bool | RULING | TRUE if missing/invalid |
+| `dba_name_raw` | char | SORT_NAME | Original doing-business-as name (empty strings as NA) |
+| `dba_name` | char | SORT_NAME | Title-cased, whitespace-cleaned DBA name |
+
+#### Address Columns
+| Column | Type | Source | Description |
+|--------|------|--------|-------------|
+| `org_addr_street_raw` | char | STREET | Original street value |
+| `org_addr_street` | char | STREET | USPS-standardized street |
+| `org_addr_city_raw` | char | CITY | Original city value |
+| `org_addr_city` | char | CITY | Cleaned city name |
+| `org_addr_state_raw` | char | STATE | Original state value |
+| `org_addr_state` | char(2) | STATE | Validated 2-letter abbreviation |
+| `org_addr_zip_raw` | char | ZIP | Original ZIP value |
+| `org_addr_zip5` | char(5) | ZIP | 5-digit ZIP code |
+| `org_addr_zip4` | char(4) | ZIP | ZIP+4 extension (if present) |
+| `org_addr_zip` | char(10) | ZIP | Full ZIP (XXXXX or XXXXX-XXXX) |
+| `org_addr_full` | char | derived | Full formatted address |
+| `org_addr_is_missing` | bool | derived | TRUE if all address fields empty |
+| `org_addr_is_po_box` | bool | STREET | TRUE if P.O. Box address |
+| `org_addr_is_rural_route` | bool | STREET | TRUE if rural route address |
+| `org_addr_has_special_chars` | bool | STREET | TRUE if unusual characters |
+| `org_addr_missing_number` | bool | STREET | TRUE if no street number |
+| `org_addr_state_invalid` | bool | STATE | TRUE if not valid US state/territory |
+
+#### Classification Columns
+| Column | Type | Source | Description |
+|--------|------|--------|-------------|
+| `subsection_code` | char | SUBSECTION | IRC subsection (e.g., "03" for 501c3) |
+| `classification_code` | char | CLASSIFICATION | Raw classification codes |
+| `exempt_organization_type` | char | SUBSECTION + lookup | Human-readable org type |
+| `all_classifications_string` | char | CLASSIFICATION + lookup | Semicolon-separated descriptions |
+| `affiliation_code` | int | AFFILIATION | Affiliation type code |
+| `affiliation_code_definition` | char | lookup | Affiliation description |
+| `deductibility_code` | int | DEDUCTIBILITY | Deductibility status code |
+| `deductibility_code_definition` | char | lookup | Deductibility description |
+| `foundation_code` | int | FOUNDATION | Foundation type code |
+| `foundation_code_definition` | char | lookup | Foundation description |
+| `organization_code` | int | ORGANIZATION | Organization structure code |
+| `organization_code_definition` | char | lookup | Organization description |
+| `status_code` | int | STATUS | IRS status code |
+| `status_code_definition` | char | lookup | Status description |
+
+#### Activity Columns
+| Column | Type | Source | Description |
+|--------|------|--------|-------------|
+| `activity_code_definitions` | char | ACTIVITY + lookup | Semicolon-separated activity descriptions |
+| `activity_code_categories` | char | ACTIVITY + lookup | Semicolon-separated activity categories |
+| `ntee_code` | char | NTEE_CD | Cleaned/validated NTEE code |
+| `ntee_code_definition` | char | lookup | NTEE category description |
+| `ntee_code_major_group` | char | NTEE_CD | First character (major group) |
+| `naics_code` | char | lookup | Mapped NAICS industry code |
+| `nteev2_code` | char | derived | NTEE Version 2 code |
+| `nteev2_subsector` | char | derived | NTEEV2 subsector |
+| `nteev2_org_type` | char | derived | NTEEV2 organization type |
+
+#### Temporal Columns
+| Column | Type | Source | Description |
+|--------|------|--------|-------------|
+| `tax_period_ymd` | Date | TAX_PERIOD | Tax period end date |
+| `tax_period_is_missing` | bool | TAX_PERIOD | TRUE if missing |
+| `accounting_period_code` | int | ACCT_PD | Accounting period month |
+| `accounting_period_definition` | char | lookup | Period description |
+
+#### Financial Columns
+| Column | Type | Source | Description |
+|--------|------|--------|-------------|
+| `asset_code` | int | ASSET_CD | Asset range code (0-9) |
+| `asset_code_definition` | char | lookup | Asset range description |
+| `income_code` | int | INCOME_CD | Income range code (0-9) |
+| `income_code_definition` | char | lookup | Income range description |
+| `asset_amount` | numeric | ASSET_AMT | Total assets in dollars |
+| `income_amount` | numeric | INCOME_AMT | Total income in dollars |
+| `revenue_amount` | numeric | REVENUE_AMT | Total revenue in dollars |
+
+#### Filing Columns
+| Column | Type | Source | Description |
+|--------|------|--------|-------------|
+| `filing_requirement_code` | int | FILING_REQ_CD | Form 990 filing requirement |
+| `filing_requirement_code_definition` | char | lookup | Filing requirement description |
+| `pf_filing_requirement_code` | int | PF_FILING_REQ_CD | Private foundation filing req |
+| `pf_filing_requirement_code_definition` | char | lookup | PF filing requirement description |
+
+## Dimension Table Lineage
+
+### Activity Code Dimension Table
+
+```{mermaid}
+flowchart TB
+    subgraph Input
+        ACT["ACTIVITY column<br/>e.g., '123456789'"]
+    end
+
+    subgraph Split["Split 9-char field"]
+        C1["Code 1: '123'"]
+        C2["Code 2: '456'"]
+        C3["Code 3: '789'"]
+    end
+
+    subgraph Melt["Melt to Long Format"]
+        R1["Row 1: ein, '123'"]
+        R2["Row 2: ein, '456'"]
+        R3["Row 3: ein, '789'"]
+    end
+
+    subgraph Join["Join with Lookup"]
+        J1["ein, '123', 'Religious Activities'"]
+        J2["ein, '456', 'Educational Programs'"]
+        J3["ein, '789', 'Community Services'"]
+    end
+
+    subgraph Output["dim_activity Table"]
+        OUT["ein | activity_code | activity_code_definition | activity_code_category"]
+    end
+
+    ACT --> C1
+    ACT --> C2
+    ACT --> C3
+    C1 --> R1
+    C2 --> R2
+    C3 --> R3
+    R1 --> J1
+    R2 --> J2
+    R3 --> J3
+    J1 --> OUT
+    J2 --> OUT
+    J3 --> OUT
+```
+
+### Classification Dimension Table
+
+```{mermaid}
+flowchart TB
+    subgraph Input
+        CLASS["CLASSIFICATION column<br/>e.g., 'ABCD'"]
+        SUB["SUBSECTION column<br/>e.g., '03'"]
+    end
+
+    subgraph Extract["Extract up to 4 codes"]
+        C1["Code 1: 'A'"]
+        C2["Code 2: 'B'"]
+        C3["Code 3: 'C'"]
+        C4["Code 4: 'D'"]
+    end
+
+    subgraph Filter["Remove '0' codes"]
+        F["Valid codes only"]
+    end
+
+    subgraph Join["Join with Lookup<br/>(keyed by subsection + code)"]
+        J["Add classification_description"]
+    end
+
+    subgraph Output["dim_classification Table"]
+        OUT["ein | subsection_code | cl_code | classification_description"]
+    end
+
+    CLASS --> C1
+    CLASS --> C2
+    CLASS --> C3
+    CLASS --> C4
+    SUB --> Join
+    C1 --> Filter
+    C2 --> Filter
+    C3 --> Filter
+    C4 --> Filter
+    Filter --> Join
+    Join --> Output
+```
+
+## Data Type Transformations
+
+| Source Type | Target Type | Transform | Notes |
+|-------------|-------------|-----------|-------|
+| char(9) | char(11) | EIN formatting | Adds hyphen: XX-XXXXXXX |
+| char | char | Name cleaning | Title case, suffix extraction |
+| int(6) | Date | Date parsing | YYYYMM → YYYY-MM-01 |
+| int(9) | multiple | Activity unpivot | One field → 3 codes + descriptions |
+| int | int + char | Lookup join | Adds *_definition column |
+| char | numeric | Amount parsing | String to numeric with validation |
+
+## Validation Rules by Column
+
+| Column | Validation | Action on Failure |
+|--------|------------|-------------------|
+| EIN | 9 digits after cleaning | Warning if format mismatch |
+| RULING | 6 digits (YYYYMM) | Replace with sentinel date |
+| TAX_PERIOD | 6 digits (YYYYMM) | Replace with sentinel date |
+| ASSET_AMT | Numeric, no negative | Warning on negative values |
+| INCOME_AMT | Numeric | Allow negative (can be loss) |
+| Lookup joins | Match rate > 99% | Warning if unmatched > 1% |

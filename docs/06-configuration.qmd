@@ -1,0 +1,381 @@
+---
+title: "Configuration"
+---
+
+# Configuration Reference
+
+This chapter documents all configuration files, lookup tables, and dependencies.
+
+## Pipeline Configuration
+
+**File:** `R/run_pipeline.R` (top section)
+
+```r
+# Enable checkpointing (saves intermediate results to parquet)
+ENABLE_CHECKPOINTS <- TRUE
+CHECKPOINT_DIR <- "data/checkpoints"
+
+# Enable strict quality gates (stops on validation failure)
+STRICT_QUALITY_GATES <- TRUE
+
+# BMF source configuration - set before sourcing to override defaults
+# If not set, downloads most recent BMF file from S3
+BMF_YEAR <- NULL   # e.g., 2025
+BMF_MONTH <- NULL  # e.g., 1
+
+# Processing year/month - set automatically from downloaded file
+PROCESSING_YEAR <- NULL
+PROCESSING_MONTH <- NULL
+```
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `ENABLE_CHECKPOINTS` | logical | TRUE | Save intermediate results after each phase |
+| `CHECKPOINT_DIR` | character | "data/checkpoints" | Directory for checkpoint files |
+| `STRICT_QUALITY_GATES` | logical | TRUE | Stop pipeline on validation failure |
+| `BMF_YEAR` | integer | NULL | Override to download specific year (otherwise most recent) |
+| `BMF_MONTH` | integer | NULL | Override to download specific month (otherwise most recent) |
+
+---
+
+## Data Source Configuration
+
+**File:** `R/config.R`
+
+### S3 Bucket Configuration
+
+BMF files are downloaded from S3 bucket `nccsdata`. A Lambda function ingests monthly BMF files from the IRS and deposits them at `raw/bmf/YYYY-MM-BMF.csv`.
+
+```r
+# S3 bucket configuration
+BMF_S3_BUCKET <- "nccsdata"
+BMF_S3_PREFIX <- "raw/bmf/"
+```
+
+### S3 Download Functions
+
+```r
+# Download BMF from S3 (defaults to most recent file)
+bmf_raw <- download_bmf_from_s3(
+  bucket = BMF_S3_BUCKET,
+  prefix = BMF_S3_PREFIX,
+  year = NULL,   # Optional: specific year
+  month = NULL   # Optional: specific month
+)
+
+# List available BMF files in S3
+list_available_bmf_files(bucket = BMF_S3_BUCKET, prefix = BMF_S3_PREFIX)
+# [1] "2025-01" "2024-12" "2024-11" ...
+```
+
+**AWS Credentials:** Requires AWS credentials configured via environment variables or `~/.aws/credentials`.
+
+### S3 Upload Configuration
+
+Processed BMF files and quality reports can be automatically uploaded to S3 after processing.
+
+```r
+# S3 upload configuration (in config.R)
+BMF_S3_INTERMEDIATE_PREFIX <- "intermediate/bmf/"
+
+# Enable/disable upload in run_pipeline.R
+ENABLE_S3_UPLOAD <- TRUE
+```
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `BMF_S3_INTERMEDIATE_PREFIX` | character | `"intermediate/bmf/"` | S3 prefix for processed outputs |
+| `ENABLE_S3_UPLOAD` | logical | `TRUE` | Upload processed files to S3 after pipeline completes |
+
+#### Upload Functions
+
+```r
+# Generic upload function
+upload_to_s3(local_file, s3_key, bucket = BMF_S3_BUCKET)
+
+# Upload both processed BMF and quality report
+upload_bmf_results(parquet_path, quality_report_path, year, month)
+```
+
+**Uploaded Files:**
+
+| File | S3 Location |
+|------|-------------|
+| `bmf_YYYY_MM_processed.parquet` | `s3://nccsdata/intermediate/bmf/YYYY_MM/` |
+| `bmf_YYYY_MM_quality_report.json` | `s3://nccsdata/intermediate/bmf/YYYY_MM/` |
+
+**AWS Permissions Required:** `s3:PutObject` on the `nccsdata` bucket.
+
+---
+
+## Lookup Table Configuration
+
+**File:** `R/config.R`
+
+### CSV Lookup Tables
+
+```r
+# Paths to CSV lookup tables (in config.R)
+subsection_classification_code_lookup_path <- "data/lookup/classification_subsection_code_lookup.csv"
+activity_code_lookup_path <- "data/lookup/activity_code_lookup.csv"
+
+# Individual code lookups loaded directly in their transform files using here::here()
+# e.g., affiliation_code_lookup.csv, deductibility_code_lookup.csv, etc.
+```
+
+### Excel Lookup Workbook
+
+```r
+lookup_path <- "data/lookup/bmf_code_lookup.xlsx"
+lookup_ls <- openxlsx::getSheetNames(lookup_path) |>
+  purrr::set_names() |>
+  purrr::map(~ {
+    df <- openxlsx::read.xlsx(xlsxFile = lookup_path, sheet = .x)
+    data.table::setDT(df)
+  })
+```
+
+**Sheets in `bmf_code_lookup.xlsx`:**
+
+| Sheet Name | Used By | Key Column |
+|------------|---------|------------|
+| `status_code` | `transform_status_code()` | status_code |
+| `asset_code` | `transform_asset_code()` | asset_code |
+| `income_code` | `transform_income_code()` | income_code |
+| `filing_requirement_code` | `transform_code()` | filing_requirement_code |
+| `pf_filing_requirement_code` | `transform_code()` | pf_filing_requirement_code |
+| `ntee_code` | `transform_ntee_code()` | ntee_code |
+| `ntee_code_major_group` | `transform_ntee_code()` | ntee_code_major_group |
+| `ntee_code_activity_type` | `transform_ntee_code()` | activity_type |
+| `accounting_period` | `transform_accounting_period()` | accounting_period_code |
+
+---
+
+# Lookup Table Schemas
+
+## affiliation_code_lookup.csv
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `affiliation_code` | integer | IRS affiliation code (1-9) |
+| `affiliation_code_definition` | character | Code description |
+
+**Values:**
+```
+affiliation_code,affiliation_code_definition
+1,Central organization
+2,Intermediate organization
+3,Independent organization
+6,Central organization (group ruling)
+7,Intermediate organization (group ruling)
+8,Central organization (no group ruling)
+9,Subordinate organization (group ruling)
+```
+
+## deductibility_code_lookup.csv
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `deductibility_code` | integer | Deductibility status |
+| `deductibility_code_definition` | character | Description |
+
+## foundation_code_lookup.csv
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `foundation_code` | integer | Foundation type code |
+| `foundation_code_definition` | character | Foundation type description |
+
+## organization_code_lookup.csv
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `organization_code` | integer | Organization structure code |
+| `organization_code_definition` | character | Organization type |
+
+## activity_code_lookup.csv
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `activity_code` | character | 3-character activity code |
+| `activity_code_category` | character | Activity category |
+| `activity_code_definition` | character | Activity description |
+
+## classification_subsection_code_lookup.csv
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `subsection_code` | character | IRC subsection (e.g., "03") |
+| `classification_code` | character | Single-char classification |
+| `classification_description` | character | Classification description |
+| `exempt_organization_type` | character | Organization type name |
+| `effective_start_date` | date | When code became effective |
+| `effective_end_date` | date | When code was retired (if applicable) |
+
+---
+
+# Directory Structure
+
+```
+nccs-data-bmf/
+├── R/                              # Source code
+│   ├── run_pipeline.R             # Orchestrator
+│   ├── config.R                    # S3 configuration and lookups
+│   ├── checkpoints.R               # Checkpoint save/load utilities
+│   ├── input_validation.R          # Validation functions
+│   ├── utils/
+│   │   ├── logging.R              # Logging functions
+│   │   └── transform_utils.R      # Shared utilities
+│   ├── quality/
+│   │   ├── pre_checks.R           # Pre-validation
+│   │   └── post_checks.R          # Post-validation
+│   └── [transform files]           # 18 transform modules
+│
+├── data/
+│   ├── raw/                        # Downloaded BMF files
+│   │   └── bmf_2025_01.csv        # Local copy from S3
+│   │
+│   ├── lookup/                     # Reference tables
+│   │   ├── bmf_code_lookup.xlsx   # Multi-sheet workbook
+│   │   ├── affiliation_code_lookup.csv
+│   │   ├── deductibility_code_lookup.csv
+│   │   ├── foundation_code_lookup.csv
+│   │   ├── organization_code_lookup.csv
+│   │   ├── activity_code_lookup.csv
+│   │   ├── classification_subsection_code_lookup.csv
+│   │   └── state_abbreviations.csv
+│   │
+│   ├── checkpoints/                # Intermediate saves
+│   │   ├── bmf_2025_01_01_raw.parquet
+│   │   ├── bmf_2025_01_02_identity.parquet
+│   │   ├── bmf_2025_01_03_classification.parquet
+│   │   ├── bmf_2025_01_04_activity.parquet
+│   │   ├── bmf_2025_01_05_temporal.parquet
+│   │   ├── bmf_2025_01_06_financial.parquet
+│   │   └── bmf_2025_01_07_filing.parquet
+│   │
+│   ├── processed/                  # Final outputs
+│   │   └── bmf_2025_01_processed.parquet
+│   │
+│   └── quality/                    # Quality reports
+│       └── bmf_2025_01_quality_report.json
+│
+└── docs/                           # This guidebook
+    ├── _quarto.yml
+    ├── index.qmd
+    └── [chapter files]
+```
+
+---
+
+# Dependencies
+
+## Required R Packages
+
+```r
+# Core data manipulation
+library(data.table)     # High-performance data.table operations
+
+# File I/O
+library(arrow)          # Parquet read/write
+library(openxlsx)       # Excel file reading
+library(aws.s3)         # S3 bucket operations
+
+# String operations
+library(stringr)        # String manipulation
+
+# Date handling
+library(lubridate)      # Date parsing
+
+# Utilities
+library(here)           # Project-relative paths
+library(purrr)          # Functional programming
+library(jsonlite)       # Quality report serialization
+
+# Optional: Excel reading alternative
+library(readxl)         # For organization name lookup
+
+# Quality report rendering (optional)
+library(quarto)         # Quarto document rendering
+library(ggplot2)        # Visualization for quality reports
+library(scales)         # Number formatting for charts
+```
+
+## Installation
+
+```r
+# Core packages
+install.packages(c(
+  "data.table",
+  "arrow",
+  "openxlsx",
+  "aws.s3",
+  "stringr",
+  "lubridate",
+  "here",
+  "purrr",
+  "jsonlite",
+  "readxl"
+))
+
+# For quality report rendering (optional)
+install.packages(c("quarto", "ggplot2", "scales"))
+```
+
+## Version Requirements
+
+| Package | Minimum Version | Notes |
+|---------|-----------------|-------|
+| R | 4.1.0 | For native pipe `|>` |
+| data.table | 1.14.0 | For `:=` and `.SD` operations |
+| arrow | 10.0.0 | For Parquet support |
+
+---
+
+# Environment Variables
+
+No environment variables are currently required. All configuration is done in R files.
+
+## Future Considerations
+
+For production deployment, consider:
+
+```r
+# Example .Renviron file
+BMF_YEAR=2025
+BMF_STRICT_MODE=TRUE
+BMF_CHECKPOINT_DIR=/data/bmf/checkpoints
+```
+
+---
+
+# Updating for New Years
+
+When processing a new BMF year/month:
+
+1. **Run pipeline with new data:**
+   ```r
+   # Pipeline auto-detects most recent file from S3
+   source("R/run_pipeline.R")
+
+   # Or specify year/month explicitly
+   BMF_YEAR <- 2026
+   BMF_MONTH <- 1
+   source("R/run_pipeline.R")
+   ```
+
+2. **Verify S3 file exists:**
+   ```r
+   source("R/config.R")
+   list_available_bmf_files()
+   # Should show "2026-01" if Lambda has ingested it
+   ```
+
+3. **Check for schema changes:**
+   - If pipeline fails on column validation
+   - Compare columns to `BMF_REQUIRED_COLUMNS` in pre_checks.R
+   - Update if IRS added/removed columns
+
+4. **Update lookup tables:**
+   - Check for new codes in IRS documentation
+   - Add any new values to lookup CSVs/XLSX

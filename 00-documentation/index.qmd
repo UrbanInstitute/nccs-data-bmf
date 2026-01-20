@@ -1,4 +1,0 @@
-# Preface {.unnumbered}
-
-This is a Guide Book for preparing survey data from the Nonprofit Trends project. 
-

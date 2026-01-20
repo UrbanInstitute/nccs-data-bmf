@@ -1,0 +1,655 @@
+---
+title: "BMF Pipeline Quality Report"
+subtitle: "Post-Transformation Validation Results"
+date: "`r Sys.time()`"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-expand: 2
+    theme: cosmo
+    code-fold: true
+    self-contained: true
+    smooth-scroll: true
+  pdf:
+    toc: true
+    toc-depth: 2
+params:
+  report_data_path: NULL
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 10,
+  fig.height = 6
+)
+
+library(ggplot2)
+library(data.table)
+library(scales)
+library(knitr)
+
+# Load report data from RDS file
+if (!is.null(params$report_data_path) && file.exists(params$report_data_path)) {
+  report <- readRDS(params$report_data_path)
+} else {
+  stop("Report data not found. Please provide a valid report_data_path parameter.")
+}
+
+# Helper function to format numbers
+fmt_num <- function(x) format(x, big.mark = ",", scientific = FALSE)
+
+# Helper function to format currency
+fmt_currency <- function(x) paste0("$", format(x, big.mark = ",", scientific = FALSE))
+
+# Helper function for status color
+status_color <- function(pct) {
+  if (is.na(pct)) return("#6c757d")
+  if (pct >= 95) return("#28a745")
+  if (pct >= 70) return("#ffc107")
+  return("#dc3545")
+}
+
+# Helper function for status label
+status_label <- function(pct) {
+  if (is.na(pct)) return("N/A")
+  if (pct >= 95) return("Good")
+  if (pct >= 70) return("Fair")
+  return("Low")
+}
+```
+
+# Executive Summary
+
+```{r summary-badge, results='asis'}
+overall_color <- if (report$passed) "#28a745" else "#dc3545"
+overall_text <- if (report$passed) "PASSED" else "FAILED"
+overall_icon <- if (report$passed) "check-circle" else "x-circle"
+
+cat(sprintf('
+::: {.callout-%s appearance="simple"}
+## Overall Status: %s
+
+**Pipeline Timestamp:** %s
+:::
+', if(report$passed) "tip" else "warning", overall_text, format(report$timestamp, "%Y-%m-%d %H:%M:%S")))
+```
+
+```{r summary-metrics}
+summary_df <- data.frame(
+  Metric = c(
+    "Total Records",
+    "Output Columns",
+    "Overall Completeness",
+    "Row Preservation",
+    "Unique EINs",
+    "Duplicate EINs"
+  ),
+  Value = c(
+    fmt_num(report$row_count),
+    as.character(report$column_count),
+    sprintf("%.1f%%", report$overall_completeness),
+    if (report$row_preservation) "Passed" else "Failed",
+    if (!is.null(report$summary_stats$unique_eins)) fmt_num(report$summary_stats$unique_eins) else "N/A",
+    if (!is.null(report$summary_stats$duplicate_eins) && report$summary_stats$duplicate_eins > 0)
+      fmt_num(report$summary_stats$duplicate_eins) else "0"
+  )
+)
+
+kable(summary_df, col.names = c("Metric", "Value"), align = c("l", "r"))
+```
+
+---
+
+# Field Completeness by Category
+
+This section shows the completeness of each output field, grouped by category. Each field shows its source column(s) from the raw BMF file.
+
+```{r completeness-setup}
+# Build completeness dataframe from column_completeness
+if (!is.null(report$column_completeness) && length(report$column_completeness) > 0) {
+  completeness_list <- report$column_completeness
+
+  completeness_df <- data.frame(
+    Field = names(completeness_list),
+    Source = sapply(completeness_list, function(x) {
+      src <- x$source_columns
+      if (length(src) > 1) paste(src, collapse = ", ") else as.character(src)
+    }),
+    Completeness = sapply(completeness_list, function(x) x$completeness_pct),
+    NullCount = sapply(completeness_list, function(x) x$null_count),
+    EmptyCount = sapply(completeness_list, function(x) x$empty_count),
+    stringsAsFactors = FALSE,
+    row.names = NULL
+  )
+}
+```
+
+```{r completeness-chart, fig.cap="Fields with Incomplete Data", fig.height=8}
+if (exists("completeness_df") && nrow(completeness_df) > 0) {
+  incomplete_df <- completeness_df[completeness_df$Completeness < 100, ]
+
+  if (nrow(incomplete_df) > 0) {
+    incomplete_df <- incomplete_df[order(incomplete_df$Completeness), ]
+    incomplete_df$Field <- factor(incomplete_df$Field, levels = incomplete_df$Field)
+
+    ggplot(incomplete_df, aes(x = Field, y = Completeness)) +
+      geom_col(aes(fill = Completeness), width = 0.7) +
+      geom_hline(yintercept = 95, linetype = "dashed", color = "#28a745", linewidth = 0.8) +
+      geom_hline(yintercept = 70, linetype = "dashed", color = "#ffc107", linewidth = 0.8) +
+      geom_text(aes(label = sprintf("%.1f%%", Completeness)), hjust = -0.1, size = 3) +
+      scale_fill_gradient2(
+        low = "#dc3545",
+        mid = "#ffc107",
+        high = "#28a745",
+        midpoint = 82.5,
+        limits = c(0, 100)
+      ) +
+      coord_flip() +
+      labs(
+        title = "Fields with Less Than 100% Completeness",
+        subtitle = "Green line = 95% (Good), Yellow line = 70% (Fair threshold)",
+        x = NULL,
+        y = "Completeness (%)"
+      ) +
+      theme_minimal() +
+      theme(
+        legend.position = "none",
+        panel.grid.major.y = element_blank(),
+        axis.text.y = element_text(size = 9)
+      ) +
+      scale_y_continuous(limits = c(0, 105), breaks = seq(0, 100, 20))
+  } else {
+    cat("\n\n**All fields have 100% completeness.**\n\n")
+  }
+}
+```
+
+```{r category-tables, results='asis'}
+# Define category order and display names
+category_info <- list(
+  identity = "Identity",
+  org_name = "Organization Name",
+  dba_name = "DBA Name",
+  ico = "In Care Of",
+  group_exemption = "Group Exemption",
+  address_raw = "Address (Raw)",
+  address_clean = "Address (Cleaned)",
+  address_flags = "Address Quality Flags",
+  classification = "Classification",
+  codes = "Organization Codes",
+  dates = "Dates",
+  financial_codes = "Financial Codes",
+  financial_amounts = "Financial Amounts",
+  activity = "Activity",
+  filing = "Filing Requirements",
+  ntee = "NTEE Codes",
+  nteev2 = "NTEE V2 Codes"
+)
+
+if (!is.null(report$category_reports)) {
+  for (cat_key in names(category_info)) {
+    cat_report <- report$category_reports[[cat_key]]
+    if (is.null(cat_report)) next
+
+    cat_name <- category_info[[cat_key]]
+    avg_comp <- cat_report$avg_completeness
+
+    # Section header with completeness badge
+    status_class <- if (avg_comp >= 95) "tip" else if (avg_comp >= 70) "warning" else "important"
+
+    cat(sprintf('\n\n## %s {.unnumbered}\n\n', cat_name))
+    cat(sprintf('**Average Completeness:** %.1f%% | **Columns:** %d\n\n',
+                avg_comp, cat_report$column_count))
+
+    # Build table for this category
+    cat_cols <- names(cat_report$columns)
+    if (length(cat_cols) > 0) {
+      cat_data <- data.frame(
+        Field = character(),
+        Source = character(),
+        Completeness = character(),
+        Status = character(),
+        `Null Count` = character(),
+        stringsAsFactors = FALSE,
+        check.names = FALSE
+      )
+
+      for (col_name in cat_cols) {
+        col_info <- cat_report$columns[[col_name]]
+        if (!col_info$present) next
+
+        comp_pct <- if (!is.null(col_info$completeness)) col_info$completeness$completeness_pct else NA
+        null_ct <- if (!is.null(col_info$completeness)) col_info$completeness$null_count else NA
+
+        # Get source from source_column_map directly
+        src <- "N/A"
+        if (!is.null(report$source_column_map[[col_name]])) {
+          src_cols <- report$source_column_map[[col_name]]
+          src <- if (length(src_cols) > 1) paste(src_cols, collapse = ", ") else as.character(src_cols)
+        }
+
+        cat_data <- rbind(cat_data, data.frame(
+          Field = col_name,
+          Source = src,
+          Completeness = if (!is.na(comp_pct)) sprintf("%.1f%%", comp_pct) else "N/A",
+          Status = status_label(comp_pct),
+          `Null Count` = if (!is.na(null_ct)) fmt_num(null_ct) else "N/A",
+          stringsAsFactors = FALSE,
+          check.names = FALSE
+        ))
+      }
+
+      if (nrow(cat_data) > 0) {
+        print(kable(cat_data, align = c("l", "l", "r", "c", "r"), row.names = FALSE))
+
+        # Print column descriptions as bullet points
+        cat("\n\n**Column Descriptions:**\n\n")
+        for (col_name in cat_cols) {
+          desc <- report$column_descriptions[[col_name]]
+          if (!is.null(desc)) {
+            cat(sprintf("- **%s**: %s\n", col_name, desc))
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+---
+
+# Organization Distribution
+
+## Exempt Organization Type
+
+Distribution of organizations by exempt organization type (based on IRS subsection code).
+
+```{r org-type-chart, fig.cap="Organizations by Exempt Type", fig.height=6}
+if (!is.null(report$summary_stats$org_type_distribution)) {
+  orgtype_dt <- as.data.table(report$summary_stats$org_type_distribution)
+
+  if (nrow(orgtype_dt) > 0 && "exempt_organization_type" %in% names(orgtype_dt)) {
+    setnames(orgtype_dt, old = c("exempt_organization_type", "N"),
+             new = c("Type", "Count"), skip_absent = TRUE)
+
+    # Take top 15
+    orgtype_dt <- orgtype_dt[order(-Count)][1:min(15, .N)]
+    orgtype_dt <- orgtype_dt[!is.na(Type) & Type != ""]
+
+    # Truncate long names
+    orgtype_dt[, DisplayName := ifelse(
+      nchar(Type) > 50,
+      paste0(substr(Type, 1, 47), "..."),
+      Type
+    )]
+
+    orgtype_dt[, DisplayName := factor(DisplayName, levels = rev(DisplayName))]
+
+    ggplot(orgtype_dt, aes(x = DisplayName, y = Count)) +
+      geom_col(fill = "#4e79a7", width = 0.7) +
+      geom_text(aes(label = fmt_num(Count)), hjust = -0.1, size = 3.5) +
+      coord_flip() +
+      scale_y_continuous(
+        labels = label_comma(),
+        expand = expansion(mult = c(0, 0.15))
+      ) +
+      labs(
+        title = "Organizations by Exempt Type",
+        subtitle = sprintf("Total: %s organizations | Top 15 shown", fmt_num(sum(orgtype_dt$Count))),
+        x = NULL,
+        y = "Number of Organizations"
+      ) +
+      theme_minimal() +
+      theme(
+        panel.grid.major.y = element_blank(),
+        axis.text.y = element_text(size = 9)
+      )
+  }
+}
+```
+
+```{r org-type-table}
+if (!is.null(report$summary_stats$org_type_distribution)) {
+  orgtype_dt <- as.data.table(report$summary_stats$org_type_distribution)
+
+  if (nrow(orgtype_dt) > 0 && "exempt_organization_type" %in% names(orgtype_dt)) {
+    total <- sum(orgtype_dt$N)
+    orgtype_dt[, Percentage := sprintf("%.2f%%", 100 * N / total)]
+    orgtype_dt[, N := fmt_num(N)]
+    setnames(orgtype_dt, c("Exempt Organization Type", "Count", "Percentage"))
+
+    kable(orgtype_dt, align = c("l", "r", "r"))
+  }
+}
+```
+
+## NTEE Major Group Distribution
+
+Distribution of organizations by NTEE major group code.
+
+```{r ntee-chart, fig.cap="Organizations by NTEE Major Group", fig.height=8}
+if (!is.null(report$summary_stats$ntee_major_group_distribution)) {
+  ntee_dt <- as.data.table(report$summary_stats$ntee_major_group_distribution)
+
+  if (nrow(ntee_dt) > 0) {
+    setnames(ntee_dt, old = c("ntee_code_major_group", "N"),
+             new = c("MajorGroup", "Count"), skip_absent = TRUE)
+
+    ntee_dt <- ntee_dt[order(-Count)]
+    ntee_dt[, MajorGroup := factor(MajorGroup, levels = rev(MajorGroup))]
+
+    ggplot(ntee_dt, aes(x = MajorGroup, y = Count)) +
+      geom_col(fill = "#59a14f", width = 0.7) +
+      geom_text(aes(label = fmt_num(Count)), hjust = -0.1, size = 3.5) +
+      coord_flip() +
+      scale_y_continuous(
+        labels = label_comma(),
+        expand = expansion(mult = c(0, 0.15))
+      ) +
+      labs(
+        title = "Organizations by NTEE Major Group",
+        subtitle = sprintf("Total: %s organizations with NTEE codes", fmt_num(sum(ntee_dt$Count))),
+        x = "NTEE Major Group",
+        y = "Number of Organizations"
+      ) +
+      theme_minimal() +
+      theme(
+        panel.grid.major.y = element_blank(),
+        axis.text.y = element_text(size = 10, face = "bold")
+      )
+  }
+}
+```
+
+```{r ntee-table}
+if (!is.null(report$summary_stats$ntee_major_group_distribution)) {
+  ntee_dt <- as.data.table(report$summary_stats$ntee_major_group_distribution)
+
+  if (nrow(ntee_dt) > 0) {
+    total <- sum(ntee_dt$N)
+    ntee_dt[, Percentage := sprintf("%.2f%%", 100 * N / total)]
+    ntee_dt[, N := fmt_num(N)]
+    setnames(ntee_dt, c("NTEE Major Group", "Count", "Percentage"))
+
+    kable(ntee_dt, align = c("l", "r", "r"))
+  }
+}
+```
+
+---
+
+# Financial Summary
+
+```{r financial-summary}
+if (!is.null(report$summary_stats$financial)) {
+  fin <- report$summary_stats$financial
+
+  financial_df <- data.frame(
+    Metric = character(),
+    Value = character(),
+    stringsAsFactors = FALSE
+  )
+
+  if (!is.null(fin$total_assets)) {
+    financial_df <- rbind(financial_df, data.frame(
+      Metric = "Total Assets (all organizations)",
+      Value = fmt_currency(fin$total_assets)
+    ))
+  }
+
+  if (!is.null(fin$median_assets)) {
+    financial_df <- rbind(financial_df, data.frame(
+      Metric = "Median Assets",
+      Value = fmt_currency(fin$median_assets)
+    ))
+  }
+
+  if (!is.null(fin$orgs_with_assets)) {
+    financial_df <- rbind(financial_df, data.frame(
+      Metric = "Organizations with Asset Data",
+      Value = fmt_num(fin$orgs_with_assets)
+    ))
+  }
+
+  if (!is.null(fin$orgs_zero_assets)) {
+    financial_df <- rbind(financial_df, data.frame(
+      Metric = "Organizations with Zero Assets",
+      Value = fmt_num(fin$orgs_zero_assets)
+    ))
+  }
+
+  if (!is.null(fin$total_income)) {
+    financial_df <- rbind(financial_df, data.frame(
+      Metric = "Total Income",
+      Value = fmt_currency(fin$total_income)
+    ))
+  }
+
+  if (!is.null(fin$median_income)) {
+    financial_df <- rbind(financial_df, data.frame(
+      Metric = "Median Income",
+      Value = fmt_currency(fin$median_income)
+    ))
+  }
+
+  if (!is.null(fin$total_revenue)) {
+    financial_df <- rbind(financial_df, data.frame(
+      Metric = "Total Revenue",
+      Value = fmt_currency(fin$total_revenue)
+    ))
+  }
+
+  if (!is.null(fin$median_revenue)) {
+    financial_df <- rbind(financial_df, data.frame(
+      Metric = "Median Revenue",
+      Value = fmt_currency(fin$median_revenue)
+    ))
+  }
+
+  if (nrow(financial_df) > 0) {
+    kable(financial_df, col.names = c("Metric", "Value"), align = c("l", "r"))
+  } else {
+    cat("No financial summary data available.")
+  }
+} else {
+  cat("No financial summary data available.")
+}
+```
+
+---
+
+# Address Quality
+
+```{r address-quality}
+if (!is.null(report$summary_stats$address_quality)) {
+  aq <- report$summary_stats$address_quality
+
+  address_df <- data.frame(
+    Metric = c(
+      "Missing Address",
+      "P.O. Box Addresses",
+      "Rural Route Addresses",
+      "Invalid State Code"
+    ),
+    Count = c(
+      fmt_num(aq$missing_count),
+      fmt_num(aq$po_box_count),
+      fmt_num(aq$rural_route_count),
+      fmt_num(aq$invalid_state_count)
+    ),
+    Percentage = c(
+      sprintf("%.2f%%", aq$missing_pct),
+      sprintf("%.2f%%", aq$po_box_pct),
+      sprintf("%.2f%%", 100 * aq$rural_route_count / report$row_count),
+      sprintf("%.2f%%", 100 * aq$invalid_state_count / report$row_count)
+    ),
+    stringsAsFactors = FALSE
+  )
+
+  kable(address_df, col.names = c("Address Issue", "Count", "% of Total"), align = c("l", "r", "r"))
+} else {
+  cat("No address quality data available.")
+}
+```
+
+---
+
+# Date Coverage
+
+## Ruling Date Range
+
+```{r ruling-date}
+if (!is.null(report$summary_stats$ruling_date_range)) {
+  rdr <- report$summary_stats$ruling_date_range
+
+  ruling_df <- data.frame(
+    Metric = c(
+      "Earliest Ruling Date",
+      "Latest Ruling Date",
+      "Organizations with Ruling Date"
+    ),
+    Value = c(
+      as.character(rdr$earliest),
+      as.character(rdr$latest),
+      fmt_num(rdr$orgs_with_ruling_date)
+    ),
+    stringsAsFactors = FALSE
+  )
+
+  kable(ruling_df, col.names = c("Metric", "Value"), align = c("l", "r"))
+} else {
+  cat("No ruling date range data available.")
+}
+```
+
+## Tax Period Year Distribution
+
+```{r tax-period-chart, fig.cap="Organizations by Tax Period Year"}
+if (!is.null(report$summary_stats$tax_period_year_distribution)) {
+  tax_dt <- as.data.table(report$summary_stats$tax_period_year_distribution)
+
+  if (nrow(tax_dt) > 0) {
+    setnames(tax_dt, old = c("tax_year", "N"), new = c("Year", "Count"), skip_absent = TRUE)
+    tax_dt <- tax_dt[order(Year)]
+
+    ggplot(tax_dt, aes(x = Year, y = Count)) +
+      geom_col(fill = "#e15759", width = 0.7) +
+      geom_text(aes(label = fmt_num(Count)), vjust = -0.5, size = 3.5) +
+      scale_y_continuous(
+        labels = label_comma(),
+        expand = expansion(mult = c(0, 0.1))
+      ) +
+      labs(
+        title = "Organizations by Tax Period Year",
+        x = "Tax Period Year",
+        y = "Number of Organizations"
+      ) +
+      theme_minimal() +
+      theme(
+        panel.grid.major.x = element_blank(),
+        axis.text.x = element_text(angle = 45, hjust = 1)
+      )
+  }
+}
+```
+
+```{r tax-period-table}
+if (!is.null(report$summary_stats$tax_period_year_distribution)) {
+  tax_dt <- as.data.table(report$summary_stats$tax_period_year_distribution)
+
+  if (nrow(tax_dt) > 0) {
+    total <- sum(tax_dt$N)
+    tax_dt[, Percentage := sprintf("%.2f%%", 100 * N / total)]
+    tax_dt[, N := fmt_num(N)]
+    setnames(tax_dt, c("Tax Year", "Count", "Percentage"))
+
+    kable(tax_dt, align = c("l", "r", "r"))
+  }
+}
+```
+
+---
+
+# Data Issues
+
+```{r missing-cols, results='asis'}
+if (length(report$missing_columns) > 0) {
+  cat("\n\n## Missing Expected Columns\n\n")
+  cat("::: {.callout-warning}\n")
+  cat("The following columns were expected but not found in the output:\n\n")
+  for (col in report$missing_columns) {
+    cat(sprintf("- `%s`\n", col))
+  }
+  cat(":::\n")
+}
+```
+
+```{r critical-issues, results='asis'}
+if (length(report$critical_field_issues) > 0) {
+  cat("\n\n## Critical Field Issues\n\n")
+  cat("::: {.callout-important}\n")
+  cat("The following critical fields have NULL or empty values:\n\n")
+  for (field in names(report$critical_field_issues)) {
+    cat(sprintf("- **%s**: %s NULL/empty values\n",
+                field,
+                fmt_num(report$critical_field_issues[[field]])))
+  }
+  cat(":::\n")
+}
+```
+
+```{r extra-cols, results='asis'}
+if (length(report$extra_columns) > 0) {
+  cat("\n\n## Extra Columns (Not in Expected Schema)\n\n")
+  cat("::: {.callout-note}\n")
+  cat("The following columns were found but not in the expected output schema:\n\n")
+  for (col in report$extra_columns) {
+    cat(sprintf("- `%s`\n", col))
+  }
+  cat(":::\n")
+}
+```
+
+```{r no-issues, results='asis'}
+if (length(report$missing_columns) == 0 &&
+    length(report$critical_field_issues) == 0 &&
+    length(report$extra_columns) == 0) {
+  cat("\n\n::: {.callout-tip}\n")
+  cat("## No Data Issues Detected\n\n")
+  cat("All expected columns are present and no critical field issues were found.\n")
+  cat(":::\n")
+}
+```
+
+---
+
+# Report Metadata
+
+```{r metadata}
+meta_df <- data.frame(
+  Property = c(
+    "Report Generated",
+    "Pipeline Timestamp",
+    "Row Preservation Check",
+    "Overall Completeness",
+    "Overall Result"
+  ),
+  Value = c(
+    format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+    format(report$timestamp, "%Y-%m-%d %H:%M:%S"),
+    if (report$row_preservation) "Passed" else "Failed",
+    sprintf("%.1f%%", report$overall_completeness),
+    if (report$passed) "PASSED" else "FAILED"
+  )
+)
+
+kable(meta_df, col.names = c("Property", "Value"), align = c("l", "l"))
+```
+
+---
+
+*Generated by BMF Pipeline Quality System*

@@ -1,0 +1,29 @@
+# R artifacts
+.Rproj.user
+.Rhistory
+.RData
+.RDataTmp*
+.Ruserdata
+*.Rproj
+
+# Credentials
+C:/Users/tpoongundranar/.boxr-oauth
+
+# Quarto build output (rendered by GitHub Actions)
+docs/GUIDEBOOK/
+
+# Data directories (large files, generated outputs)
+data/raw/
+data/processed/
+data/checkpoints/
+data/quality/
+data/test/
+data/validate/
+
+# Output files
+*.csv
+!data/lookup/*.csv
+
+# Temp and misc
+*.png
+*.parquet
