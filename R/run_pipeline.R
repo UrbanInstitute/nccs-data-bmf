@@ -15,6 +15,9 @@ CHECKPOINT_DIR <- "data/checkpoints"
 # Enable strict quality gates (stops on validation failures)
 STRICT_QUALITY_GATES <- TRUE
 
+# Enable S3 upload of processed data and quality report
+ENABLE_S3_UPLOAD <- TRUE
+
 # BMF source configuration - set these before sourcing to override defaults
 # If not set, downloads most recent BMF file from S3
 if (!exists("BMF_YEAR")) BMF_YEAR <- NULL
@@ -297,6 +300,18 @@ if (!dir.exists("data/processed")) {
 output_path <- sprintf("data/processed/bmf_%s_%s_processed.parquet", PROCESSING_YEAR, PROCESSING_MONTH)
 arrow::write_parquet(bmf, output_path)
 log_info(sprintf("Final BMF saved: %s", output_path))
+
+# Upload to S3 if enabled
+if (ENABLE_S3_UPLOAD) {
+  log_info("Uploading processed BMF and quality report to S3")
+  quality_report_path <- sprintf("data/quality/bmf_%s_%s_quality_report.json", PROCESSING_YEAR, PROCESSING_MONTH)
+  upload_results <- upload_bmf_results(
+    parquet_path = output_path,
+    quality_report_path = quality_report_path,
+    year = PROCESSING_YEAR,
+    month = PROCESSING_MONTH
+  )
+}
 
 # Note: Dimension tables are not saved per-file.
 # Unified dimension tables will be built in the cumulative repo from all processed BMFs.

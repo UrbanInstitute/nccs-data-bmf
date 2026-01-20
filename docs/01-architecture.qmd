@@ -187,10 +187,17 @@ Generates a comprehensive quality report:
 
 ### Phase 10: Output
 
-Saves final outputs:
+Saves final outputs locally and optionally uploads to S3:
+
+**Local Files:**
 
 - `data/processed/bmf_YYYY_MM_processed.parquet` - Main fact table with all transformed columns
 - `data/quality/bmf_YYYY_MM_quality_report.json` - Validation metrics and summary statistics
+
+**S3 Upload (when `ENABLE_S3_UPLOAD = TRUE`):**
+
+- `s3://nccsdata/intermediate/bmf/YYYY_MM/bmf_YYYY_MM_processed.parquet`
+- `s3://nccsdata/intermediate/bmf/YYYY_MM/bmf_YYYY_MM_quality_report.json`
 
 ## Checkpoint System
 

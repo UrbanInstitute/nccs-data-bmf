@@ -224,7 +224,7 @@ flowchart TB
 | INCOME_AMT | numeric | `transform_income_amount()` | `income_amount` |
 | REVENUE_AMT | numeric | `transform_revenue_amount()` | `revenue_amount` |
 | NTEE_CD | char(4) | `transform_ntee_code()` | `ntee_code`, `ntee_code_definition`, `ntee_code_major_group`, `naics_code`, `nteev2_code`, `nteev2_subsector`, `nteev2_org_type` |
-| SORT_NAME | char | (not yet implemented) | - |
+| SORT_NAME | char | `transform_dba_name()` | `dba_name_raw`, `dba_name` |
 
 ### Output Columns by Category
 
@@ -246,6 +246,8 @@ flowchart TB
 | `ruling_date_ym_str` | char(6) | RULING | Original YYYYMM string |
 | `ruling_date` | Date | RULING | Parsed date (YYYY-MM-01) |
 | `ruling_date_is_missing` | bool | RULING | TRUE if missing/invalid |
+| `dba_name_raw` | char | SORT_NAME | Original doing-business-as name (empty strings as NA) |
+| `dba_name` | char | SORT_NAME | Title-cased, whitespace-cleaned DBA name |
 
 #### Address Columns
 | Column | Type | Source | Description |

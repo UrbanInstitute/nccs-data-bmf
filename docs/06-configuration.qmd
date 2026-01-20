@@ -70,6 +70,42 @@ list_available_bmf_files(bucket = BMF_S3_BUCKET, prefix = BMF_S3_PREFIX)
 
 **AWS Credentials:** Requires AWS credentials configured via environment variables or `~/.aws/credentials`.
 
+### S3 Upload Configuration
+
+Processed BMF files and quality reports can be automatically uploaded to S3 after processing.
+
+```r
+# S3 upload configuration (in config.R)
+BMF_S3_INTERMEDIATE_PREFIX <- "intermediate/bmf/"
+
+# Enable/disable upload in run_pipeline.R
+ENABLE_S3_UPLOAD <- TRUE
+```
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `BMF_S3_INTERMEDIATE_PREFIX` | character | `"intermediate/bmf/"` | S3 prefix for processed outputs |
+| `ENABLE_S3_UPLOAD` | logical | `TRUE` | Upload processed files to S3 after pipeline completes |
+
+#### Upload Functions
+
+```r
+# Generic upload function
+upload_to_s3(local_file, s3_key, bucket = BMF_S3_BUCKET)
+
+# Upload both processed BMF and quality report
+upload_bmf_results(parquet_path, quality_report_path, year, month)
+```
+
+**Uploaded Files:**
+
+| File | S3 Location |
+|------|-------------|
+| `bmf_YYYY_MM_processed.parquet` | `s3://nccsdata/intermediate/bmf/YYYY_MM/` |
+| `bmf_YYYY_MM_quality_report.json` | `s3://nccsdata/intermediate/bmf/YYYY_MM/` |
+
+**AWS Permissions Required:** `s3:PutObject` on the `nccsdata` bucket.
+
 ---
 
 ## Lookup Table Configuration

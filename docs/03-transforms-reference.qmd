@@ -165,6 +165,36 @@ transform_ruling_date(dt, input_col = "RULING")
 
 ---
 
+## transform_dba_name()
+
+**File:** `R/dba_name.R`
+
+Transforms the SORT_NAME column (doing-business-as name) into cleaned DBA name fields.
+
+```r
+transform_dba_name(dt, input_col = "SORT_NAME")
+```
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `dt` | data.table | required | BMF data with SORT_NAME column |
+| `input_col` | character | `"SORT_NAME"` | Source column name |
+
+**Output Columns:**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `dba_name_raw` | character | Original SORT_NAME value (empty strings converted to NA) |
+| `dba_name` | character | Title-cased, whitespace-squished DBA name |
+
+**Processing Notes:**
+
+- Most organizations (~95%) do not have a secondary/DBA name
+- Empty strings are converted to NA to distinguish from missing values
+- Title case applied for display consistency
+
+---
+
 ## transform_address()
 
 **File:** `R/address.R`

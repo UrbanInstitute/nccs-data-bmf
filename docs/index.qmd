@@ -12,9 +12,11 @@ The BMF is the IRS's comprehensive database of tax-exempt organizations, contain
 
 ```{mermaid}
 flowchart LR
-    A[("S3 Bucket<br/>nccsdata")] --> B["ETL Pipeline<br/>(R/data.table)"]
+    A[("S3 Bucket<br/>nccsdata/raw/bmf")] --> B["ETL Pipeline<br/>(R/data.table)"]
     B --> C[("Processed BMF<br/>Parquet")]
     B --> D[("Quality Report<br/>JSON")]
+    C --> E[("S3 Bucket<br/>nccsdata/intermediate/bmf")]
+    D --> E
 ```
 
 The pipeline:
