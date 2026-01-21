@@ -159,7 +159,8 @@ upload_to_s3 <- function(local_file, s3_key, bucket = BMF_S3_BUCKET) {
     aws.s3::put_object(
       file = local_file,
       object = s3_key,
-      bucket = bucket
+      bucket = bucket,
+      multipart = TRUE
     )
     message(sprintf("Uploaded to s3://%s/%s", bucket, s3_key))
     return(TRUE)
