@@ -246,7 +246,7 @@ upload_bmf_results <- function(parquet_path,
 #' @return Named list with upload status for each file
 #'
 #' @export
-upload_processed_bmf <- function(parquet_path,
+upload_processed_bmf <- function(csv_path,
                                   quality_report_path,
                                   dictionary_path,
                                   year,
@@ -257,14 +257,14 @@ upload_processed_bmf <- function(parquet_path,
   s3_dir <- sprintf("%s%s_%s/", BMF_S3_PROCESSED_PREFIX, year, month)
 
   # Construct S3 keys for each file
-  parquet_s3_key <- sprintf("%sbmf_%s_%s_processed.parquet", s3_dir, year, month)
+  csv_s3_key <- sprintf("%sbmf_%s_%s_processed.csv", s3_dir, year, month)
   quality_s3_key <- sprintf("%sbmf_%s_%s_quality_report.json", s3_dir, year, month)
   dictionary_s3_key <- sprintf("%sbmf_%s_%s_data_dictionary.csv", s3_dir, year, month)
 
   message(sprintf("Uploading processed BMF to s3://%s/%s", bucket, s3_dir))
 
-  # Upload parquet file
-  parquet_success <- upload_to_s3(parquet_path, parquet_s3_key, bucket)
+  # Upload CSV file
+  csv_success <- upload_to_s3(csv_path, csv_s3_key, bucket)
 
   # Upload quality report
   quality_success <- upload_to_s3(quality_report_path, quality_s3_key, bucket)
@@ -274,7 +274,7 @@ upload_processed_bmf <- function(parquet_path,
 
   # Return status
   results <- list(
-    parquet = parquet_success,
+    csv = csv_success,
     quality_report = quality_success,
     data_dictionary = dictionary_success
   )

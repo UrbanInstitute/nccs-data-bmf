@@ -285,6 +285,15 @@ save_quality_report(
   sprintf("data/quality/bmf_%s_%s_quality_report.json", PROCESSING_YEAR, PROCESSING_MONTH)
 )
 
+# Render quality report to HTML for GitHub Pages
+quality_html_dir <- here::here("docs", "quality-reports")
+if (!dir.exists(quality_html_dir)) {
+  dir.create(quality_html_dir, recursive = TRUE)
+}
+quality_html_path <- file.path(quality_html_dir, sprintf("%s_%s.html", PROCESSING_YEAR, PROCESSING_MONTH))
+render_quality_report(quality_report, quality_html_path, format = "html")
+log_info(sprintf("Quality report HTML rendered: %s", quality_html_path))
+
 # ============================================================================
 # PHASE 10: INTERMEDIATE OUTPUT (ALL COLUMNS)
 # ============================================================================
@@ -343,8 +352,8 @@ if (!dir.exists("data/processed")) {
 }
 
 # Save processed BMF (transformed columns only)
-processed_path <- sprintf("data/processed/bmf_%s_%s_processed.parquet", PROCESSING_YEAR, PROCESSING_MONTH)
-arrow::write_parquet(bmf_processed, processed_path)
+processed_path <- sprintf("data/processed/bmf_%s_%s_processed.csv", PROCESSING_YEAR, PROCESSING_MONTH)
+data.table::fwrite(bmf_processed, processed_path)
 log_info(sprintf("Processed BMF saved: %s", processed_path))
 
 # Generate data dictionary
@@ -359,7 +368,7 @@ if (ENABLE_S3_UPLOAD) {
   log_info("Uploading processed BMF, quality report, and data dictionary to S3")
   quality_report_path <- sprintf("data/quality/bmf_%s_%s_quality_report.json", PROCESSING_YEAR, PROCESSING_MONTH)
   upload_processed_results <- upload_processed_bmf(
-    parquet_path = processed_path,
+    csv_path = processed_path,
     quality_report_path = quality_report_path,
     dictionary_path = dictionary_path,
     year = PROCESSING_YEAR,

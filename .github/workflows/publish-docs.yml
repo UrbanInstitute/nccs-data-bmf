@@ -33,6 +33,11 @@ jobs:
           cd docs
           quarto render
 
+      - name: Copy quality reports
+        run: |
+          mkdir -p docs/GUIDEBOOK/quality-reports
+          cp -r docs/quality-reports/*.html docs/GUIDEBOOK/quality-reports/ 2>/dev/null || true
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
