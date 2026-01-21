@@ -5,7 +5,7 @@ org_name_raw,Original organization name exactly as it appears in the source file
 org_name_join,Standardized name for matching and joining (uppercase punctuation removed)
 org_name_display,Title-cased organization name suitable for display purposes
 org_legal_suffix,Legal entity suffix extracted from name (Inc Corp LLC Foundation etc.)
-org_parent_name,Parent organization name if this is a subordinate/chapter organization
+org_parent_name,Parent organization name if this is a subordinate/chapter organization. This is based on Group Exemption Numbers and the presence of acronyms indicating a parent organization in org_name_raw
 dba_name,Cleaned Doing Business As name
 dba_name_raw,Original secondary/DBA name from source file
 in_care_of_name_raw,Original In Care Of field from source file
@@ -13,7 +13,7 @@ in_care_of_name_clean,Cleaned ICO name with standardized formatting
 in_care_of_name_provided,Boolean indicating whether an ICO name was provided
 group_exemption_number_raw,Original group exemption number from source file
 group_exemption_number,Cleaned group exemption number (GEN)
-group_exemption_is_member,Boolean indicating if organization is a member of a group exemption
+group_exemption_is_member,Boolean indicating if organization is a member of a group filing
 org_addr_street_raw,Original street address from source file
 org_addr_city_raw,Original city name from source file
 org_addr_state_raw,Original state code from source file
@@ -34,7 +34,7 @@ org_addr_state_invalid,TRUE if state code is not a valid US state/territory
 subsection_code,IRS subsection code (e.g. 03 for 501(c)(3) 04 for 501(c)(4))
 classification_code,IRS classification code indicating organization type within subsection
 exempt_organization_type,Human-readable exempt organization type based on subsection
-all_classifications_string,Semicolon-separated list of all classification descriptions
+all_classifications_string,Semicolon-separated list of all classification descriptions that apply to the classification_code field
 affiliation_code,Code indicating relationship to parent organization (1-9)
 affiliation_code_definition,Description of affiliation relationship
 deductibility_code,Code indicating deductibility status of contributions (1-4)
@@ -47,10 +47,10 @@ status_code,IRS determination status code (01-99)
 status_code_definition,Description of exempt status
 naics_code,North American Industry Classification System code derived from NTEE
 ruling_date_ym_str,Ruling date as YYYYMM string
-ruling_date,Date of IRS ruling granting exempt status
+ruling_date,Date of IRS ruling granting exempt status. If missing assigned 1900-01-01
 ruling_date_is_missing,TRUE if ruling date is missing or invalid
-tax_period_ym_str,Tax period end date as YYYYMM string
-tax_period_ymd,Tax period end date in YYYY-MM-DD format
+tax_period_ym_str,Tax period end date as YYYYMM string. 
+tax_period_ymd,Tax period end date in YYYY-MM-DD format. If missing assigned 1900-01-01
 tax_period_is_missing,TRUE if tax period is missing
 accounting_period,Month when organizations accounting period ends (01-12)
 asset_code,Asset amount range code (0-9)
