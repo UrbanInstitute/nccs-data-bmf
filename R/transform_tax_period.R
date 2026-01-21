@@ -49,9 +49,12 @@ transform_tax_period <- function(dt, input_col = "TAX_PERIOD") {
   # Safe copy
   dt_safe <- data.table::copy(dt)
 
+  # Convert to string and preserve original
+  dt_safe[, tax_period_ym_str := as.character(get(input_col))]
+
   # Validate format: must be 6 characters (YYYYMM)
   invalid_length <- dt_safe[
-    !is.na(get(input_col)) & nchar(as.character(get(input_col))) != TAX_PERIOD_LENGTH,
+    !is.na(tax_period_ym_str) & nchar(tax_period_ym_str) != TAX_PERIOD_LENGTH,
     .N
   ]
 
@@ -62,9 +65,10 @@ transform_tax_period <- function(dt, input_col = "TAX_PERIOD") {
     ))
   }
 
+
   # Parse tax period: YYYYMM -> YYYY-MM-01
   dt_safe[, tax_period_ymd := lubridate::ymd(
-    paste0(as.character(get(input_col)), "01")
+    paste0(tax_period_ym_str, "01")
   )]
 
   # Flag missing values
