@@ -31,4 +31,4 @@ These steps need to be run periodically whenever a new BMF is published.
 
 ## Documentation 
 
-[BMF Research Guidebook](https://urbaninstitute.github.io/nccs-data-bmf/00-documentation/GUIDEBOOK/index.html)
+[BMF Research Guidebook](https://urbaninstitute.github.io/nccs-data-bmf/index.html)

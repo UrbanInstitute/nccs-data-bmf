@@ -10,7 +10,7 @@ This repository contains code for harmonizing IRS Business Master File (BMF) dat
 3. Creates lookup table joins for code definitions
 4. Outputs a unified BMF consolidating ~1.9M nonprofit records
 
-**Documentation**: https://urbaninstitute.github.io/nccs-data-bmf/docs/GUIDEBOOK/index.html
+**Documentation**: https://urbaninstitute.github.io/nccs-data-bmf/index.html
 
 ## Commands
 
