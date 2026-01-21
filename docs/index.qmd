@@ -21,15 +21,15 @@ flowchart LR
 
 The pipeline:
 
-1. **Extracts** raw BMF data from S3 bucket (monthly combined CSV)
-2. **Transforms** 27 raw columns into ~60 standardized, validated columns
-3. **Loads** processed data as Parquet files for efficient downstream analysis
+1.  **Extracts** raw BMF data from S3 bucket (monthly combined CSV)
+2.  **Transforms** 27 raw columns into \~60 standardized, validated columns
+3.  **Loads** processed data as Parquet files for efficient downstream analysis
 
 ## Quick Start
 
 ### Prerequisites
 
-```r
+``` r
 # Required packages
 install.packages(c(
   "data.table",   # High-performance data manipulation
@@ -48,7 +48,7 @@ AWS credentials must be configured via environment variables or `~/.aws/credenti
 
 ### Run the Pipeline
 
-```r
+``` r
 # From the project root directory - downloads most recent BMF from S3
 source("R/run_pipeline.R")
 
@@ -64,26 +64,28 @@ list_available_bmf_files()
 
 The pipeline will:
 
-- Download BMF from S3 bucket `nccsdata/raw/bmf/`
-- Run pre-transformation validation
-- Execute 18 transformation functions across 10 phases
-- Save checkpoints after each phase (to `data/checkpoints/`)
-- Generate a quality report
-- Output final Parquet file to `data/processed/`
+-   Download BMF from S3 bucket `nccsdata/raw/bmf/`
+-   Run pre-transformation validation
+-   Execute 18 transformation functions across 10 phases
+-   Save checkpoints after each phase (to `data/checkpoints/`)
+-   Generate a quality report
+-   Save intermediate outputs to data/intermediate/ containing all columns
+-   Output final csv file with data dictionary to `data/processed/` with transformed columns
 
 ## Pipeline Outputs
 
 | Output File | Description | Rows |
-|-------------|-------------|------|
-| `bmf_YYYY_MM_processed.parquet` | Main fact table with all transformed columns | ~1.9M |
-| `bmf_YYYY_MM_quality_report.json` | Quality metrics and validation results | - |
+|----------------------------|----------------------------|-----------------|
+| `bmf_YYYY_MM_processed.csv` | Main fact table with all transformed columns | \~1.9M |
+| `bmf_YYYY_MM_quality_report.json` | Quality metrics and validation results | \- |
+| `bmf_YYYY_MM_data_dictionary.csv` | Data dictionary | \- |
 
 Checkpoints are saved to `data/checkpoints/` after each transformation phase.
 
 ## Documentation Structure
 
 | Chapter | Description |
-|---------|-------------|
+|------------------------------|------------------------------------------|
 | [Architecture](01-architecture.qmd) | 10-phase pipeline overview, orchestration, checkpointing |
 | [Data Lineage](02-data-lineage.qmd) | Column mappings, transformation flows, data dictionary |
 | [Transform Reference](03-transforms-reference.qmd) | All 17 transform functions with inputs/outputs |
@@ -94,15 +96,13 @@ Checkpoints are saved to `data/checkpoints/` after each transformation phase.
 
 ## IRS BMF Source
 
-The raw BMF data is published by the IRS at:
-[IRS Exempt Organizations BMF Extract](https://www.irs.gov/charities-non-profits/exempt-organizations-business-master-file-extract-eo-bmf)
+The raw BMF data is published by the IRS at: [IRS Exempt Organizations BMF Extract](https://www.irs.gov/charities-non-profits/exempt-organizations-business-master-file-extract-eo-bmf)
 
-Field definitions are documented in the IRS Internal Revenue Manual:
-[IRM 25.7.1](https://www.irs.gov/irm/part25/irm_25-007-001)
+Field definitions are documented in the IRS Internal Revenue Manual: [IRM 25.7.1](https://www.irs.gov/irm/part25/irm_25-007-001)
 
 ## Repository Structure
 
-```
+```         
 nccs-data-bmf/
 ├── R/
 │   ├── run_pipeline.R             # Pipeline orchestrator

@@ -1,191 +1,179 @@
-@font-face { 
-  font-family:Century;
-  src:url(https://internetingishard.netlify.app/CenturySchoolbook-Bold-webfont.f90149b3.eot);
-  src:url(https://internetingishard.netlify.app/CenturySchoolbook-Bold-webfont.f90149b3.eot?) format("embedded-opentype"),url(https://internetingishard.netlify.app/CenturySchoolbook-Bold-webfont.57ae4846.woff2) format("woff2"),url(https://internetingishard.netlify.app/CenturySchoolbook-Bold-webfont.12a8c386.woff) format("woff"),url(https://internetingishard.netlify.app/CenturySchoolbook-Bold-webfont.aed8a0b4.ttf) format("truetype"),url(https://internetingishard.netlify.app/CenturySchoolbook-Bold-webfont.79821eaa.svg) format("svg");
-  font-weight:700;
-  font-style:normal;
-} 
-@font-face { 
-  font-family:Century;
-  src:url(https://internetingishard.netlify.app/CenturySchoolbook-Italic-webfont.525e13e3.eot);
-  src:url(https://internetingishard.netlify.app/CenturySchoolbook-Italic-webfont.525e13e3.eot?) format("embedded-opentype"),url(https://internetingishard.netlify.app/CenturySchoolbook-Italic-webfont.9aaece45.woff2) format("woff2"),url(https://internetingishard.netlify.app/CenturySchoolbook-Italic-webfont.5042fa22.woff) format("woff"),url(https://internetingishard.netlify.app/CenturySchoolbook-Italic-webfont.11a0fbbc.ttf) format("truetype"),url(https://internetingishard.netlify.app/CenturySchoolbook-Italic-webfont.15edf12a.svg) format("svg");
-  font-weight:400;
-  font-style:italic;
-} 
-@font-face { 
-  font-family:Century;
-  src:url(https://internetingishard.netlify.app/CenturySchoolbook-Regular-webfont.69f3d138.eot);
-  src:url(https://internetingishard.netlify.app/CenturySchoolbook-Regular-webfont.69f3d138.eot?) format("embedded-opentype"),url(https://internetingishard.netlify.app/CenturySchoolbook-Regular-webfont.2f3c6578.woff2) format("woff2"),url(https://internetingishard.netlify.app/CenturySchoolbook-Regular-webfont.b98aa5ee.woff) format("woff"),url(https://internetingishard.netlify.app/CenturySchoolbook-Regular-webfont.5877d380.ttf) format("truetype"),url(https://internetingishard.netlify.app/CenturySchoolbook-Regular-webfont.6f82d0d3.svg) format("svg");
-  font-weight:400;
-  font-style:normal;
-} 
+/* BMF Pipeline Guide - Modern Minimal Theme
+   Urban Institute Brand Colors */
 
-
-
-@import url('https://fonts.googleapis.com/css?family=Jura');
-@import url('https://fonts.googleapis.com/css?family=Gravitas+One');
-@import url('https://fonts.googleapis.com/css?family=Bevan');
-@import url('https://fonts.googleapis.com/css?family=Abril+Fatface');
-@import url('https://fonts.cdnfonts.com/css/bauhaus-modern');
-@import url('https://fonts.cdnfonts.com/css/ofexer');
-@import url('https://fonts.cdnfonts.com/css/cooper-std');
-
-/* color: #5d6063;  */
-
-/* left sidebar  */
-/* $grid-sidebar-width: 400px !default;  */
-/* width of text body  */
-/* $grid-body-width: 800px; */
-/* width of right side bar  */
-/* $grid-margin-width: 400px; */
-/* gutter between text and sidebars  */
-/* $grid-column-gutter-width: 100px; */
-
-/*
-main {
-    margin-left: 100px;
-    margin-right: 100px;
+:root {
+  --ui-blue: #1273A1;
+  --ui-blue-light: #46B5D1;
+  --text-primary: #333333;
+  --text-secondary: #555555;
+  --code-bg: #f6f8fa;
+  --border-color: #e1e4e8;
+  --sidebar-bg: #1273A1;
+  --sidebar-active: #ffffff;
 }
-*/
 
+/* Base Typography - System Font Stack */
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background-color: #fff;
+  color: var(--text-primary);
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-font-smoothing: antialiased;
+}
 
-body {  
-    background-color: #fff; 
-    -moz-osx-font-smoothing: grayscale; 
-    -webkit-font-smoothing: antialiased; 
-    position: relative; 
-    z-index: 1;
-} 
-
-
-p { 
-    font-size: 17px; 
-    line-height: 1.5em; 
-    font-family: Century; 
-    color: #696969;
-    margin-top: 20px;
-} 
+p {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  margin-top: 1rem;
+}
 
 li p {
-    font-size: 16px;
-    line-height: 1em;
-    font-family: Century;
-    color: #696969;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text-primary);
 }
 
-section#footnotes ol li {
-    font-size: 12px;
-    line-height: 1.1em;
-    font-family: Century;
-    color: #696969;
+/* Headings */
+h1, h1.title, h2, h3, h4, h5, h6 {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: var(--ui-blue);
+  font-weight: 600;
 }
 
-section#footnotes ol li p {
-    font-size: 12px;
-    line-height: 1.1em;
-    font-family: Century;
-    color: #696969;
-}
-
-
-/*    font-family: Jura, Arial, sans-serif; 
-    font-weight: 400; 
-    font-size: 37px; 
-    line-height: 50px;  */
-   
-h1, h1.title { 
-    /* font-family: "Gravitas One"; */
-    /* font-family: 'Bauhaus Modern', sans-serif; */
-    /* font-family: 'ofexer', sans-serif; */
-    font-family: 'Cooper Std', sans-serif;
-    font-size: 40px; font-style: 
-    font-weight: 900;
-    line-height: 45px;
-    text-transform: none;
-    color:   #1273A1;
-    margin-bottom: 90px;
-    margin-top: 20px;
-} 
-
-
-
-
-h2, h3, h4 {
-    color: #1273A1; /* #12719e*/
-    font-family: 'Cooper Std', sans-serif;
-    normal; font-weight: 900;
-}
-
-.header-section-number {
-    color: #1273A1;
+h1, h1.title {
+  font-size: 2.25rem;
+  line-height: 1.2;
+  margin-bottom: 2rem;
+  margin-top: 1rem;
+  font-weight: 700;
 }
 
 h2 {
-    margin-top: 80px;
+  font-size: 1.75rem;
+  margin-top: 3rem;
+  margin-bottom: 1rem;
 }
 
-h3, h4 {
-    margin-top: 60px;
+h3 {
+  font-size: 1.35rem;
+  margin-top: 2rem;
 }
 
+h4 {
+  font-size: 1.15rem;
+  margin-top: 1.5rem;
+}
 
+.header-section-number {
+  color: var(--ui-blue);
+}
+
+/* Sidebar Navigation */
 .sidebar-title {
-    color: #fff;
+  color: #fff;
 }
 
 .sidebar-item .chapter-number {
-    color: #fff;
+  color: rgba(255, 255, 255, 0.85);
 }
 
-.sidebar nav[role=doc-toc] ul>li>a.active, 
-.sidebar nav[role=doc-toc] ul>li>ul>li>a.active {
-    border-left: 1px solid  #1696d2;
-    color: #1696d2 !important;
-    font-weight: bold;
+/* Sidebar active states - white for contrast on blue background */
+div.sidebar-item-container .active,
+div.sidebar-item-container .show > .nav-link,
+div.sidebar-item-container .sidebar-link > code {
+  color: var(--sidebar-active) !important;
+  font-weight: 600;
 }
 
-/*
-# custom syntax color
-# background-color: #565656;
-# color: #fff2cf;
-*/
+.sidebar nav[role=doc-toc] ul > li > a.active,
+.sidebar nav[role=doc-toc] ul > li > ul > li > a.active {
+  border-left: 2px solid var(--sidebar-active);
+  color: var(--ui-blue) !important;
+  font-weight: 600;
+}
 
+.sidebar-item-text {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.sidebar-item-text:hover {
+  color: #fff;
+}
+
+/* Code Blocks - GitHub-style */
 div.sourceCode {
-    background-color: #f5f2eb;;  /* same as sidebar #F5F5F5 */
-    border: 1px solid #ececec;  /* yellow #fff2cf */
-    border-radius: .25rem;
-}
-
-
-.table td {
-    padding: 0.2rem;
-}
-
-
-/*
-tr:nth-child(even) {
-    background-color: #F5F5F5;
-}
-*/
-        
-tbody {
-  font-size: 0.75em;
+  background-color: var(--code-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
 }
 
 pre {
-    margin-bottom: 40px;
-    line-height: 1.0em;
+  margin-bottom: 1.5rem;
+  line-height: 1.45;
+  padding: 1rem;
 }
 
 code {
-    line-height: 1.0em;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 0.875em;
+  line-height: 1.45;
 }
 
-
-div.sidebar-item-container .active, 
-div.sidebar-item-container .show > .nav-link, 
-div.sidebar-item-container .sidebar-link > code {
-    color: #fdbf11;
-    font-weight: bold;
+/* Inline code */
+p code, li code {
+  background-color: var(--code-bg);
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  font-size: 0.85em;
 }
 
+/* Tables */
+.table {
+  font-size: 0.9rem;
+}
+
+.table td {
+  padding: 0.5rem 0.75rem;
+  vertical-align: top;
+}
+
+.table th {
+  padding: 0.5rem 0.75rem;
+  background-color: var(--code-bg);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+/* Footnotes */
+section#footnotes ol li,
+section#footnotes ol li p {
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+/* Links */
+a {
+  color: var(--ui-blue);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--ui-blue-light);
+  text-decoration: underline;
+}
+
+/* Callout boxes */
+.callout {
+  border-radius: 6px;
+}
+
+/* Mermaid diagrams */
+.mermaid {
+  margin: 1.5rem 0;
+}

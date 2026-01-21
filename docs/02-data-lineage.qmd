@@ -60,6 +60,7 @@ flowchart LR
     subgraph Raw["Raw IRS Columns"]
         EIN_R[EIN]
         NAME_R[NAME]
+        SORT_R[SORT_NAME]
         ICO_R[ICO]
         GROUP_R[GROUP]
         RULING_R[RULING]
@@ -71,6 +72,9 @@ flowchart LR
         org_name[org_name_display]
         org_join[org_name_join]
         org_suffix[org_legal_suffix]
+        org_parent[org_parent_name]
+        dba[dba_name]
+        dba_raw[dba_name_raw]
         ico[in_care_of_name_clean]
         ico_flag[in_care_of_name_provided]
         gen[group_exemption_number]
@@ -84,6 +88,9 @@ flowchart LR
     NAME_R --> org_name
     NAME_R --> org_join
     NAME_R --> org_suffix
+    NAME_R --> org_parent
+    SORT_R --> dba
+    SORT_R --> dba_raw
     ICO_R --> ico
     ICO_R --> ico_flag
     GROUP_R --> gen
@@ -231,102 +238,104 @@ flowchart TB
 #### Identity Columns
 | Column | Type | Source | Description |
 |--------|------|--------|-------------|
-| `ein` | char(11) | EIN | Formatted as XX-XXXXXXX |
-| `ein_raw` | char | EIN | Original unformatted value |
-| `org_name_raw` | char | NAME | Original organization name |
-| `org_name_join` | char | NAME | Cleaned name for matching |
-| `org_name_display` | char | NAME | Title-cased display name |
-| `org_legal_suffix` | char | NAME | Extracted suffix (INC, CORP, etc.) |
-| `in_care_of_name_raw` | char | ICO | Original ICO value |
-| `in_care_of_name_clean` | char | ICO | Cleaned ICO name |
-| `in_care_of_name_provided` | bool | ICO | TRUE if ICO was provided |
-| `group_exemption_number_raw` | char | GROUP | Original GEN value |
-| `group_exemption_number` | char(4) | GROUP | Padded 4-digit GEN |
-| `group_exemption_is_member` | bool | GROUP | TRUE if part of group exemption |
-| `ruling_date_ym_str` | char(6) | RULING | Original YYYYMM string |
-| `ruling_date` | Date | RULING | Parsed date (YYYY-MM-01) |
-| `ruling_date_is_missing` | bool | RULING | TRUE if missing/invalid |
-| `dba_name_raw` | char | SORT_NAME | Original doing-business-as name (empty strings as NA) |
-| `dba_name` | char | SORT_NAME | Title-cased, whitespace-cleaned DBA name |
+| `ein` | char(11) | EIN | Employer Identification Number formatted as XX-XXXXXXX |
+| `ein_raw` | char | EIN | Original 9-digit EIN value from source file without formatting |
+| `org_name_raw` | char | NAME | Original organization name exactly as it appears in the source file |
+| `org_name_join` | char | NAME | Standardized name for matching and joining (uppercase punctuation removed) |
+| `org_name_display` | char | NAME | Title-cased organization name suitable for display purposes |
+| `org_legal_suffix` | char | NAME | Legal entity suffix extracted from name (Inc Corp LLC Foundation etc.) |
+| `org_parent_name` | char | NAME | Parent organization name if this is a subordinate/chapter organization |
+| `in_care_of_name_raw` | char | ICO | Original In Care Of field from source file |
+| `in_care_of_name_clean` | char | ICO | Cleaned ICO name with standardized formatting |
+| `in_care_of_name_provided` | bool | ICO | Boolean indicating whether an ICO name was provided |
+| `group_exemption_number_raw` | char | GROUP | Original group exemption number from source file |
+| `group_exemption_number` | char(4) | GROUP | Cleaned group exemption number (GEN) |
+| `group_exemption_is_member` | bool | GROUP | Boolean indicating if organization is a member of a group filing |
+| `ruling_date_ym_str` | char(6) | RULING | Ruling date as YYYYMM string |
+| `ruling_date` | Date | RULING | Date of IRS ruling granting exempt status. If missing assigned 1900-01-01 |
+| `ruling_date_is_missing` | bool | RULING | TRUE if ruling date is missing or invalid |
+| `dba_name_raw` | char | SORT_NAME | Original secondary/DBA name from source file |
+| `dba_name` | char | SORT_NAME | Cleaned Doing Business As name |
 
 #### Address Columns
 | Column | Type | Source | Description |
 |--------|------|--------|-------------|
-| `org_addr_street_raw` | char | STREET | Original street value |
-| `org_addr_street` | char | STREET | USPS-standardized street |
-| `org_addr_city_raw` | char | CITY | Original city value |
+| `org_addr_street_raw` | char | STREET | Original street address from source file |
+| `org_addr_street` | char | STREET | Standardized street address with USPS abbreviations |
+| `org_addr_city_raw` | char | CITY | Original city name from source file |
 | `org_addr_city` | char | CITY | Cleaned city name |
-| `org_addr_state_raw` | char | STATE | Original state value |
-| `org_addr_state` | char(2) | STATE | Validated 2-letter abbreviation |
-| `org_addr_zip_raw` | char | ZIP | Original ZIP value |
+| `org_addr_state_raw` | char | STATE | Original state code from source file |
+| `org_addr_state` | char(2) | STATE | Two-letter state abbreviation |
+| `org_addr_zip_raw` | char | ZIP | Original ZIP code from source file |
 | `org_addr_zip5` | char(5) | ZIP | 5-digit ZIP code |
-| `org_addr_zip4` | char(4) | ZIP | ZIP+4 extension (if present) |
-| `org_addr_zip` | char(10) | ZIP | Full ZIP (XXXXX or XXXXX-XXXX) |
-| `org_addr_full` | char | derived | Full formatted address |
-| `org_addr_is_missing` | bool | derived | TRUE if all address fields empty |
-| `org_addr_is_po_box` | bool | STREET | TRUE if P.O. Box address |
-| `org_addr_is_rural_route` | bool | STREET | TRUE if rural route address |
-| `org_addr_has_special_chars` | bool | STREET | TRUE if unusual characters |
-| `org_addr_missing_number` | bool | STREET | TRUE if no street number |
-| `org_addr_state_invalid` | bool | STATE | TRUE if not valid US state/territory |
+| `org_addr_zip4` | char(4) | ZIP | 4-digit ZIP code extension (if available) |
+| `org_addr_zip` | char(10) | ZIP | Full ZIP code (5 or 9 digits) |
+| `org_addr_full` | char | derived | Complete formatted address string |
+| `org_addr_is_missing` | bool | derived | TRUE if street address is missing or empty |
+| `org_addr_is_po_box` | bool | STREET | TRUE if address is a P.O. Box |
+| `org_addr_is_rural_route` | bool | STREET | TRUE if address is a rural route |
+| `org_addr_has_special_chars` | bool | STREET | TRUE if address contains unusual special characters |
+| `org_addr_missing_number` | bool | STREET | TRUE if street address lacks a street number |
+| `org_addr_state_invalid` | bool | STATE | TRUE if state code is not a valid US state/territory |
 
 #### Classification Columns
 | Column | Type | Source | Description |
 |--------|------|--------|-------------|
-| `subsection_code` | char | SUBSECTION | IRC subsection (e.g., "03" for 501c3) |
-| `classification_code` | char | CLASSIFICATION | Raw classification codes |
-| `exempt_organization_type` | char | SUBSECTION + lookup | Human-readable org type |
-| `all_classifications_string` | char | CLASSIFICATION + lookup | Semicolon-separated descriptions |
-| `affiliation_code` | int | AFFILIATION | Affiliation type code |
-| `affiliation_code_definition` | char | lookup | Affiliation description |
-| `deductibility_code` | int | DEDUCTIBILITY | Deductibility status code |
-| `deductibility_code_definition` | char | lookup | Deductibility description |
-| `foundation_code` | int | FOUNDATION | Foundation type code |
-| `foundation_code_definition` | char | lookup | Foundation description |
-| `organization_code` | int | ORGANIZATION | Organization structure code |
-| `organization_code_definition` | char | lookup | Organization description |
-| `status_code` | int | STATUS | IRS status code |
-| `status_code_definition` | char | lookup | Status description |
+| `subsection_code` | char | SUBSECTION | IRS subsection code (e.g. 03 for 501(c)(3) 04 for 501(c)(4)) |
+| `classification_code` | char | CLASSIFICATION | IRS classification code indicating organization type within subsection |
+| `exempt_organization_type` | char | SUBSECTION + lookup | Human-readable exempt organization type based on subsection |
+| `all_classifications_string` | char | CLASSIFICATION + lookup | Semicolon-separated list of all classification descriptions |
+| `affiliation_code` | int | AFFILIATION | Code indicating relationship to parent organization (1-9) |
+| `affiliation_code_definition` | char | lookup | Description of affiliation relationship |
+| `deductibility_code` | int | DEDUCTIBILITY | Code indicating deductibility status of contributions (1-4) |
+| `deductibility_code_definition` | char | lookup | Description of contribution deductibility |
+| `foundation_code` | int | FOUNDATION | Foundation status code (00-99) per IRS determination |
+| `foundation_code_definition` | char | lookup | Description of foundation/public charity status |
+| `organization_code` | int | ORGANIZATION | Code for type of organization (corporation trust etc.) |
+| `organization_code_definition` | char | lookup | Description of organization type |
+| `status_code` | int | STATUS | IRS determination status code (01-99) |
+| `status_code_definition` | char | lookup | Description of exempt status |
 
 #### Activity Columns
 | Column | Type | Source | Description |
 |--------|------|--------|-------------|
-| `activity_code_definitions` | char | ACTIVITY + lookup | Semicolon-separated activity descriptions |
+| `activity_code` | char | ACTIVITY | Three 3-digit activity codes concatenated (9 characters total) |
+| `activity_code_definitions` | char | ACTIVITY + lookup | Semicolon-separated descriptions of activity codes |
 | `activity_code_categories` | char | ACTIVITY + lookup | Semicolon-separated activity categories |
-| `ntee_code` | char | NTEE_CD | Cleaned/validated NTEE code |
-| `ntee_code_definition` | char | lookup | NTEE category description |
-| `ntee_code_major_group` | char | NTEE_CD | First character (major group) |
-| `naics_code` | char | lookup | Mapped NAICS industry code |
-| `nteev2_code` | char | derived | NTEE Version 2 code |
-| `nteev2_subsector` | char | derived | NTEEV2 subsector |
-| `nteev2_org_type` | char | derived | NTEEV2 organization type |
+| `ntee_code_clean` | char | NTEE_CD | Standardized 3-character NTEE code |
+| `ntee_code_definition` | char | lookup | Full description of NTEE classification |
+| `ntee_code_major_group` | char | NTEE_CD | NTEE major group letter (A-Z) indicating broad category |
+| `naics_code` | char | lookup | North American Industry Classification System code derived from NTEE |
+| `nteev2_code` | char | derived | NTEEv2 code portion (3 characters) |
+| `nteev2_subsector` | char | derived | NTEEv2 subsector code (e.g. UNI HOS ART ENV) |
+| `nteev2_org_type` | char | derived | NTEEv2 organization type (RG=Regular AA=Alliance etc.) |
 
 #### Temporal Columns
 | Column | Type | Source | Description |
 |--------|------|--------|-------------|
-| `tax_period_ymd` | Date | TAX_PERIOD | Tax period end date |
-| `tax_period_is_missing` | bool | TAX_PERIOD | TRUE if missing |
-| `accounting_period_code` | int | ACCT_PD | Accounting period month |
-| `accounting_period_definition` | char | lookup | Period description |
+| `tax_period_ym_str` | char | TAX_PERIOD | Tax period end date as YYYYMM string |
+| `tax_period_ymd` | Date | TAX_PERIOD | Tax period end date in YYYY-MM-DD format. If missing assigned 1900-01-01 |
+| `tax_period_is_missing` | bool | TAX_PERIOD | TRUE if tax period is missing |
+| `accounting_period` | int | ACCT_PD | Month when organization's accounting period ends (01-12) |
 
 #### Financial Columns
 | Column | Type | Source | Description |
 |--------|------|--------|-------------|
-| `asset_code` | int | ASSET_CD | Asset range code (0-9) |
-| `asset_code_definition` | char | lookup | Asset range description |
-| `income_code` | int | INCOME_CD | Income range code (0-9) |
-| `income_code_definition` | char | lookup | Income range description |
-| `asset_amount` | numeric | ASSET_AMT | Total assets in dollars |
-| `income_amount` | numeric | INCOME_AMT | Total income in dollars |
-| `revenue_amount` | numeric | REVENUE_AMT | Total revenue in dollars |
+| `asset_code` | int | ASSET_CD | Asset amount range code (0-9) |
+| `asset_code_definition` | char | lookup | Description of asset range (e.g. $100000 to $499999) |
+| `income_code` | int | INCOME_CD | Income amount range code (0-9) |
+| `income_code_definition` | char | lookup | Description of income range |
+| `asset_amount` | numeric | ASSET_AMT | Total assets in dollars (most recent return) |
+| `income_amount` | numeric | INCOME_AMT | Total income in dollars (can be negative) |
+| `revenue_amount` | numeric | REVENUE_AMT | Total revenue in dollars (can be negative) |
 
 #### Filing Columns
 | Column | Type | Source | Description |
 |--------|------|--------|-------------|
-| `filing_requirement_code` | int | FILING_REQ_CD | Form 990 filing requirement |
-| `filing_requirement_code_definition` | char | lookup | Filing requirement description |
-| `pf_filing_requirement_code` | int | PF_FILING_REQ_CD | Private foundation filing req |
-| `pf_filing_requirement_code_definition` | char | lookup | PF filing requirement description |
+| `filing_requirement_code` | int | FILING_REQ_CD | Code indicating required annual return form (0-6) |
+| `filing_requirement_code_definition` | char | lookup | Description of filing requirement (990 990-EZ 990-N etc.) |
+| `pf_filing_requirement_code` | int | PF_FILING_REQ_CD | Private foundation filing requirement code |
+| `pf_filing_requirement_code_definition` | char | lookup | Description of private foundation filing requirement |
 
 ## Dimension Table Lineage
 
@@ -379,15 +388,15 @@ flowchart TB
 ```{mermaid}
 flowchart TB
     subgraph Input
-        CLASS["CLASSIFICATION column<br/>e.g., 'ABCD'"]
+        CLASS["CLASSIFICATION column<br/>e.g., '1237'"]
         SUB["SUBSECTION column<br/>e.g., '03'"]
     end
 
     subgraph Extract["Extract up to 4 codes"]
-        C1["Code 1: 'A'"]
-        C2["Code 2: 'B'"]
-        C3["Code 3: 'C'"]
-        C4["Code 4: 'D'"]
+        C1["Code 1: '1'"]
+        C2["Code 2: '2'"]
+        C3["Code 3: '3'"]
+        C4["Code 4: '7'"]
     end
 
     subgraph Filter["Remove '0' codes"]

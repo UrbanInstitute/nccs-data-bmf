@@ -24,8 +24,8 @@ book:
 
 format:
   html:
-    theme: lux
-    highlight-style: solarized
+    theme: cosmo
+    highlight-style: github
     css: style.css
     mermaid:
       theme: default

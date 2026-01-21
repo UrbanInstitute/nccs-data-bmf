@@ -29,6 +29,8 @@ Updating the BMF requires the following steps:
 
 These steps need to be run periodically whenever a new BMF is published.
 
-## Documentation 
+## Documentation
 
 [BMF Research Guidebook](https://urbaninstitute.github.io/nccs-data-bmf/index.html)
+
+[Quality Report (January 2026)](https://urbaninstitute.github.io/nccs-data-bmf/quality-reports/bmf_2026_01_quality_report.html)

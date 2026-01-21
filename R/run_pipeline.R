@@ -290,7 +290,7 @@ quality_html_dir <- here::here("docs", "quality-reports")
 if (!dir.exists(quality_html_dir)) {
   dir.create(quality_html_dir, recursive = TRUE)
 }
-quality_html_path <- file.path(quality_html_dir, sprintf("%s_%s.html", PROCESSING_YEAR, PROCESSING_MONTH))
+quality_html_path <- file.path(quality_html_dir, sprintf("bmf_%s_%s_quality_report.html", PROCESSING_YEAR, PROCESSING_MONTH))
 render_quality_report(quality_report, quality_html_path, format = "html")
 log_info(sprintf("Quality report HTML rendered: %s", quality_html_path))
 

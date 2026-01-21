@@ -4,9 +4,9 @@ title: "Pipeline Architecture"
 
 # Pipeline Overview
 
-The BMF processing pipeline is organized into **10 sequential phases**, each with a specific responsibility. The pipeline is orchestrated by `R/run_pipeline.R`.
+The BMF processing pipeline is organized into **11 sequential phases**, each with a specific responsibility. The pipeline is orchestrated by `R/run_pipeline.R`.
 
-## 10-Phase Pipeline
+## 11-Phase Pipeline
 
 ```{mermaid}
 %%| fig-width: 8
@@ -23,10 +23,11 @@ flowchart TB
 
     subgraph Phase3["Phase 3: Identity"]
         C1[EIN] --> C2[Organization Name]
-        C2 --> C3[ICO Name]
-        C3 --> C4[Group Exemption]
-        C4 --> C5[Ruling Date]
-        C5 --> C6[Address]
+        C2 --> C3[DBA Name]
+        C3 --> C4[ICO Name]
+        C4 --> C5[Group Exemption]
+        C5 --> C6[Ruling Date]
+        C6 --> C7[Address]
     end
 
     subgraph Phase4["Phase 4: Classification"]
@@ -60,8 +61,12 @@ flowchart TB
         I1[Quality Metrics] --> I2[Generate Report]
     end
 
-    subgraph Phase10["Phase 10: Output"]
-        J1[Save Processed BMF] --> J2[Save Quality Report]
+    subgraph Phase10["Phase 10: Intermediate Output"]
+        J1[Save Intermediate BMF] --> J2[Upload to S3]
+    end
+
+    subgraph Phase11["Phase 11: Processed Output"]
+        K1[Save Processed BMF] --> K2[Data Dictionary] --> K3[Upload to S3]
     end
 
     Phase1 --> Phase2
@@ -73,21 +78,18 @@ flowchart TB
     Phase7 --> Phase8
     Phase8 --> Phase9
     Phase9 --> Phase10
+    Phase10 --> Phase11
 ```
 
 ## Phase Details
 
 ### Phase 1: Extraction
 
-Downloads BMF data from S3 bucket `nccsdata`. A Lambda function ingests monthly BMF files from the IRS and deposits them at `raw/bmf/YYYY-MM-BMF.csv`.
+Downloads BMF data from S3 bucket `nccsdata`. A Lambda function ingests monthly BMF files from the IRS and deposits them at `nccsdata/raw/bmf/YYYY-MM-BMF.csv`.
 
-The pipeline:
-1. Connects to S3 using `aws.s3` package
-2. Downloads the most recent BMF file (or a specified year/month)
-3. Extracts processing year and month from filename
-4. Saves local copy to `data/raw/bmf_YYYY_MM.csv`
+The pipeline: 1. Connects to S3 using `aws.s3` package 2. Downloads the most recent BMF file (or a specified year/month) 3. Extracts processing year and month from filename 4. Saves local copy to `data/raw/bmf_YYYY_MM.csv`
 
-```r
+``` r
 # Download most recent BMF
 bmf_raw <- download_bmf_from_s3()
 
@@ -103,10 +105,10 @@ list_available_bmf_files()
 
 Validates the raw data before any transformations:
 
-- **Column Check**: Ensures all 27 required columns exist
-- **Row Count**: Verifies ~1.9M rows (within 5% tolerance)
-- **Duplicate Detection**: Counts duplicate EINs
-- **NULL Inventory**: Reports NULL counts per column
+-   **Column Check**: Ensures all 31 required columns exist
+-   **Row Count**: Verifies \~1.9M rows (within 5% tolerance)
+-   **Duplicate Detection**: Counts duplicate EINs
+-   **NULL Inventory**: Reports NULL counts per column
 
 If validation fails in strict mode, the pipeline stops.
 
@@ -115,9 +117,10 @@ If validation fails in strict mode, the pipeline stops.
 Transforms organization identification fields:
 
 | Transform | Input | Outputs |
-|-----------|-------|---------|
+|-----------------------------|-------------------|------------------------|
 | `transform_ein()` | EIN | `ein`, `ein_raw` |
 | `transform_organization_name()` | NAME | `org_name_raw`, `org_name_join`, `org_name_display`, `org_legal_suffix` |
+| `transform_dba_name()` | SORT_NAME | `dba_name`, `dba_name_raw` |
 | `transform_ico_name()` | ICO | `in_care_of_name_raw`, `in_care_of_name_clean`, `in_care_of_name_provided` |
 | `transform_group_exemption_number()` | GROUP | `group_exemption_number_raw`, `group_exemption_number`, `group_exemption_is_member` |
 | `transform_ruling_date()` | RULING | `ruling_date_ym_str`, `ruling_date`, `ruling_date_is_missing` |
@@ -128,7 +131,7 @@ Transforms organization identification fields:
 Adds IRS classification codes with human-readable definitions:
 
 | Transform | Lookup Table | Outputs |
-|-----------|--------------|---------|
+|-----------------------|-----------------------------|--------------------|
 | `transform_subsection_classification_codes()` | `classification_subsection_code_lookup.csv` | `subsection_code`, `classification_code`, `exempt_organization_type`, `all_classifications_string` |
 | `transform_affiliation_code()` | `affiliation_code_lookup.csv` | `affiliation_code`, `affiliation_code_definition` |
 | `transform_deductibility_code()` | `deductibility_code_lookup.csv` | `deductibility_code`, `deductibility_code_definition` |
@@ -138,10 +141,10 @@ Adds IRS classification codes with human-readable definitions:
 
 ### Phase 5: Activity Transformations
 
-Creates dimension tables for multi-valued activity fields:
+Creates dimension tables for multi-valued activity fields. These are temporary tables used for internal joins, since each activity code references multiple activities.
 
 | Transform | Pattern | Outputs |
-|-----------|---------|---------|
+|---------------------------|-----------------------|-----------------------|
 | `create_activity_code_dim_table()` | SCD Type 2 | `dim_activity_2025.parquet` |
 | `transform_activity_code()` | Aggregate | `activity_code_definitions`, `activity_code_categories` |
 | `transform_ntee_code()` | Complex | `ntee_code`, `ntee_code_definition`, `ntee_code_major_group`, `naics_code`, `nteev2_code`, etc. |
@@ -151,7 +154,7 @@ Creates dimension tables for multi-valued activity fields:
 Parses date and period fields:
 
 | Transform | Input | Outputs |
-|-----------|-------|---------|
+|-----------------------------|-------------------|------------------------|
 | `transform_tax_period()` | TAX_PERIOD | `tax_period_ymd`, `tax_period_is_missing` |
 | `transform_accounting_period()` | ACCT_PD | `accounting_period_code`, `accounting_period_definition` |
 
@@ -160,7 +163,7 @@ Parses date and period fields:
 Processes financial codes and amounts:
 
 | Transform | Input | Outputs |
-|-----------|-------|---------|
+|-----------------------------|-------------------|------------------------|
 | `transform_asset_code()` | ASSET_CD | `asset_code`, `asset_code_definition` |
 | `transform_income_code()` | INCOME_CD | `income_code`, `income_code_definition` |
 | `transform_asset_amount()` | ASSET_AMT | `asset_amount` |
@@ -172,7 +175,7 @@ Processes financial codes and amounts:
 Adds filing requirement classifications:
 
 | Transform | Input | Outputs |
-|-----------|-------|---------|
+|-----------------------------|-------------------|------------------------|
 | `transform_code()` | FILING_REQ_CD | `filing_requirement_code`, `filing_requirement_code_definition` |
 | `transform_code()` | PF_FILING_REQ_CD | `pf_filing_requirement_code`, `pf_filing_requirement_code_definition` |
 
@@ -180,24 +183,114 @@ Adds filing requirement classifications:
 
 Generates a comprehensive quality report:
 
-- Row preservation check (input rows = output rows)
-- Completeness rates for all columns
-- Critical field validation (EIN, subsection_code)
-- Summary statistics
+-   Row preservation check (input rows = output rows)
+-   Completeness rates for all columns
+-   Critical field validation (EIN, subsection_code)
+-   Summary statistics
 
-### Phase 10: Output
+### Phase 10: Intermediate Output
 
-Saves final outputs locally and optionally uploads to S3:
+Saves the **complete** BMF with all columns (both raw IRS columns and transformed columns) to local storage and S3. This preserves the full data lineage for debugging and auditing.
+
+**What Gets Saved:**
+
+| File | Format | Contents |
+|------|--------|----------|
+| Intermediate BMF | Parquet | All ~90 columns (27 raw + ~63 transformed) |
+| Quality Report | JSON | Validation metrics and summary statistics |
 
 **Local Files:**
 
-- `data/processed/bmf_YYYY_MM_processed.parquet` - Main fact table with all transformed columns
-- `data/quality/bmf_YYYY_MM_quality_report.json` - Validation metrics and summary statistics
+-   `data/intermediate/bmf_YYYY_MM_intermediate.parquet`
+-   `data/quality/bmf_YYYY_MM_quality_report.json`
 
 **S3 Upload (when `ENABLE_S3_UPLOAD = TRUE`):**
 
-- `s3://nccsdata/intermediate/bmf/YYYY_MM/bmf_YYYY_MM_processed.parquet`
-- `s3://nccsdata/intermediate/bmf/YYYY_MM/bmf_YYYY_MM_quality_report.json`
+Uses `upload_bmf_results()` function to upload to the **intermediate** folder:
+
+-   `s3://nccsdata/intermediate/bmf/YYYY_MM/bmf_YYYY_MM_intermediate.parquet`
+-   `s3://nccsdata/intermediate/bmf/YYYY_MM/bmf_YYYY_MM_quality_report.json`
+
+### Phase 11: Processed Output
+
+Creates a **clean** version of the BMF by removing the original IRS columns, keeping only transformed columns. Also generates a data dictionary describing each column.
+
+**Raw Columns Removed (27 total):**
+
+```
+EIN, NAME, ICO, STREET, CITY, STATE, ZIP, GROUP, SUBSECTION,
+AFFILIATION, CLASSIFICATION, RULING, DEDUCTIBILITY, FOUNDATION,
+ACTIVITY, ORGANIZATION, STATUS, TAX_PERIOD, ASSET_CD, INCOME_CD,
+FILING_REQ_CD, PF_FILING_REQ_CD, ASSET_AMT, INCOME_AMT,
+REVENUE_AMT, NTEE_CD, SORT_NAME, ACCT_PD, REGION
+```
+
+**What Gets Saved:**
+
+| File | Format | Contents |
+|------|--------|----------|
+| Processed BMF | CSV | ~63 transformed columns only |
+| Data Dictionary | CSV | Column names, types, descriptions, sample values |
+| Quality Report | JSON | Same report as Phase 10 |
+| Quality Report | HTML | Rendered visualization for GitHub Pages |
+
+**Local Files:**
+
+-   `data/processed/bmf_YYYY_MM_processed.csv`
+-   `data/processed/bmf_YYYY_MM_data_dictionary.csv`
+-   `docs/quality-reports/YYYY_MM.html`
+
+**S3 Upload (when `ENABLE_S3_UPLOAD = TRUE`):**
+
+Uses `upload_processed_bmf()` function to upload to the **processed** folder:
+
+-   `s3://nccsdata/processed/bmf/YYYY_MM/bmf_YYYY_MM_processed.csv`
+-   `s3://nccsdata/processed/bmf/YYYY_MM/bmf_YYYY_MM_data_dictionary.csv`
+-   `s3://nccsdata/processed/bmf/YYYY_MM/bmf_YYYY_MM_quality_report.json`
+
+### Output Comparison
+
+```{mermaid}
+flowchart LR
+    subgraph Phase10["Phase 10: Intermediate"]
+        I1[("Parquet<br/>~90 cols")]
+        I2[("Quality<br/>JSON")]
+    end
+
+    subgraph Phase11["Phase 11: Processed"]
+        P1[("CSV<br/>~63 cols")]
+        P2[("Dictionary<br/>CSV")]
+        P3[("Quality<br/>JSON + HTML")]
+    end
+
+    subgraph S3Int["S3: intermediate/bmf/"]
+        S3I1["bmf_YYYY_MM_intermediate.parquet"]
+        S3I2["bmf_YYYY_MM_quality_report.json"]
+    end
+
+    subgraph S3Proc["S3: processed/bmf/"]
+        S3P1["bmf_YYYY_MM_processed.csv"]
+        S3P2["bmf_YYYY_MM_data_dictionary.csv"]
+        S3P3["bmf_YYYY_MM_quality_report.json"]
+    end
+
+    I1 --> S3I1
+    I2 --> S3I2
+    P1 --> S3P1
+    P2 --> S3P2
+    P3 --> S3P3
+```
+
+**When to Use Each Output:**
+
+| Use Case | Recommended Output |
+|----------|-------------------|
+| Research and analysis | Processed CSV |
+| Debugging transformations | Intermediate Parquet |
+| Auditing data lineage | Intermediate Parquet |
+| Building downstream applications | Processed CSV + Data Dictionary |
+| Investigating quality issues | Quality Report JSON/HTML |
+
 
 ## Checkpoint System
 
@@ -216,7 +309,7 @@ flowchart LR
 ```
 
 | Checkpoint | Location | After Phase |
-|------------|----------|-------------|
+|-------------------------|---------------------|---------------------------|
 | `01_raw` | `data/checkpoints/bmf_YYYY_MM_01_raw.parquet` | Extraction |
 | `02_identity` | `data/checkpoints/bmf_YYYY_MM_02_identity.parquet` | Identity |
 | `03_classification` | `data/checkpoints/bmf_YYYY_MM_03_classification.parquet` | Classification |
@@ -225,20 +318,18 @@ flowchart LR
 | `06_financial` | `data/checkpoints/bmf_YYYY_MM_06_financial.parquet` | Financial |
 | `07_filing` | `data/checkpoints/bmf_YYYY_MM_07_filing.parquet` | Filing |
 
-**Benefits:**
-- Resume from failure without reprocessing
-- Debug specific phases
-- Compare intermediate states
+**Benefits:** - Resume from failure without reprocessing - Debug specific phases - Compare intermediate states
 
 To resume from a checkpoint:
-```r
+
+``` r
 bmf <- load_checkpoint("03_classification")
 # Continue processing from Phase 4
 ```
 
 ## File Organization
 
-```
+```         
 R/
 ├── run_pipeline.R               # ORCHESTRATOR
 ├── config.R                     # S3 configuration and lookups
@@ -255,6 +346,7 @@ R/
 │
 ├── ein.R                        # Phase 3
 ├── organization_name.R          # Phase 3
+├── dba_name.R                   # Phase 3
 ├── ico_name.R                   # Phase 3
 ├── group_exemption_number.R     # Phase 3
 ├── ruling_date.R                # Phase 3
@@ -283,23 +375,26 @@ R/
 
 Key configuration in `R/run_pipeline.R`:
 
-```r
+``` r
 # Pipeline settings (set at top of run_pipeline.R)
 ENABLE_CHECKPOINTS <- TRUE       # Save intermediate results
 CHECKPOINT_DIR <- "data/checkpoints"
 STRICT_QUALITY_GATES <- TRUE     # Stop on validation failure
+ENABLE_S3_UPLOAD <- TRUE 
 
 # Override to process specific month (set before sourcing)
-BMF_YEAR <- NULL   # e.g., 2025
-BMF_MONTH <- NULL  # e.g., 1
+PROCESSING_YEAR <- NULL   # e.g., 2025
+PROCESSING_MONTH <- NULL  # e.g., 1
 ```
 
 S3 configuration in `R/config.R`:
 
-```r
+``` r
 # S3 bucket configuration
 BMF_S3_BUCKET <- "nccsdata"
 BMF_S3_PREFIX <- "raw/bmf/"
+BMF_S3_INTERMEDIATE_PREFIX <- "intermediate/bmf/"
+BMF_S3_PROCESSED_PREFIX <- "processed/bmf/"
 
 # Download functions
 download_bmf_from_s3(bucket, prefix, year, month)

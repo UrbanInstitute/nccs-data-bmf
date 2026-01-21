@@ -41,3 +41,5 @@ BMF_TAX_EXEMPT_PURP.csv
 
 # R Environment Variables
 .Renviron
+
+**/*.quarto_ipynb
