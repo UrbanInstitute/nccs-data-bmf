@@ -23,6 +23,7 @@ data/validate/
 # Output files
 *.csv
 !data/lookup/*.csv
+!data/dictionaries/*.csv
 
 # Temp and misc
 *.png

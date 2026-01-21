@@ -60,12 +60,13 @@ S3 (raw/bmf/YYYY-MM-BMF.csv) → Download → Transform → Validated BMF (parqu
 7. **Financial** - Process asset/income codes and amounts
 8. **Filing** - Transform filing requirement codes
 9. **Post-validation** - Generate quality report with completeness metrics
-10. **Output** - Save parquet and upload to S3
+10. **Intermediate Output** - Save parquet with all columns to intermediate/ folder in S3
+11. **Processed Output** - Save parquet without raw columns to processed/ folder in S3
 
 ### Key Files
 
 **Core Infrastructure:**
-- `R/run_pipeline.R` - Main orchestration (10 phases)
+- `R/run_pipeline.R` - Main orchestration (11 phases)
 - `R/config.R` - S3 configuration, lookup table loading
 - `R/checkpoints.R` - Save/load intermediate states
 - `R/input_validation.R` - Shared validation functions
@@ -120,12 +121,17 @@ Pipeline saves intermediate states for recovery and debugging. Checkpoint number
 ## Output
 
 **Local files:**
-- `data/processed/bmf_YYYY_MM_processed.parquet` - Processed BMF
+- `data/intermediate/bmf_YYYY_MM_intermediate.parquet` - All columns (raw + transformed)
+- `data/processed/bmf_YYYY_MM_processed.parquet` - Transformed columns only
+- `data/processed/bmf_YYYY_MM_data_dictionary.csv` - Column metadata and stats
 - `data/quality/bmf_YYYY_MM_quality_report.json` - Quality metrics
 
 **S3 upload (if enabled):**
-- `intermediate/bmf/YYYY_MM/bmf_YYYY_MM_processed.parquet`
+- `intermediate/bmf/YYYY_MM/bmf_YYYY_MM_intermediate.parquet` - All columns
 - `intermediate/bmf/YYYY_MM/bmf_YYYY_MM_quality_report.json`
+- `processed/bmf/YYYY_MM/bmf_YYYY_MM_processed.parquet` - Transformed only
+- `processed/bmf/YYYY_MM/bmf_YYYY_MM_data_dictionary.csv` - Column metadata
+- `processed/bmf/YYYY_MM/bmf_YYYY_MM_quality_report.json`
 
 ## Key Dependencies
 

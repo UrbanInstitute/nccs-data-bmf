@@ -286,28 +286,82 @@ save_quality_report(
 )
 
 # ============================================================================
-# PHASE 10: OUTPUT
+# PHASE 10: INTERMEDIATE OUTPUT (ALL COLUMNS)
 # ============================================================================
 
-log_phase_start("OUTPUT")
+log_phase_start("INTERMEDIATE OUTPUT")
+
+# Create output directories if needed
+if (!dir.exists("data/intermediate")) {
+  dir.create("data/intermediate", recursive = TRUE)
+}
+
+# Save intermediate BMF (all columns - original + transformed)
+intermediate_path <- sprintf("data/intermediate/bmf_%s_%s_intermediate.parquet", PROCESSING_YEAR, PROCESSING_MONTH)
+arrow::write_parquet(bmf, intermediate_path)
+log_info(sprintf("Intermediate BMF saved: %s", intermediate_path))
+
+# Upload intermediate to S3 if enabled
+if (ENABLE_S3_UPLOAD) {
+  log_info("Uploading intermediate BMF and quality report to S3")
+  quality_report_path <- sprintf("data/quality/bmf_%s_%s_quality_report.json", PROCESSING_YEAR, PROCESSING_MONTH)
+  upload_intermediate_results <- upload_bmf_results(
+    parquet_path = intermediate_path,
+    quality_report_path = quality_report_path,
+    year = PROCESSING_YEAR,
+    month = PROCESSING_MONTH
+  )
+}
+
+# ============================================================================
+# PHASE 11: PROCESSED OUTPUT (TRANSFORMED COLUMNS ONLY)
+# ============================================================================
+
+log_phase_start("PROCESSED OUTPUT")
+
+# Define raw columns to remove (original IRS BMF columns)
+raw_columns_to_remove <- c(
+  "EIN", "NAME", "ICO", "STREET", "CITY", "STATE", "ZIP",
+  "GROUP", "SUBSECTION", "AFFILIATION", "CLASSIFICATION",
+  "RULING", "DEDUCTIBILITY", "FOUNDATION", "ACTIVITY",
+  "ORGANIZATION", "STATUS", "TAX_PERIOD", "ASSET_CD",
+  "INCOME_CD", "FILING_REQ_CD", "PF_FILING_REQ_CD",
+  "ASSET_AMT", "INCOME_AMT", "REVENUE_AMT", "NTEE_CD",
+  "SORT_NAME", "ACCT_PD", "REGION"
+)
+
+# Create processed BMF by removing raw columns
+cols_to_keep <- setdiff(names(bmf), raw_columns_to_remove)
+bmf_processed <- bmf[, ..cols_to_keep]
+
+log_info(sprintf("Processed BMF: removed %d raw columns, keeping %d transformed columns",
+                 length(raw_columns_to_remove), length(cols_to_keep)))
 
 # Create output directory if needed
 if (!dir.exists("data/processed")) {
   dir.create("data/processed", recursive = TRUE)
 }
 
-# Save final processed BMF
-output_path <- sprintf("data/processed/bmf_%s_%s_processed.parquet", PROCESSING_YEAR, PROCESSING_MONTH)
-arrow::write_parquet(bmf, output_path)
-log_info(sprintf("Final BMF saved: %s", output_path))
+# Save processed BMF (transformed columns only)
+processed_path <- sprintf("data/processed/bmf_%s_%s_processed.parquet", PROCESSING_YEAR, PROCESSING_MONTH)
+arrow::write_parquet(bmf_processed, processed_path)
+log_info(sprintf("Processed BMF saved: %s", processed_path))
 
-# Upload to S3 if enabled
+# Generate data dictionary
+log_info("Generating data dictionary")
+data_dictionary <- generate_data_dictionary(bmf_processed)
+dictionary_path <- sprintf("data/processed/bmf_%s_%s_data_dictionary.csv", PROCESSING_YEAR, PROCESSING_MONTH)
+data.table::fwrite(data_dictionary, dictionary_path)
+log_info(sprintf("Data dictionary saved: %s (%d columns)", dictionary_path, nrow(data_dictionary)))
+
+# Upload processed to S3 if enabled
 if (ENABLE_S3_UPLOAD) {
-  log_info("Uploading processed BMF and quality report to S3")
+  log_info("Uploading processed BMF, quality report, and data dictionary to S3")
   quality_report_path <- sprintf("data/quality/bmf_%s_%s_quality_report.json", PROCESSING_YEAR, PROCESSING_MONTH)
-  upload_results <- upload_bmf_results(
-    parquet_path = output_path,
+  upload_processed_results <- upload_processed_bmf(
+    parquet_path = processed_path,
     quality_report_path = quality_report_path,
+    dictionary_path = dictionary_path,
     year = PROCESSING_YEAR,
     month = PROCESSING_MONTH
   )

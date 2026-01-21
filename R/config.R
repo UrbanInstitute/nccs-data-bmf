@@ -5,6 +5,7 @@
 BMF_S3_BUCKET <- "nccsdata"
 BMF_S3_PREFIX <- "raw/bmf/"
 BMF_S3_INTERMEDIATE_PREFIX <- "intermediate/bmf/"
+BMF_S3_PROCESSED_PREFIX <- "processed/bmf/"
 
 # ============================================================================
 # S3 Download Functions
@@ -227,6 +228,112 @@ upload_bmf_results <- function(parquet_path,
   }
 
   return(results)
+}
+
+#' Upload processed BMF results to S3 (processed folder)
+#'
+#' @description
+#' Uploads the processed BMF parquet file (without raw columns), quality report,
+#' and data dictionary to S3. Files are uploaded to processed/bmf/YYYY_MM/ directory.
+#'
+#' @param parquet_path Path to the processed BMF parquet file
+#' @param quality_report_path Path to the quality report JSON file
+#' @param dictionary_path Path to the data dictionary CSV file
+#' @param year Processing year (YYYY)
+#' @param month Processing month (MM)
+#' @param bucket S3 bucket name (default: "nccsdata")
+#'
+#' @return Named list with upload status for each file
+#'
+#' @export
+upload_processed_bmf <- function(parquet_path,
+                                  quality_report_path,
+                                  dictionary_path,
+                                  year,
+                                  month,
+                                  bucket = BMF_S3_BUCKET) {
+
+  # Construct S3 directory path: processed/bmf/YYYY_MM/
+  s3_dir <- sprintf("%s%s_%s/", BMF_S3_PROCESSED_PREFIX, year, month)
+
+  # Construct S3 keys for each file
+  parquet_s3_key <- sprintf("%sbmf_%s_%s_processed.parquet", s3_dir, year, month)
+  quality_s3_key <- sprintf("%sbmf_%s_%s_quality_report.json", s3_dir, year, month)
+  dictionary_s3_key <- sprintf("%sbmf_%s_%s_data_dictionary.csv", s3_dir, year, month)
+
+  message(sprintf("Uploading processed BMF to s3://%s/%s", bucket, s3_dir))
+
+  # Upload parquet file
+  parquet_success <- upload_to_s3(parquet_path, parquet_s3_key, bucket)
+
+  # Upload quality report
+  quality_success <- upload_to_s3(quality_report_path, quality_s3_key, bucket)
+
+  # Upload data dictionary
+  dictionary_success <- upload_to_s3(dictionary_path, dictionary_s3_key, bucket)
+
+  # Return status
+  results <- list(
+    parquet = parquet_success,
+    quality_report = quality_success,
+    data_dictionary = dictionary_success
+  )
+
+  if (all(unlist(results))) {
+    message("Processed files uploaded successfully")
+  } else {
+    message("WARNING: Some uploads failed")
+  }
+
+  return(results)
+}
+
+# ============================================================================
+# Data Dictionary Generation
+# ============================================================================
+
+#' Generate data dictionary for processed BMF
+#'
+#' @description
+#' Creates a data dictionary by combining static column descriptions
+#' with dynamically computed statistics from the data.
+#'
+#' @param dt data.table of processed BMF data
+#' @param descriptions_path Path to static column descriptions CSV
+#'
+#' @return data.table with column_name, description, type, null_count, null_pct, unique_count
+#'
+#' @export
+generate_data_dictionary <- function(dt,
+                                      descriptions_path = here::here("data/dictionaries/column_descriptions.csv")) {
+
+  # Get column names from data
+  col_names <- names(dt)
+
+  # Calculate dynamic stats for each column
+  stats <- data.table::data.table(
+    column_name = col_names,
+    type = sapply(dt, function(x) class(x)[1]),
+    null_count = sapply(dt, function(x) sum(is.na(x))),
+    unique_count = sapply(dt, function(x) data.table::uniqueN(x, na.rm = TRUE))
+  )
+  stats[, null_pct := round(null_count / nrow(dt) * 100, 2)]
+
+  # Load static descriptions if file exists
+  if (file.exists(descriptions_path)) {
+    descriptions <- data.table::fread(descriptions_path)
+    # Merge descriptions with stats (left join to keep all columns)
+    dictionary <- merge(stats, descriptions, by = "column_name", all.x = TRUE)
+  } else {
+    message("WARNING: Column descriptions file not found: ", descriptions_path)
+    dictionary <- stats
+    dictionary[, description := NA_character_]
+  }
+
+  # Reorder columns
+  data.table::setcolorder(dictionary, c("column_name", "description", "type", "null_count", "null_pct", "unique_count"))
+
+  return(dictionary)
 }
 
 # ============================================================================
