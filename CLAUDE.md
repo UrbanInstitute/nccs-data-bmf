@@ -30,6 +30,13 @@ source("R/config.R")
 list_available_bmf_files()
 ```
 
+### Pipeline Configuration
+Control flags in `run_pipeline.R`:
+- `ENABLE_CHECKPOINTS` - Save intermediate states to parquet (default: TRUE)
+- `STRICT_QUALITY_GATES` - Stop on validation failures (default: TRUE)
+- `ENABLE_S3_UPLOAD` - Upload results to S3 (default: TRUE)
+- `CHECKPOINT_DIR` - Directory for checkpoints (default: "data/checkpoints")
+
 ### Build Documentation
 ```bash
 # Generate HTML guidebook from Quarto
@@ -43,12 +50,39 @@ cd docs && quarto render
 S3 (raw/bmf/YYYY-MM-BMF.csv) → Download → Transform → Validated BMF (parquet)
 ```
 
+### Pipeline Phases
+1. **Extraction** - Download BMF from S3
+2. **Pre-validation** - Validate raw structure and required columns
+3. **Identity** - Transform EIN, names, address, ruling date
+4. **Classification** - Join lookup tables for affiliation, deductibility, foundation, organization, status codes
+5. **Activity** - Unpivot activity codes and parse NTEE codes
+6. **Temporal** - Parse tax period and accounting period dates
+7. **Financial** - Process asset/income codes and amounts
+8. **Filing** - Transform filing requirement codes
+9. **Post-validation** - Generate quality report with completeness metrics
+10. **Output** - Save parquet and upload to S3
+
 ### Key Files
-- `R/run_pipeline.R` - Main orchestration script that sequences all transformations (10 phases)
-- `R/config.R` - S3 configuration, download functions, and lookup table initialization
-- `R/checkpoints.R` - Save/load intermediate pipeline states to parquet
-- `R/transform_*.R` and `R/*_code.R` - Individual field transformation functions
-- `R/quality/pre_checks.R` and `R/quality/post_checks.R` - Validation quality gates
+
+**Core Infrastructure:**
+- `R/run_pipeline.R` - Main orchestration (10 phases)
+- `R/config.R` - S3 configuration, lookup table loading
+- `R/checkpoints.R` - Save/load intermediate states
+- `R/input_validation.R` - Shared validation functions
+- `R/utils/logging.R` - Structured logging utilities
+- `R/utils/transform_utils.R` - Reusable transformation helpers
+
+**Quality Gates:**
+- `R/quality/pre_checks.R` - Pre-transformation validation
+- `R/quality/post_checks.R` - Post-transformation quality reporting
+
+**Transforms by Category:**
+- **Identity**: `ein.R`, `organization_name.R`, `dba_name.R`, `ico_name.R`, `address.R`, `ruling_date.R`, `group_exemption_number.R`
+- **Classification**: `affiliation_code.R`, `deductibility_code.R`, `foundation_code.R`, `organization_code.R`, `status_code.R`, `accounting_period.R`, `transform_code.R`, `subsection_classification_codes.R`
+- **Activity**: `activity_code.R`, `transform_ntee_code.R`
+- **Temporal**: `transform_tax_period.R`
+- **Financial**: `financial_codes.R`, `asset_amount.R`
+- **Filing**: `filing_requirement_code.R`
 
 ### Transformation Pattern
 Each transformation function:
@@ -65,6 +99,33 @@ Each transformation function:
 
 ### Dimension Tables
 Multi-valued fields (activity codes, classification codes) create SCD Type 2 dimension tables with EIN as the grain, then aggregate back to main table.
+
+### Checkpoints
+Pipeline saves intermediate states for recovery and debugging. Checkpoint numbers are offset from phase numbers because Phase 1 (extraction) has no checkpoint:
+
+| Checkpoint | Saved After Phase |
+|------------|-------------------|
+| `01_raw` | Phase 2: Pre-transformation validation |
+| `02_identity` | Phase 3: Identity transformations |
+| `03_classification` | Phase 4: Classification transformations |
+| `04_activity` | Phase 5: Activity transformations |
+| `05_temporal` | Phase 6: Temporal transformations |
+| `06_financial` | Phase 7: Financial transformations |
+| `07_filing` | Phase 8: Filing requirement transformations |
+
+**Recovery functions:**
+- `load_checkpoint("02_identity")` - Resume from checkpoint
+- `list_checkpoints()` - View available checkpoints
+
+## Output
+
+**Local files:**
+- `data/processed/bmf_YYYY_MM_processed.parquet` - Processed BMF
+- `data/quality/bmf_YYYY_MM_quality_report.json` - Quality metrics
+
+**S3 upload (if enabled):**
+- `intermediate/bmf/YYYY_MM/bmf_YYYY_MM_processed.parquet`
+- `intermediate/bmf/YYYY_MM/bmf_YYYY_MM_quality_report.json`
 
 ## Key Dependencies
 
