@@ -336,7 +336,7 @@ raw_columns_to_remove <- c(
   "ORGANIZATION", "STATUS", "TAX_PERIOD", "ASSET_CD",
   "INCOME_CD", "FILING_REQ_CD", "PF_FILING_REQ_CD",
   "ASSET_AMT", "INCOME_AMT", "REVENUE_AMT", "NTEE_CD",
-  "SORT_NAME", "ACCT_PD", "REGION"
+  "SORT_NAME", "ACCT_PD", "REGION", "RYEAR", "ID"
 )
 
 # Create processed BMF by removing raw columns
