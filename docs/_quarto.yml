@@ -7,11 +7,11 @@ book:
   output-file: "bmf-pipeline-guide"
   author:
     - "Jesse Lecy"
-    - "Thiya Poongundranar"
+    - "Thiyaghessan"
   date: last-modified
   sidebar:
     style: "docked"
-    background: "#1273A1"
+    background: "#1696d2"
   chapters:
     - index.qmd
     - 01-architecture.qmd
@@ -29,6 +29,20 @@ format:
     css: style.css
     mermaid:
       theme: default
+      themeVariables:
+        primaryColor: "#1696d2"
+        primaryTextColor: "#ffffff"
+        primaryBorderColor: "#0a4c6a"
+        secondaryColor: "#fdbf11"
+        secondaryTextColor: "#000000"
+        secondaryBorderColor: "#d69600"
+        tertiaryColor: "#d2d2d2"
+        tertiaryTextColor: "#353535"
+        tertiaryBorderColor: "#9e9e9e"
+        lineColor: "#696969"
+        textColor: "#353535"
+        fontFamily: "system-ui, -apple-system, sans-serif"
+        fontSize: "14px"
     grid:
       sidebar-width: 225px
       body-width: 900px

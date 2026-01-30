@@ -12,18 +12,49 @@ The BMF is the IRS's comprehensive database of tax-exempt organizations, contain
 
 ```{mermaid}
 flowchart LR
-    A[("S3 Bucket<br/>nccsdata/raw/bmf")] --> B["ETL Pipeline<br/>(R/data.table)"]
-    B --> C[("Processed BMF<br/>Parquet")]
-    B --> D[("Quality Report<br/>JSON")]
-    C --> E[("S3 Bucket<br/>nccsdata/intermediate/bmf")]
+    subgraph input["📥 Input"]
+        A[("🗄️ S3 Bucket<br/>nccsdata/raw/bmf")]
+    end
+
+    subgraph process["⚙️ Processing"]
+        B["🔄 ETL Pipeline<br/>data.table | R"]
+    end
+
+    subgraph intermediate["📦 Intermediate"]
+        C[("Parquet<br/>All Columns")]
+        D[("Quality Report<br/>JSON")]
+    end
+
+    subgraph final["✅ Final Outputs"]
+        F[("Processed BMF<br/>CSV")]
+        G[("Data Dictionary<br/>CSV")]
+        H[("Quality Report<br/>GitHub Pages")]
+    end
+
+    subgraph storage["🗄️ S3 Storage"]
+        E[("nccsdata/<br/>intermediate/bmf")]
+        I[("nccsdata/<br/>processed/bmf")]
+    end
+
+    A --> B
+    B --> C
+    B --> D
+    B --> G
+    C --> E
     D --> E
+    C --> F
+    D --> H
+    F --> I
+    G --> I
 ```
 
 The pipeline:
 
 1.  **Extracts** raw BMF data from S3 bucket (monthly combined CSV)
 2.  **Transforms** 27 raw columns into \~60 standardized, validated columns
-3.  **Loads** processed data as Parquet files for efficient downstream analysis
+3.  **Loads** intermediate data as Parquet files containing all columns for manual inspection
+4.  **Validates** intermediate data sets, producing `.json` and .`html` quality reports
+5.  **Cuts** the ~60 transformed columns into a `.csv` data mart with an accompanying data dictionary
 
 ## Quick Start
 
@@ -40,7 +71,8 @@ install.packages(c(
   "openxlsx",     # Excel lookup files
   "here",         # Path management
   "purrr",        # Functional programming
-  "jsonlite"      # Quality report serialization
+  "jsonlite",     # Quality report serialization
+  "quarto"        # Optional: for rendering HTML quality reports
 ))
 ```
 
@@ -66,7 +98,7 @@ The pipeline will:
 
 -   Download BMF from S3 bucket `nccsdata/raw/bmf/`
 -   Run pre-transformation validation
--   Execute 18 transformation functions across 10 phases
+-   Execute 24 transformation functions across 11 phases
 -   Save checkpoints after each phase (to `data/checkpoints/`)
 -   Generate a quality report
 -   Save intermediate outputs to data/intermediate/ containing all columns
@@ -74,11 +106,25 @@ The pipeline will:
 
 ## Pipeline Outputs
 
+### Intermediate Outputs (`data/intermediate/`)
+
 | Output File | Description | Rows |
 |----------------------------|----------------------------|-----------------|
-| `bmf_YYYY_MM_processed.csv` | Main fact table with all transformed columns | \~1.9M |
-| `bmf_YYYY_MM_quality_report.json` | Quality metrics and validation results | \- |
-| `bmf_YYYY_MM_data_dictionary.csv` | Data dictionary | \- |
+| `bmf_YYYY_MM_intermediate.parquet` | All columns (raw + transformed) for inspection | \~1.9M |
+
+### Processed Outputs (`data/processed/`)
+
+| Output File | Description | Rows |
+|----------------------------|----------------------------|-----------------|
+| `bmf_YYYY_MM_processed.csv` | Transformed columns only (raw columns removed) | \~1.9M |
+| `bmf_YYYY_MM_data_dictionary.csv` | Column metadata and statistics | \- |
+
+### Quality Reports (`data/quality/`)
+
+| Output File | Description |
+|----------------------------|----------------------------|
+| `bmf_YYYY_MM_quality_report.json` | Quality metrics and validation results |
+| `bmf_YYYY_MM_quality_report.html` | Human-readable quality report (published to GitHub Pages) |
 
 Checkpoints are saved to `data/checkpoints/` after each transformation phase.
 
@@ -86,9 +132,9 @@ Checkpoints are saved to `data/checkpoints/` after each transformation phase.
 
 | Chapter | Description |
 |------------------------------|------------------------------------------|
-| [Architecture](01-architecture.qmd) | 10-phase pipeline overview, orchestration, checkpointing |
+| [Architecture](01-architecture.qmd) | 11-phase pipeline overview, orchestration, checkpointing |
 | [Data Lineage](02-data-lineage.qmd) | Column mappings, transformation flows, data dictionary |
-| [Transform Reference](03-transforms-reference.qmd) | All 17 transform functions with inputs/outputs |
+| [Transform Reference](03-transforms-reference.qmd) | All 24 transform functions with inputs/outputs |
 | [Dimension Tables](04-dimension-tables.qmd) | SCD Type 2 patterns, schemas, join examples |
 | [Quality Gates](05-quality-gates.qmd) | Pre/post validation, troubleshooting |
 | [Configuration](06-configuration.qmd) | Config files, lookup tables, dependencies |
@@ -111,11 +157,13 @@ nccs-data-bmf/
 │   ├── input_validation.R         # Shared validation functions
 │   ├── utils/                     # Logging and utilities
 │   ├── quality/                   # Pre/post quality checks
-│   └── [transform files]          # 18 transformation modules
+│   └── [transform files]          # 18 transformation modules (24 functions)
 ├── data/
 │   ├── raw/                       # Downloaded BMF files
 │   ├── lookup/                    # Reference/lookup tables
+│   ├── dictionaries/              # Column descriptions for data dictionary
 │   ├── checkpoints/               # Intermediate saves
+│   ├── intermediate/              # Intermediate parquet outputs
 │   ├── processed/                 # Final output files
 │   └── quality/                   # Quality reports
 └── docs/                          # This guidebook

@@ -2,13 +2,31 @@
    Urban Institute Brand Colors */
 
 :root {
-  --ui-blue: #1273A1;
-  --ui-blue-light: #46B5D1;
-  --text-primary: #333333;
-  --text-secondary: #555555;
+  /* Urban Institute Primary Blue */
+  --ui-blue: #1696d2;
+  --ui-blue-dark: #0a4c6a;
+  --ui-blue-light: #73bfe2;
+  --ui-blue-shade: #cfe8f3;
+
+  /* Accent Colors */
+  --ui-yellow: #fdbf11;
+  --ui-yellow-light: #fdd870;
+  --ui-magenta: #ec008b;
+  --ui-green: #55b748;
+  --ui-red: #db2b27;
+
+  /* Neutrals */
+  --ui-gray-dark: #353535;
+  --ui-gray: #696969;
+  --ui-gray-light: #d2d2d2;
+  --ui-gray-lighter: #f5f5f5;
+
+  /* Text (aliases) */
+  --text-primary: #353535;
+  --text-secondary: #696969;
   --code-bg: #f6f8fa;
   --border-color: #e1e4e8;
-  --sidebar-bg: #1273A1;
+  --sidebar-bg: #1696d2;
   --sidebar-active: #ffffff;
 }
 
@@ -101,10 +119,11 @@ div.sidebar-item-container .sidebar-link > code {
   color: #fff;
 }
 
-/* Code Blocks - GitHub-style */
+/* Code Blocks - GitHub-style with blue accent */
 div.sourceCode {
   background-color: var(--code-bg);
   border: 1px solid var(--border-color);
+  border-left: 3px solid var(--ui-blue);
   border-radius: 6px;
 }
 
@@ -140,7 +159,8 @@ p code, li code {
 
 .table th {
   padding: 0.5rem 0.75rem;
-  background-color: var(--code-bg);
+  background-color: var(--ui-blue-shade);
+  border-bottom: 2px solid var(--ui-blue);
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -168,9 +188,58 @@ a:hover {
   text-decoration: underline;
 }
 
-/* Callout boxes */
+/* Callout boxes - color-coded by type */
 .callout {
   border-radius: 6px;
+  border-left-width: 4px;
+}
+
+.callout-note {
+  border-left-color: var(--ui-blue);
+}
+
+.callout-note .callout-icon::before {
+  color: var(--ui-blue);
+}
+
+.callout-warning {
+  border-left-color: var(--ui-yellow);
+}
+
+.callout-warning .callout-icon::before {
+  color: var(--ui-yellow);
+}
+
+.callout-tip {
+  border-left-color: var(--ui-green);
+}
+
+.callout-tip .callout-icon::before {
+  color: var(--ui-green);
+}
+
+.callout-caution {
+  border-left-color: var(--ui-red);
+}
+
+.callout-caution .callout-icon::before {
+  color: var(--ui-red);
+}
+
+.callout-important {
+  border-left-color: var(--ui-magenta);
+}
+
+.callout-important .callout-icon::before {
+  color: var(--ui-magenta);
+}
+
+/* Blockquotes */
+blockquote {
+  border-left: 4px solid var(--ui-blue-light);
+  padding-left: 1rem;
+  margin-left: 0;
+  color: var(--text-secondary);
 }
 
 /* Mermaid diagrams */
