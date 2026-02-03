@@ -9,76 +9,40 @@ The BMF processing pipeline is organized into **11 sequential phases**, each wit
 ## 11-Phase Pipeline
 
 ```{mermaid}
-%%| fig-width: 8
+%%| fig-width: 10
+%%| fig-height: 8
 flowchart TB
-    subgraph Phase1["Phase 1: Extraction"]
-        A1[Download from S3] --> A2[Parse Year/Month]
-        A2 --> A3[Save Raw Local Copy]
+    classDef node fill:#d2d2d2,stroke:#333,color:#000
+
+    subgraph Acquisition[Data Acquisition]
+        P1["(1) Extraction"]
+        P2["(2) Pre-Validation"]
+        P1 --> P2
     end
 
-    subgraph Phase2["Phase 2: Pre-Validation"]
-        B1[Validate Column Structure] --> B2[Check Row Count]
-        B2 --> B3[Detect Duplicates]
+    subgraph Transformation[Data Transformation]
+        P3["(3) Identity"]
+        P4["(4) Classification"]
+        P5["(5) Activity"]
+        P6["(6) Temporal"]
+        P7["(7) Financial"]
+        P8["(8) Filing"]
+        P3 --> P4 --> P5 --> P6 --> P7 --> P8
     end
 
-    subgraph Phase3["Phase 3: Identity"]
-        C1[EIN] --> C2[Organization Name]
-        C2 --> C3[DBA Name]
-        C3 --> C4[ICO Name]
-        C4 --> C5[Group Exemption]
-        C5 --> C6[Ruling Date]
-        C6 --> C7[Address]
+    subgraph Output[Data Output]
+        P9["(9) Post-Validation"]
+        P10["(10) Intermediate"]
+        P11["(11) Processed"]
+        P9 --> P10 --> P11
     end
 
-    subgraph Phase4["Phase 4: Classification"]
-        D1[Subsection/Classification] --> D2[Affiliation]
-        D2 --> D3[Deductibility]
-        D3 --> D4[Foundation]
-        D4 --> D5[Organization]
-        D5 --> D6[Status]
-    end
+    Acquisition --> Transformation
+    Transformation --> Output
 
-    subgraph Phase5["Phase 5: Activity"]
-        E1[Activity Codes] --> E2[NTEE Codes]
-    end
-
-    subgraph Phase6["Phase 6: Temporal"]
-        F1[Tax Period] --> F2[Accounting Period]
-    end
-
-    subgraph Phase7["Phase 7: Financial"]
-        G1[Asset Code] --> G2[Income Code]
-        G2 --> G3[Asset Amount]
-        G3 --> G4[Income Amount]
-        G4 --> G5[Revenue Amount]
-    end
-
-    subgraph Phase8["Phase 8: Filing"]
-        H1[Filing Requirement] --> H2[PF Filing Requirement]
-    end
-
-    subgraph Phase9["Phase 9: Post-Validation"]
-        I1[Quality Metrics] --> I2[Generate Report]
-    end
-
-    subgraph Phase10["Phase 10: Intermediate Output"]
-        J1[Save Intermediate BMF] --> J2[Upload to S3]
-    end
-
-    subgraph Phase11["Phase 11: Processed Output"]
-        K1[Save Processed BMF] --> K2[Data Dictionary] --> K3[Upload to S3]
-    end
-
-    Phase1 --> Phase2
-    Phase2 --> Phase3
-    Phase3 --> Phase4
-    Phase4 --> Phase5
-    Phase5 --> Phase6
-    Phase6 --> Phase7
-    Phase7 --> Phase8
-    Phase8 --> Phase9
-    Phase9 --> Phase10
-    Phase10 --> Phase11
+    style Acquisition fill:#fff9e6,stroke:#fdbf11
+    style Transformation fill:#fee39b,stroke:#fdbf11
+    style Output fill:#fdbf11,stroke:#d19c0f
 ```
 
 ## Phase Details
@@ -106,7 +70,6 @@ list_available_bmf_files()
 Validates the raw data before any transformations:
 
 -   **Column Check**: Ensures all 31 required columns exist
--   **Row Count**: Verifies \~1.9M rows (within 5% tolerance)
 -   **Duplicate Detection**: Counts duplicate EINs
 -   **NULL Inventory**: Reports NULL counts per column
 
@@ -141,12 +104,11 @@ Adds IRS classification codes with human-readable definitions:
 
 ### Phase 5: Activity Transformations
 
-Creates dimension tables for multi-valued activity fields. These are temporary tables used for internal joins, since each activity code references multiple activities.
+Transforms multi-valued activity fields. Internally creates dimension tables for joins, since each activity code references multiple activities.
 
 | Transform | Pattern | Outputs |
 |---------------------------|-----------------------|-----------------------|
-| `create_activity_code_dim_table()` | SCD Type 2 | `dim_activity_2025.parquet` |
-| `transform_activity_code()` | Aggregate | `activity_code_definitions`, `activity_code_categories` |
+| `transform_bmf_activity_code()` | Dimension table + Aggregate | `activity_code`, `activity_code_definitions`, `activity_code_categories` |
 | `transform_ntee_code()` | Complex | `ntee_code`, `ntee_code_definition`, `ntee_code_major_group`, `naics_code`, `nteev2_code`, etc. |
 
 ### Phase 6: Temporal Transformations
@@ -155,8 +117,8 @@ Parses date and period fields:
 
 | Transform | Input | Outputs |
 |-----------------------------|-------------------|------------------------|
-| `transform_tax_period()` | TAX_PERIOD | `tax_period_ymd`, `tax_period_is_missing` |
-| `transform_accounting_period()` | ACCT_PD | `accounting_period_code`, `accounting_period_definition` |
+| `transform_tax_period()` | TAX_PERIOD | `tax_period_ym_str`, `tax_period_ymd`, `tax_period_is_missing` |
+| `transform_accounting_period()` | ACCT_PD | `accounting_period` |
 
 ### Phase 7: Financial Transformations
 
@@ -176,8 +138,8 @@ Adds filing requirement classifications:
 
 | Transform | Input | Outputs |
 |-----------------------------|-------------------|------------------------|
-| `transform_code()` | FILING_REQ_CD | `filing_requirement_code`, `filing_requirement_code_definition` |
-| `transform_code()` | PF_FILING_REQ_CD | `pf_filing_requirement_code`, `pf_filing_requirement_code_definition` |
+| `transform_bmf_filing_requirement_code()` | FILING_REQ_CD | `filing_requirement_code`, `filing_requirement_code_definition` |
+| `transform_bmf_pf_filing_requirement_code()` | PF_FILING_REQ_CD | `pf_filing_requirement_code`, `pf_filing_requirement_code_definition` |
 
 ### Phase 9: Post-Transformation Validation
 
@@ -185,7 +147,7 @@ Generates a comprehensive quality report:
 
 -   Row preservation check (input rows = output rows)
 -   Completeness rates for all columns
--   Critical field validation (EIN, subsection_code)
+-   Critical field validation (EIN)
 -   Summary statistics
 
 ### Phase 10: Intermediate Output
@@ -215,14 +177,14 @@ Uses `upload_bmf_results()` function to upload to the **intermediate** folder:
 
 Creates a **clean** version of the BMF by removing the original IRS columns, keeping only transformed columns. Also generates a data dictionary describing each column.
 
-**Raw Columns Removed (27 total):**
+**Raw Columns Removed (31 total):**
 
 ```
 EIN, NAME, ICO, STREET, CITY, STATE, ZIP, GROUP, SUBSECTION,
 AFFILIATION, CLASSIFICATION, RULING, DEDUCTIBILITY, FOUNDATION,
 ACTIVITY, ORGANIZATION, STATUS, TAX_PERIOD, ASSET_CD, INCOME_CD,
 FILING_REQ_CD, PF_FILING_REQ_CD, ASSET_AMT, INCOME_AMT,
-REVENUE_AMT, NTEE_CD, SORT_NAME, ACCT_PD, REGION
+REVENUE_AMT, NTEE_CD, SORT_NAME, ACCT_PD, REGION, RYEAR, ID
 ```
 
 **What Gets Saved:**
@@ -238,7 +200,7 @@ REVENUE_AMT, NTEE_CD, SORT_NAME, ACCT_PD, REGION
 
 -   `data/processed/bmf_YYYY_MM_processed.csv`
 -   `data/processed/bmf_YYYY_MM_data_dictionary.csv`
--   `docs/quality-reports/YYYY_MM.html`
+-   `docs/quality-reports/bmf_YYYY_MM_quality_report.html`
 
 **S3 Upload (when `ENABLE_S3_UPLOAD = TRUE`):**
 
@@ -251,27 +213,31 @@ Uses `upload_processed_bmf()` function to upload to the **processed** folder:
 ### Output Comparison
 
 ```{mermaid}
+%%| fig-width: 10
+%%| fig-height: 6
 flowchart LR
-    subgraph Phase10["Phase 10: Intermediate"]
-        I1[("Parquet<br/>~90 cols")]
-        I2[("Quality<br/>JSON")]
+    classDef node fill:#d2d2d2,stroke:#333,color:#000
+
+    subgraph Phase10[Phase 10: Intermediate]
+        I1[(Parquet)]
+        I2[(Quality JSON)]
     end
 
-    subgraph Phase11["Phase 11: Processed"]
-        P1[("CSV<br/>~63 cols")]
-        P2[("Dictionary<br/>CSV")]
-        P3[("Quality<br/>JSON + HTML")]
+    subgraph Phase11[Phase 11: Processed]
+        P1[(CSV)]
+        P2[(Dictionary)]
+        P3[(Quality JSON + HTML)]
     end
 
-    subgraph S3Int["S3: intermediate/bmf/"]
-        S3I1["bmf_YYYY_MM_intermediate.parquet"]
-        S3I2["bmf_YYYY_MM_quality_report.json"]
+    subgraph S3Int[S3: intermediate/bmf/]
+        S3I1["intermediate.parquet"]
+        S3I2["quality_report.json"]
     end
 
-    subgraph S3Proc["S3: processed/bmf/"]
-        S3P1["bmf_YYYY_MM_processed.csv"]
-        S3P2["bmf_YYYY_MM_data_dictionary.csv"]
-        S3P3["bmf_YYYY_MM_quality_report.json"]
+    subgraph S3Proc[S3: processed/bmf/]
+        S3P1["processed.csv"]
+        S3P2["data_dictionary.csv"]
+        S3P3["quality_report.json"]
     end
 
     I1 --> S3I1
@@ -279,6 +245,11 @@ flowchart LR
     P1 --> S3P1
     P2 --> S3P2
     P3 --> S3P3
+
+    style Phase10 fill:#fee39b,stroke:#fdbf11
+    style Phase11 fill:#fee39b,stroke:#fdbf11
+    style S3Int fill:#fdbf11,stroke:#d19c0f
+    style S3Proc fill:#fdbf11,stroke:#d19c0f
 ```
 
 **When to Use Each Output:**
@@ -297,8 +268,12 @@ flowchart LR
 The pipeline saves intermediate results as Parquet files after each major phase:
 
 ```{mermaid}
+%%| fig-width: 10
+%%| fig-height: 3
 flowchart LR
-    subgraph Checkpoints
+    classDef node fill:#d2d2d2,stroke:#333,color:#000
+
+    subgraph Checkpoints[Checkpoints]
         CP1[01_raw] --> CP2[02_identity]
         CP2 --> CP3[03_classification]
         CP3 --> CP4[04_activity]
@@ -306,11 +281,13 @@ flowchart LR
         CP5 --> CP6[06_financial]
         CP6 --> CP7[07_filing]
     end
+
+    style Checkpoints fill:#fee39b,stroke:#fdbf11
 ```
 
 | Checkpoint | Location | After Phase |
 |-------------------------|---------------------|---------------------------|
-| `01_raw` | `data/checkpoints/bmf_YYYY_MM_01_raw.parquet` | Extraction |
+| `01_raw` | `data/checkpoints/bmf_YYYY_MM_01_raw.parquet` | Pre-Validation |
 | `02_identity` | `data/checkpoints/bmf_YYYY_MM_02_identity.parquet` | Identity |
 | `03_classification` | `data/checkpoints/bmf_YYYY_MM_03_classification.parquet` | Classification |
 | `04_activity` | `data/checkpoints/bmf_YYYY_MM_04_activity.parquet` | Activity |
@@ -380,11 +357,32 @@ Key configuration in `R/run_pipeline.R`:
 ENABLE_CHECKPOINTS <- TRUE       # Save intermediate results
 CHECKPOINT_DIR <- "data/checkpoints"
 STRICT_QUALITY_GATES <- TRUE     # Stop on validation failure
-ENABLE_S3_UPLOAD <- TRUE 
+ENABLE_S3_UPLOAD <- TRUE
 
-# Override to process specific month (set before sourcing)
-PROCESSING_YEAR <- NULL   # e.g., 2025
-PROCESSING_MONTH <- NULL  # e.g., 1
+# User input: set before sourcing to download a specific BMF file
+BMF_YEAR <- NULL    # e.g., 2025 (NULL = most recent)
+BMF_MONTH <- NULL   # e.g., 1 (NULL = most recent)
+
+# Pipeline-derived: extracted from downloaded file, used for output naming
+PROCESSING_YEAR <- NULL
+PROCESSING_MONTH <- NULL
+```
+
+**Year/Month Variables:**
+
+| Variable | Set By | Purpose |
+|----------|--------|---------|
+| `BMF_YEAR` | User (optional) | Request specific BMF file to download. If `NULL`, downloads most recent. |
+| `BMF_MONTH` | User (optional) | Request specific BMF file to download. If `NULL`, downloads most recent. |
+| `PROCESSING_YEAR` | Pipeline | Extracted from downloaded file; used to name output files. |
+| `PROCESSING_MONTH` | Pipeline | Extracted from downloaded file; used to name output files. |
+
+To process a specific month, set `BMF_YEAR` and `BMF_MONTH` before sourcing:
+
+``` r
+BMF_YEAR <- 2025
+BMF_MONTH <- 1
+source("R/run_pipeline.R")
 ```
 
 S3 configuration in `R/config.R`:

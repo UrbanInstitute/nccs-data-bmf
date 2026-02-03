@@ -205,7 +205,7 @@ upload_bmf_results <- function(parquet_path,
   s3_dir <- sprintf("%s%s_%s/", BMF_S3_INTERMEDIATE_PREFIX, year, month)
 
   # Construct S3 keys for each file
-  parquet_s3_key <- sprintf("%sbmf_%s_%s_processed.parquet", s3_dir, year, month)
+  parquet_s3_key <- sprintf("%sbmf_%s_%s_intermediate.parquet", s3_dir, year, month)
   quality_s3_key <- sprintf("%sbmf_%s_%s_quality_report.json", s3_dir, year, month)
 
   message(sprintf("Uploading BMF results to s3://%s/%s", bucket, s3_dir))
