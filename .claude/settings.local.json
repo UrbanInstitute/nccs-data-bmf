@@ -9,7 +9,10 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(head:*)",
-      "Bash(quarto render:*)"
+      "Bash(quarto render:*)",
+      "WebSearch",
+      "Bash(numeric\" to \"numeric)",
+      "Bash(numeric\" for amount validation\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }
