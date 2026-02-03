@@ -118,8 +118,8 @@ flowchart LR
 The CLASSIFICATION field contains up to 4 single-digit codes. These are unpivoted into an internal dimension table, joined with lookups, then aggregated back to the main table.
 
 ```{mermaid}
-%%| fig-width: 12
-%%| fig-height: 8
+%%| fig-width: 14
+%%| fig-height: 10
 flowchart TB
     classDef node fill:#d2d2d2,stroke:#333,color:#000
 
@@ -186,8 +186,8 @@ flowchart TB
 The ACTIVITY field contains 9 characters (3 activity codes × 3 chars each). These are unpivoted into an internal dimension table, joined with lookups, then aggregated back to the main table as semicolon-separated strings.
 
 ```{mermaid}
-%%| fig-width: 10
-%%| fig-height: 8
+%%| fig-width: 14
+%%| fig-height: 10
 flowchart TB
     classDef node fill:#d2d2d2,stroke:#333,color:#000
 
