@@ -10,13 +10,16 @@ This chapter traces data from raw IRS columns through transformations to final o
 
 ```{mermaid}
 %%| fig-width: 10
+%%| fig-height: 8
 flowchart TB
-    subgraph Sources["Data Sources"]
-        IRS[("IRS BMF<br/>27 Columns")]
-        LOOKUP[("Lookup Tables<br/>CSV/XLSX")]
+    classDef node fill:#d2d2d2,stroke:#333,color:#000
+
+    subgraph Sources[Data Sources]
+        IRS[(IRS BMF)]
+        LOOKUP[(Lookup Tables)]
     end
 
-    subgraph Transform["Transformation Layer"]
+    subgraph Transform[Transformation Layer]
         T1[Identity Transforms]
         T2[Classification Transforms]
         T3[Activity Transforms]
@@ -25,9 +28,9 @@ flowchart TB
         T6[Filing Transforms]
     end
 
-    subgraph Outputs["Outputs"]
-        FACT[("Fact Table<br/>~60 Columns")]
-        QUALITY[("Quality Report<br/>JSON")]
+    subgraph Outputs[Outputs]
+        FACT[(Fact Table)]
+        QUALITY[(Quality Report)]
     end
 
     IRS --> T1
@@ -49,6 +52,10 @@ flowchart TB
     T5 --> FACT
     T6 --> FACT
     FACT --> QUALITY
+
+    style Sources fill:#fff9e6,stroke:#fdbf11
+    style Transform fill:#fee39b,stroke:#fdbf11
+    style Outputs fill:#fdbf11,stroke:#d19c0f
 ```
 
 ## Source-to-Target Column Mapping
@@ -56,8 +63,12 @@ flowchart TB
 ### Identity Fields
 
 ```{mermaid}
+%%| fig-width: 10
+%%| fig-height: 6
 flowchart LR
-    subgraph Raw["Raw IRS Columns"]
+    classDef node fill:#d2d2d2,stroke:#333,color:#000
+
+    subgraph Raw[Raw IRS Columns]
         EIN_R[EIN]
         NAME_R[NAME]
         SORT_R[SORT_NAME]
@@ -66,7 +77,7 @@ flowchart LR
         RULING_R[RULING]
     end
 
-    subgraph Output["Output Columns"]
+    subgraph Output[Output Columns]
         ein[ein]
         ein_raw[ein_raw]
         org_name[org_name_display]
@@ -97,13 +108,22 @@ flowchart LR
     GROUP_R --> gen_flag
     RULING_R --> ruling
     RULING_R --> ruling_flag
+
+    style Raw fill:#fff9e6,stroke:#fdbf11
+    style Output fill:#fdbf11,stroke:#d19c0f
 ```
 
 ### Classification Fields
 
+The CLASSIFICATION field contains up to 4 single-digit codes. These are unpivoted into an internal dimension table, joined with lookups, then aggregated back to the main table.
+
 ```{mermaid}
-flowchart LR
-    subgraph Raw["Raw IRS Columns"]
+%%| fig-width: 12
+%%| fig-height: 8
+flowchart TB
+    classDef node fill:#d2d2d2,stroke:#333,color:#000
+
+    subgraph Raw[Raw IRS Columns]
         SUB[SUBSECTION]
         CLASS[CLASSIFICATION]
         AFF[AFFILIATION]
@@ -113,7 +133,11 @@ flowchart LR
         STAT[STATUS]
     end
 
-    subgraph Lookup["Lookup Tables"]
+    subgraph Process[Processing]
+        SPLIT[Split into up to 4 codes]
+    end
+
+    subgraph Lookup[Lookup Tables]
         L1[(classification_subsection)]
         L2[(affiliation_code)]
         L3[(deductibility_code)]
@@ -122,7 +146,11 @@ flowchart LR
         L6[(status_code)]
     end
 
-    subgraph Output["Output Columns"]
+    subgraph DIM[Internal Dimension Table]
+        DIM_CL[dim_classification]
+    end
+
+    subgraph Output[Output Columns]
         sub_code[subsection_code]
         class_code[classification_code]
         org_type[exempt_organization_type]
@@ -134,46 +162,58 @@ flowchart LR
         stat_code[status_code + _definition]
     end
 
-    SUB --> L1
-    CLASS --> L1
-    L1 --> sub_code
-    L1 --> class_code
-    L1 --> org_type
-    L1 --> all_class
+    SUB --> L1 --> sub_code
+    SUB --> L1 --> org_type
+    CLASS --> SPLIT --> L1 --> DIM_CL
+    DIM_CL --> class_code
+    DIM_CL --> all_class
 
     AFF --> L2 --> aff_code
     DED --> L3 --> ded_code
     FND --> L4 --> fnd_code
     ORG --> L5 --> org_code
     STAT --> L6 --> stat_code
+
+    style Raw fill:#fff9e6,stroke:#fdbf11
+    style Process fill:#fee39b,stroke:#fdbf11
+    style Lookup fill:#fee39b,stroke:#fdbf11
+    style DIM fill:#fee39b,stroke:#fdbf11
+    style Output fill:#fdbf11,stroke:#d19c0f
 ```
 
 ### Activity and NTEE Fields
 
+The ACTIVITY field contains 9 characters (3 activity codes × 3 chars each). These are unpivoted into an internal dimension table, joined with lookups, then aggregated back to the main table as semicolon-separated strings.
+
 ```{mermaid}
+%%| fig-width: 10
+%%| fig-height: 8
 flowchart TB
-    subgraph Raw["Raw IRS Columns"]
-        ACT["ACTIVITY<br/>(9 chars)"]
-        NTEE["NTEE_CD<br/>(3-4 chars)"]
+    classDef node fill:#d2d2d2,stroke:#333,color:#000
+
+    subgraph Raw[Raw IRS Columns]
+        ACT[ACTIVITY]
+        NTEE[NTEE_CD]
     end
 
-    subgraph Process["Processing"]
-        SPLIT1["Split into 3<br/>activity codes"]
-        NORM["Normalize &<br/>validate"]
+    subgraph Process[Processing]
+        SPLIT1[Split into 3 codes]
+        NORM[Normalize and validate]
     end
 
-    subgraph Lookup["Lookup Tables"]
+    subgraph Lookup[Lookup Tables]
         L1[(activity_code)]
         L2[(ntee_code)]
         L3[(ntee_major_group)]
         L4[(ntee_activity_type)]
     end
 
-    subgraph DIM["Dimension Tables"]
+    subgraph DIM[Internal Dimension Table]
         DIM_ACT[dim_activity]
     end
 
-    subgraph Output["Output Columns"]
+    subgraph Output[Output Columns]
+        act_code[activity_code]
         act_def[activity_code_definitions]
         act_cat[activity_code_categories]
         ntee_clean[ntee_code]
@@ -186,6 +226,7 @@ flowchart TB
     ACT --> SPLIT1
     SPLIT1 --> L1
     L1 --> DIM_ACT
+    DIM_ACT --> act_code
     DIM_ACT --> act_def
     DIM_ACT --> act_cat
 
@@ -195,11 +236,186 @@ flowchart TB
     NORM --> L3 --> ntee_major
     NORM --> L4 --> naics
     NORM --> L4 --> nteev2
+
+    style Raw fill:#fff9e6,stroke:#fdbf11
+    style Process fill:#fee39b,stroke:#fdbf11
+    style Lookup fill:#fee39b,stroke:#fdbf11
+    style DIM fill:#fee39b,stroke:#fdbf11
+    style Output fill:#fdbf11,stroke:#d19c0f
+```
+
+### Address Fields
+
+```{mermaid}
+%%| fig-width: 10
+%%| fig-height: 6
+flowchart LR
+    classDef node fill:#d2d2d2,stroke:#333,color:#000
+
+    subgraph Raw[Raw IRS Columns]
+        STREET[STREET]
+        CITY[CITY]
+        STATE[STATE]
+        ZIP[ZIP]
+    end
+
+    subgraph Output[Output Columns]
+        street_raw[org_addr_street_raw]
+        street[org_addr_street]
+        city_raw[org_addr_city_raw]
+        city[org_addr_city]
+        state_raw[org_addr_state_raw]
+        state[org_addr_state]
+        zip_raw[org_addr_zip_raw]
+        zip5[org_addr_zip5]
+        zip4[org_addr_zip4]
+        zip[org_addr_zip]
+        full[org_addr_full]
+    end
+
+    subgraph Flags[Quality Flags]
+        missing[org_addr_is_missing]
+        po_box[org_addr_is_po_box]
+        rural[org_addr_is_rural_route]
+        special[org_addr_has_special_chars]
+        no_num[org_addr_missing_number]
+        invalid[org_addr_state_invalid]
+    end
+
+    STREET --> street_raw
+    STREET --> street
+    STREET --> po_box
+    STREET --> rural
+    STREET --> special
+    STREET --> no_num
+    CITY --> city_raw
+    CITY --> city
+    STATE --> state_raw
+    STATE --> state
+    STATE --> invalid
+    ZIP --> zip_raw
+    ZIP --> zip5
+    ZIP --> zip4
+    ZIP --> zip
+    STREET & CITY & STATE & ZIP --> full
+    STREET & CITY & STATE & ZIP --> missing
+
+    style Raw fill:#fff9e6,stroke:#fdbf11
+    style Output fill:#fee39b,stroke:#fdbf11
+    style Flags fill:#fdbf11,stroke:#d19c0f
+```
+
+### Temporal Fields
+
+```{mermaid}
+%%| fig-width: 10
+%%| fig-height: 5
+flowchart LR
+    classDef node fill:#d2d2d2,stroke:#333,color:#000
+
+    subgraph Raw[Raw IRS Columns]
+        TAX[TAX_PERIOD]
+        ACCT[ACCT_PD]
+    end
+
+    subgraph Output[Output Columns]
+        tax_str[tax_period_ym_str]
+        tax_ymd[tax_period_ymd]
+        tax_miss[tax_period_is_missing]
+        acct[accounting_period]
+    end
+
+    TAX --> tax_str
+    TAX --> tax_ymd
+    TAX --> tax_miss
+    ACCT --> acct
+
+    style Raw fill:#fff9e6,stroke:#fdbf11
+    style Output fill:#fdbf11,stroke:#d19c0f
+```
+
+### Financial Fields
+
+```{mermaid}
+%%| fig-width: 10
+%%| fig-height: 6
+flowchart LR
+    classDef node fill:#d2d2d2,stroke:#333,color:#000
+
+    subgraph Raw[Raw IRS Columns]
+        ASSET_CD[ASSET_CD]
+        INCOME_CD[INCOME_CD]
+        ASSET_AMT[ASSET_AMT]
+        INCOME_AMT[INCOME_AMT]
+        REVENUE_AMT[REVENUE_AMT]
+    end
+
+    subgraph Lookup[Lookup Tables]
+        L1[(asset_code)]
+        L2[(income_code)]
+    end
+
+    subgraph Output[Output Columns]
+        asset_code[asset_code]
+        asset_def[asset_code_definition]
+        income_code[income_code]
+        income_def[income_code_definition]
+        asset_amt[asset_amount]
+        income_amt[income_amount]
+        revenue_amt[revenue_amount]
+    end
+
+    ASSET_CD --> L1 --> asset_code
+    ASSET_CD --> L1 --> asset_def
+    INCOME_CD --> L2 --> income_code
+    INCOME_CD --> L2 --> income_def
+    ASSET_AMT --> asset_amt
+    INCOME_AMT --> income_amt
+    REVENUE_AMT --> revenue_amt
+
+    style Raw fill:#fff9e6,stroke:#fdbf11
+    style Lookup fill:#fee39b,stroke:#fdbf11
+    style Output fill:#fdbf11,stroke:#d19c0f
+```
+
+### Filing Fields
+
+```{mermaid}
+%%| fig-width: 10
+%%| fig-height: 5
+flowchart LR
+    classDef node fill:#d2d2d2,stroke:#333,color:#000
+
+    subgraph Raw[Raw IRS Columns]
+        FILING[FILING_REQ_CD]
+        PF_FILING[PF_FILING_REQ_CD]
+    end
+
+    subgraph Lookup[Lookup Tables]
+        L1[(filing_requirement_code)]
+        L2[(pf_filing_requirement_code)]
+    end
+
+    subgraph Output[Output Columns]
+        filing_code[filing_requirement_code]
+        filing_def[filing_requirement_code_definition]
+        pf_code[pf_filing_requirement_code]
+        pf_def[pf_filing_requirement_code_definition]
+    end
+
+    FILING --> L1 --> filing_code
+    FILING --> L1 --> filing_def
+    PF_FILING --> L2 --> pf_code
+    PF_FILING --> L2 --> pf_def
+
+    style Raw fill:#fff9e6,stroke:#fdbf11
+    style Lookup fill:#fee39b,stroke:#fdbf11
+    style Output fill:#fdbf11,stroke:#d19c0f
 ```
 
 ## Complete Column Lineage Matrix
 
-### Raw IRS Columns (27 columns)
+### Raw IRS Columns (31 columns)
 
 | Raw Column | Data Type | Transform | Output Column(s) |
 |------------|-----------|-----------|------------------|
@@ -218,19 +434,19 @@ flowchart TB
 | RULING | int(6) | `transform_ruling_date()` | `ruling_date_ym_str`, `ruling_date`, `ruling_date_is_missing` |
 | DEDUCTIBILITY | int | `transform_deductibility_code()` | `deductibility_code`, `deductibility_code_definition` |
 | FOUNDATION | int | `transform_foundation_code()` | `foundation_code`, `foundation_code_definition` |
-| ACTIVITY | int(9) | `create_activity_code_dim_table()` | `activity_code_definitions`, `activity_code_categories` |
+| ACTIVITY | int(9) | `transform_bmf_activity_code()` | `activity_code`, `activity_code_definitions`, `activity_code_categories` |
 | ORGANIZATION | int | `transform_organization_code()` | `organization_code`, `organization_code_definition` |
 | STATUS | int | `transform_status_code()` | `status_code`, `status_code_definition` |
-| TAX_PERIOD | int(6) | `transform_tax_period()` | `tax_period_ymd`, `tax_period_is_missing` |
+| TAX_PERIOD | int(6) | `transform_tax_period()` | `tax_period_ym_str`, `tax_period_ymd`, `tax_period_is_missing` |
 | ASSET_CD | int | `transform_asset_code()` | `asset_code`, `asset_code_definition` |
 | INCOME_CD | int | `transform_income_code()` | `income_code`, `income_code_definition` |
-| FILING_REQ_CD | int | `transform_code()` | `filing_requirement_code`, `filing_requirement_code_definition` |
-| PF_FILING_REQ_CD | int | `transform_code()` | `pf_filing_requirement_code`, `pf_filing_requirement_code_definition` |
-| ACCT_PD | int | `transform_accounting_period()` | `accounting_period_code`, `accounting_period_definition` |
+| FILING_REQ_CD | int | `transform_bmf_filing_requirement_code()` | `filing_requirement_code`, `filing_requirement_code_definition` |
+| PF_FILING_REQ_CD | int | `transform_bmf_pf_filing_requirement_code()` | `pf_filing_requirement_code`, `pf_filing_requirement_code_definition` |
+| ACCT_PD | int | `transform_accounting_period()` | `accounting_period` |
 | ASSET_AMT | numeric | `transform_asset_amount()` | `asset_amount` |
 | INCOME_AMT | numeric | `transform_income_amount()` | `income_amount` |
 | REVENUE_AMT | numeric | `transform_revenue_amount()` | `revenue_amount` |
-| NTEE_CD | char(4) | `transform_ntee_code()` | `ntee_code`, `ntee_code_definition`, `ntee_code_major_group`, `naics_code`, `nteev2_code`, `nteev2_subsector`, `nteev2_org_type` |
+| NTEE_CD | char(4) | `transform_ntee_code()` | `ntee_code_raw`, `ntee_code_clean`, `ntee_code_definition`, `ntee_code_major_group`, `ntee_common_code`, `ntee_common_code_definition`, `naics_code`, `nteev2`, `nteev2_code`, `nteev2_subsector`, `nteev2_org_type` |
 | SORT_NAME | char | `transform_dba_name()` | `dba_name_raw`, `dba_name` |
 
 ### Output Columns by Category
@@ -302,10 +518,14 @@ flowchart TB
 | `activity_code` | char | ACTIVITY | Three 3-digit activity codes concatenated (9 characters total) |
 | `activity_code_definitions` | char | ACTIVITY + lookup | Semicolon-separated descriptions of activity codes |
 | `activity_code_categories` | char | ACTIVITY + lookup | Semicolon-separated activity categories |
+| `ntee_code_raw` | char | NTEE_CD | Original NTEE code from source file (1-4 characters) |
 | `ntee_code_clean` | char | NTEE_CD | Standardized 3-character NTEE code |
 | `ntee_code_definition` | char | lookup | Full description of NTEE classification |
 | `ntee_code_major_group` | char | NTEE_CD | NTEE major group letter (A-Z) indicating broad category |
+| `ntee_common_code` | char | NTEE_CD | Common code suffix for 4-character NTEE codes |
+| `ntee_common_code_definition` | char | lookup | Description of common code suffix |
 | `naics_code` | char | lookup | North American Industry Classification System code derived from NTEE |
+| `nteev2` | char | derived | Full NTEEv2 code in SUBSECTOR-CODE-TYPE format |
 | `nteev2_code` | char | derived | NTEEv2 code portion (3 characters) |
 | `nteev2_subsector` | char | derived | NTEEv2 subsector code (e.g. UNI HOS ART ENV) |
 | `nteev2_org_type` | char | derived | NTEEv2 organization type (RG=Regular AA=Alliance etc.) |
@@ -316,7 +536,7 @@ flowchart TB
 | `tax_period_ym_str` | char | TAX_PERIOD | Tax period end date as YYYYMM string |
 | `tax_period_ymd` | Date | TAX_PERIOD | Tax period end date in YYYY-MM-DD format. If missing assigned 1900-01-01 |
 | `tax_period_is_missing` | bool | TAX_PERIOD | TRUE if tax period is missing |
-| `accounting_period` | int | ACCT_PD | Month when organization's accounting period ends (01-12) |
+| `accounting_period` | char | ACCT_PD | Month when organization's accounting period ends (01-12) |
 
 #### Financial Columns
 | Column | Type | Source | Description |
@@ -342,31 +562,35 @@ flowchart TB
 ### Activity Code Dimension Table
 
 ```{mermaid}
+%%| fig-width: 10
+%%| fig-height: 8
 flowchart TB
-    subgraph Input
-        ACT["ACTIVITY column<br/>e.g., '123456789'"]
+    classDef node fill:#d2d2d2,stroke:#333,color:#000
+
+    subgraph Input[Input]
+        ACT[ACTIVITY column]
     end
 
-    subgraph Split["Split 9-char field"]
-        C1["Code 1: '123'"]
-        C2["Code 2: '456'"]
-        C3["Code 3: '789'"]
+    subgraph Split[Split 9-char field]
+        C1[Code 1]
+        C2[Code 2]
+        C3[Code 3]
     end
 
-    subgraph Melt["Melt to Long Format"]
-        R1["Row 1: ein, '123'"]
-        R2["Row 2: ein, '456'"]
-        R3["Row 3: ein, '789'"]
+    subgraph Melt[Melt to Long Format]
+        R1[Row 1: ein + code]
+        R2[Row 2: ein + code]
+        R3[Row 3: ein + code]
     end
 
-    subgraph Join["Join with Lookup"]
-        J1["ein, '123', 'Religious Activities'"]
-        J2["ein, '456', 'Educational Programs'"]
-        J3["ein, '789', 'Community Services'"]
+    subgraph Join[Join with Lookup]
+        J1[Add definition]
+        J2[Add definition]
+        J3[Add definition]
     end
 
-    subgraph Output["dim_activity Table"]
-        OUT["ein | activity_code | activity_code_definition | activity_code_category"]
+    subgraph Output[dim_activity Table]
+        OUT[ein + activity_code + definition + category]
     end
 
     ACT --> C1
@@ -381,34 +605,44 @@ flowchart TB
     J1 --> OUT
     J2 --> OUT
     J3 --> OUT
+
+    style Input fill:#fff9e6,stroke:#fdbf11
+    style Split fill:#fee39b,stroke:#fdbf11
+    style Melt fill:#fee39b,stroke:#fdbf11
+    style Join fill:#fee39b,stroke:#fdbf11
+    style Output fill:#fdbf11,stroke:#d19c0f
 ```
 
 ### Classification Dimension Table
 
 ```{mermaid}
+%%| fig-width: 10
+%%| fig-height: 8
 flowchart TB
-    subgraph Input
-        CLASS["CLASSIFICATION column<br/>e.g., '1237'"]
-        SUB["SUBSECTION column<br/>e.g., '03'"]
+    classDef node fill:#d2d2d2,stroke:#333,color:#000
+
+    subgraph Input[Input]
+        CLASS[CLASSIFICATION column]
+        SUB[SUBSECTION column]
     end
 
-    subgraph Extract["Extract up to 4 codes"]
-        C1["Code 1: '1'"]
-        C2["Code 2: '2'"]
-        C3["Code 3: '3'"]
-        C4["Code 4: '7'"]
+    subgraph Extract[Extract up to 4 codes]
+        C1[Code 1]
+        C2[Code 2]
+        C3[Code 3]
+        C4[Code 4]
     end
 
-    subgraph Filter["Remove '0' codes"]
-        F["Valid codes only"]
+    subgraph Filter[Remove 0 codes]
+        F[Valid codes only]
     end
 
-    subgraph Join["Join with Lookup<br/>(keyed by subsection + code)"]
-        J["Add classification_description"]
+    subgraph Join[Join with Lookup]
+        J[Add classification_description]
     end
 
-    subgraph Output["dim_classification Table"]
-        OUT["ein | subsection_code | cl_code | classification_description"]
+    subgraph Output[dim_classification Table]
+        OUT[ein + subsection_code + cl_code + description]
     end
 
     CLASS --> C1
@@ -422,6 +656,12 @@ flowchart TB
     C4 --> Filter
     Filter --> Join
     Join --> Output
+
+    style Input fill:#fff9e6,stroke:#fdbf11
+    style Extract fill:#fee39b,stroke:#fdbf11
+    style Filter fill:#fee39b,stroke:#fdbf11
+    style Join fill:#fee39b,stroke:#fdbf11
+    style Output fill:#fdbf11,stroke:#d19c0f
 ```
 
 ## Data Type Transformations
