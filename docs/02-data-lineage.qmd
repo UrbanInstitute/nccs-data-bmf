@@ -113,24 +113,19 @@ flowchart LR
     style Output fill:#fdbf11,stroke:#d19c0f
 ```
 
-### Classification Fields
+### Subsection and Classification Fields
 
 The CLASSIFICATION field contains up to 4 single-digit codes. These are unpivoted into an internal dimension table, joined with lookups, then aggregated back to the main table.
 
 ```{mermaid}
-%%| fig-width: 14
-%%| fig-height: 10
-flowchart TB
+%%| fig-width: 10
+%%| fig-height: 6
+flowchart LR
     classDef node fill:#d2d2d2,stroke:#333,color:#000
 
     subgraph Raw[Raw IRS Columns]
         SUB[SUBSECTION]
         CLASS[CLASSIFICATION]
-        AFF[AFFILIATION]
-        DED[DEDUCTIBILITY]
-        FND[FOUNDATION]
-        ORG[ORGANIZATION]
-        STAT[STATUS]
     end
 
     subgraph Process[Processing]
@@ -139,11 +134,6 @@ flowchart TB
 
     subgraph Lookup[Lookup Tables]
         L1[(classification_subsection)]
-        L2[(affiliation_code)]
-        L3[(deductibility_code)]
-        L4[(foundation_code)]
-        L5[(organization_code)]
-        L6[(status_code)]
     end
 
     subgraph DIM[Internal Dimension Table]
@@ -152,14 +142,9 @@ flowchart TB
 
     subgraph Output[Output Columns]
         sub_code[subsection_code]
-        class_code[classification_code]
         org_type[exempt_organization_type]
+        class_code[classification_code]
         all_class[all_classifications_string]
-        aff_code[affiliation_code + _definition]
-        ded_code[deductibility_code + _definition]
-        fnd_code[foundation_code + _definition]
-        org_code[organization_code + _definition]
-        stat_code[status_code + _definition]
     end
 
     SUB --> L1 --> sub_code
@@ -168,12 +153,6 @@ flowchart TB
     DIM_CL --> class_code
     DIM_CL --> all_class
 
-    AFF --> L2 --> aff_code
-    DED --> L3 --> ded_code
-    FND --> L4 --> fnd_code
-    ORG --> L5 --> org_code
-    STAT --> L6 --> stat_code
-
     style Raw fill:#fff9e6,stroke:#fdbf11
     style Process fill:#fee39b,stroke:#fdbf11
     style Lookup fill:#fee39b,stroke:#fdbf11
@@ -181,31 +160,71 @@ flowchart TB
     style Output fill:#fdbf11,stroke:#d19c0f
 ```
 
-### Activity and NTEE Fields
+### Other Classification Fields
+
+Simple lookup joins for affiliation, deductibility, foundation, organization, and status codes.
+
+```{mermaid}
+%%| fig-width: 10
+%%| fig-height: 6
+flowchart LR
+    classDef node fill:#d2d2d2,stroke:#333,color:#000
+
+    subgraph Raw[Raw IRS Columns]
+        AFF[AFFILIATION]
+        DED[DEDUCTIBILITY]
+        FND[FOUNDATION]
+        ORG[ORGANIZATION]
+        STAT[STATUS]
+    end
+
+    subgraph Lookup[Lookup Tables]
+        L2[(affiliation_code)]
+        L3[(deductibility_code)]
+        L4[(foundation_code)]
+        L5[(organization_code)]
+        L6[(status_code)]
+    end
+
+    subgraph Output[Output Columns]
+        aff_code[affiliation_code + _definition]
+        ded_code[deductibility_code + _definition]
+        fnd_code[foundation_code + _definition]
+        org_code[organization_code + _definition]
+        stat_code[status_code + _definition]
+    end
+
+    AFF --> L2 --> aff_code
+    DED --> L3 --> ded_code
+    FND --> L4 --> fnd_code
+    ORG --> L5 --> org_code
+    STAT --> L6 --> stat_code
+
+    style Raw fill:#fff9e6,stroke:#fdbf11
+    style Lookup fill:#fee39b,stroke:#fdbf11
+    style Output fill:#fdbf11,stroke:#d19c0f
+```
+
+### Activity Fields
 
 The ACTIVITY field contains 9 characters (3 activity codes × 3 chars each). These are unpivoted into an internal dimension table, joined with lookups, then aggregated back to the main table as semicolon-separated strings.
 
 ```{mermaid}
-%%| fig-width: 14
-%%| fig-height: 10
-flowchart TB
+%%| fig-width: 10
+%%| fig-height: 6
+flowchart LR
     classDef node fill:#d2d2d2,stroke:#333,color:#000
 
     subgraph Raw[Raw IRS Columns]
         ACT[ACTIVITY]
-        NTEE[NTEE_CD]
     end
 
     subgraph Process[Processing]
-        SPLIT1[Split into 3 codes]
-        NORM[Normalize and validate]
+        SPLIT[Split into 3 codes]
     end
 
     subgraph Lookup[Lookup Tables]
         L1[(activity_code)]
-        L2[(ntee_code)]
-        L3[(ntee_major_group)]
-        L4[(ntee_activity_type)]
     end
 
     subgraph DIM[Internal Dimension Table]
@@ -216,19 +235,51 @@ flowchart TB
         act_code[activity_code]
         act_def[activity_code_definitions]
         act_cat[activity_code_categories]
-        ntee_clean[ntee_code]
+    end
+
+    ACT --> SPLIT --> L1 --> DIM_ACT
+    DIM_ACT --> act_code
+    DIM_ACT --> act_def
+    DIM_ACT --> act_cat
+
+    style Raw fill:#fff9e6,stroke:#fdbf11
+    style Process fill:#fee39b,stroke:#fdbf11
+    style Lookup fill:#fee39b,stroke:#fdbf11
+    style DIM fill:#fee39b,stroke:#fdbf11
+    style Output fill:#fdbf11,stroke:#d19c0f
+```
+
+### NTEE Fields
+
+NTEE codes are normalized and joined with multiple lookup tables to derive classifications and crosswalks.
+
+```{mermaid}
+%%| fig-width: 10
+%%| fig-height: 6
+flowchart LR
+    classDef node fill:#d2d2d2,stroke:#333,color:#000
+
+    subgraph Raw[Raw IRS Columns]
+        NTEE[NTEE_CD]
+    end
+
+    subgraph Process[Processing]
+        NORM[Normalize and validate]
+    end
+
+    subgraph Lookup[Lookup Tables]
+        L2[(ntee_code)]
+        L3[(ntee_major_group)]
+        L4[(ntee_activity_type)]
+    end
+
+    subgraph Output[Output Columns]
+        ntee_clean[ntee_code_clean]
         ntee_def[ntee_code_definition]
         ntee_major[ntee_code_major_group]
         naics[naics_code]
         nteev2[nteev2_code]
     end
-
-    ACT --> SPLIT1
-    SPLIT1 --> L1
-    L1 --> DIM_ACT
-    DIM_ACT --> act_code
-    DIM_ACT --> act_def
-    DIM_ACT --> act_cat
 
     NTEE --> NORM
     NORM --> L2 --> ntee_clean
@@ -240,15 +291,134 @@ flowchart TB
     style Raw fill:#fff9e6,stroke:#fdbf11
     style Process fill:#fee39b,stroke:#fdbf11
     style Lookup fill:#fee39b,stroke:#fdbf11
-    style DIM fill:#fee39b,stroke:#fdbf11
     style Output fill:#fdbf11,stroke:#d19c0f
 ```
 
-### Address Fields
+### Address Fields: STREET
 
 ```{mermaid}
 %%| fig-width: 10
-%%| fig-height: 6
+%%| fig-height: 4
+flowchart LR
+    classDef node fill:#d2d2d2,stroke:#333,color:#000
+
+    subgraph Raw[Raw IRS Column]
+        STREET[STREET]
+    end
+
+    subgraph Output[Output Columns]
+        street_raw[org_addr_street_raw]
+        street[org_addr_street]
+    end
+
+    subgraph Flags[Quality Flags]
+        po_box[org_addr_is_po_box]
+        rural[org_addr_is_rural_route]
+        special[org_addr_has_special_chars]
+        no_num[org_addr_missing_number]
+    end
+
+    STREET --> street_raw
+    STREET --> street
+    STREET --> po_box
+    STREET --> rural
+    STREET --> special
+    STREET --> no_num
+
+    style Raw fill:#fff9e6,stroke:#fdbf11
+    style Output fill:#fee39b,stroke:#fdbf11
+    style Flags fill:#fdbf11,stroke:#d19c0f
+```
+
+### Address Fields: CITY
+
+```{mermaid}
+%%| fig-width: 10
+%%| fig-height: 3
+flowchart LR
+    classDef node fill:#d2d2d2,stroke:#333,color:#000
+
+    subgraph Raw[Raw IRS Column]
+        CITY[CITY]
+    end
+
+    subgraph Output[Output Columns]
+        city_raw[org_addr_city_raw]
+        city[org_addr_city]
+    end
+
+    CITY --> city_raw
+    CITY --> city
+
+    style Raw fill:#fff9e6,stroke:#fdbf11
+    style Output fill:#fdbf11,stroke:#d19c0f
+```
+
+### Address Fields: STATE
+
+```{mermaid}
+%%| fig-width: 10
+%%| fig-height: 3
+flowchart LR
+    classDef node fill:#d2d2d2,stroke:#333,color:#000
+
+    subgraph Raw[Raw IRS Column]
+        STATE[STATE]
+    end
+
+    subgraph Output[Output Columns]
+        state_raw[org_addr_state_raw]
+        state[org_addr_state]
+    end
+
+    subgraph Flags[Quality Flags]
+        invalid[org_addr_state_invalid]
+    end
+
+    STATE --> state_raw
+    STATE --> state
+    STATE --> invalid
+
+    style Raw fill:#fff9e6,stroke:#fdbf11
+    style Output fill:#fee39b,stroke:#fdbf11
+    style Flags fill:#fdbf11,stroke:#d19c0f
+```
+
+### Address Fields: ZIP
+
+```{mermaid}
+%%| fig-width: 10
+%%| fig-height: 3
+flowchart LR
+    classDef node fill:#d2d2d2,stroke:#333,color:#000
+
+    subgraph Raw[Raw IRS Column]
+        ZIP[ZIP]
+    end
+
+    subgraph Output[Output Columns]
+        zip_raw[org_addr_zip_raw]
+        zip5[org_addr_zip5]
+        zip4[org_addr_zip4]
+        zip[org_addr_zip]
+    end
+
+    ZIP --> zip_raw
+    ZIP --> zip5
+    ZIP --> zip4
+    ZIP --> zip
+
+    style Raw fill:#fff9e6,stroke:#fdbf11
+    style Output fill:#fdbf11,stroke:#d19c0f
+```
+
+### Address Fields: Derived
+
+These fields are derived from all four address components.
+
+```{mermaid}
+%%| fig-width: 10
+%%| fig-height: 3
 flowchart LR
     classDef node fill:#d2d2d2,stroke:#333,color:#000
 
@@ -260,49 +430,21 @@ flowchart LR
     end
 
     subgraph Output[Output Columns]
-        street_raw[org_addr_street_raw]
-        street[org_addr_street]
-        city_raw[org_addr_city_raw]
-        city[org_addr_city]
-        state_raw[org_addr_state_raw]
-        state[org_addr_state]
-        zip_raw[org_addr_zip_raw]
-        zip5[org_addr_zip5]
-        zip4[org_addr_zip4]
-        zip[org_addr_zip]
         full[org_addr_full]
-    end
-
-    subgraph Flags[Quality Flags]
         missing[org_addr_is_missing]
-        po_box[org_addr_is_po_box]
-        rural[org_addr_is_rural_route]
-        special[org_addr_has_special_chars]
-        no_num[org_addr_missing_number]
-        invalid[org_addr_state_invalid]
     end
 
-    STREET --> street_raw
-    STREET --> street
-    STREET --> po_box
-    STREET --> rural
-    STREET --> special
-    STREET --> no_num
-    CITY --> city_raw
-    CITY --> city
-    STATE --> state_raw
-    STATE --> state
-    STATE --> invalid
-    ZIP --> zip_raw
-    ZIP --> zip5
-    ZIP --> zip4
-    ZIP --> zip
-    STREET & CITY & STATE & ZIP --> full
-    STREET & CITY & STATE & ZIP --> missing
+    STREET --> full
+    CITY --> full
+    STATE --> full
+    ZIP --> full
+    STREET --> missing
+    CITY --> missing
+    STATE --> missing
+    ZIP --> missing
 
     style Raw fill:#fff9e6,stroke:#fdbf11
-    style Output fill:#fee39b,stroke:#fdbf11
-    style Flags fill:#fdbf11,stroke:#d19c0f
+    style Output fill:#fdbf11,stroke:#d19c0f
 ```
 
 ### Temporal Fields
@@ -420,26 +562,26 @@ flowchart LR
 | Raw Column | Data Type | Transform | Output Column(s) |
 |------------|-----------|-----------|------------------|
 | EIN | char(9) | `transform_ein()` | `ein`, `ein_raw` |
-| NAME | char | `transform_organization_name()` | `org_name_raw`, `org_name_join`, `org_name_display`, `org_legal_suffix` |
-| ICO | char | `transform_ico_name()` | `in_care_of_name_raw`, `in_care_of_name_clean`, `in_care_of_name_provided` |
+| NAME | char | `transform_organization_name()` | `org_name_raw`, `org_name_join`, `org_name_display`, `org_parent_name`, `org_legal_suffix` |
+| ICO | char | `transform_bmf_ico_name()` | `in_care_of_name_raw`, `in_care_of_name_clean`, `in_care_of_name_provided` |
 | STREET | char | `transform_address()` | `org_addr_street_raw`, `org_addr_street` |
 | CITY | char | `transform_address()` | `org_addr_city_raw`, `org_addr_city` |
 | STATE | char(2) | `transform_address()` | `org_addr_state_raw`, `org_addr_state` |
 | ZIP | char | `transform_address()` | `org_addr_zip_raw`, `org_addr_zip5`, `org_addr_zip4`, `org_addr_zip` |
 | (derived) | - | `transform_address()` | `org_addr_full`, quality flags (6 columns) |
-| GROUP | int | `transform_group_exemption_number()` | `group_exemption_number_raw`, `group_exemption_number`, `group_exemption_is_member` |
-| SUBSECTION | int | `transform_subsection_classification_codes()` | `subsection_code`, `exempt_organization_type` |
-| AFFILIATION | int | `transform_affiliation_code()` | `affiliation_code`, `affiliation_code_definition` |
-| CLASSIFICATION | char(4) | `transform_subsection_classification_codes()` | `classification_code`, `all_classifications_string` |
-| RULING | int(6) | `transform_ruling_date()` | `ruling_date_ym_str`, `ruling_date`, `ruling_date_is_missing` |
-| DEDUCTIBILITY | int | `transform_deductibility_code()` | `deductibility_code`, `deductibility_code_definition` |
-| FOUNDATION | int | `transform_foundation_code()` | `foundation_code`, `foundation_code_definition` |
+| GROUP | int | `transform_bmf_group_exemption_number()` | `group_exemption_number_raw`, `group_exemption_number`, `group_exemption_is_member` |
+| SUBSECTION | int | `transform_bmf_subsection_classification_codes()` | `subsection_code`, `exempt_organization_type` |
+| AFFILIATION | int | `transform_bmf_affiliation_code()` | `affiliation_code`, `affiliation_code_definition` |
+| CLASSIFICATION | char(4) | `transform_bmf_subsection_classification_codes()` | `classification_code`, `all_classifications_string` |
+| RULING | int(6) | `transform_bmf_ruling_date()` | `ruling_date_ym_str`, `ruling_date`, `ruling_date_is_missing` |
+| DEDUCTIBILITY | int | `transform_bmf_deductibility_code()` | `deductibility_code`, `deductibility_code_definition` |
+| FOUNDATION | int | `transform_bmf_foundation_code()` | `foundation_code`, `foundation_code_definition` |
 | ACTIVITY | int(9) | `transform_bmf_activity_code()` | `activity_code`, `activity_code_definitions`, `activity_code_categories` |
-| ORGANIZATION | int | `transform_organization_code()` | `organization_code`, `organization_code_definition` |
-| STATUS | int | `transform_status_code()` | `status_code`, `status_code_definition` |
+| ORGANIZATION | int | `transform_bmf_organization_code()` | `organization_code`, `organization_code_definition` |
+| STATUS | int | `transform_bmf_status_code()` | `status_code`, `status_code_definition` |
 | TAX_PERIOD | int(6) | `transform_tax_period()` | `tax_period_ym_str`, `tax_period_ymd`, `tax_period_is_missing` |
-| ASSET_CD | int | `transform_asset_code()` | `asset_code`, `asset_code_definition` |
-| INCOME_CD | int | `transform_income_code()` | `income_code`, `income_code_definition` |
+| ASSET_CD | int | `transform_bmf_asset_code()` | `asset_code`, `asset_code_definition` |
+| INCOME_CD | int | `transform_bmf_income_code()` | `income_code`, `income_code_definition` |
 | FILING_REQ_CD | int | `transform_bmf_filing_requirement_code()` | `filing_requirement_code`, `filing_requirement_code_definition` |
 | PF_FILING_REQ_CD | int | `transform_bmf_pf_filing_requirement_code()` | `pf_filing_requirement_code`, `pf_filing_requirement_code_definition` |
 | ACCT_PD | int | `transform_accounting_period()` | `accounting_period` |
@@ -448,6 +590,9 @@ flowchart LR
 | REVENUE_AMT | numeric | `transform_revenue_amount()` | `revenue_amount` |
 | NTEE_CD | char(4) | `transform_ntee_code()` | `ntee_code_raw`, `ntee_code_clean`, `ntee_code_definition`, `ntee_code_major_group`, `ntee_common_code`, `ntee_common_code_definition`, `naics_code`, `nteev2`, `nteev2_code`, `nteev2_subsector`, `nteev2_org_type` |
 | SORT_NAME | char | `transform_dba_name()` | `dba_name_raw`, `dba_name` |
+| REGION | int | (none) | Removed in processed output |
+| RYEAR | int | (none) | Removed in processed output |
+| ID | int | (none) | Removed in processed output |
 
 ### Output Columns by Category
 
@@ -673,7 +818,7 @@ flowchart TB
 | int(6) | Date | Date parsing | YYYYMM → YYYY-MM-01 |
 | int(9) | multiple | Activity unpivot | One field → 3 codes + descriptions |
 | int | int + char | Lookup join | Adds *_definition column |
-| char | numeric | Amount parsing | String to numeric with validation |
+| numeric | numeric | Amount validation | Validates numeric values, warns on unexpected negatives |
 
 ## Validation Rules by Column
 
