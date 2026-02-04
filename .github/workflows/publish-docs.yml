@@ -38,7 +38,6 @@ jobs:
             openxlsx
             knitr
             data.table
-            here
           cache-version: 1
 
       - name: Setup Quarto
