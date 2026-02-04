@@ -21,6 +21,7 @@ book:
     - 05-quality-gates.qmd
     - 06-configuration.qmd
     - 07-developer-guide.qmd
+    - 08-lookup-tables.qmd
 
 format:
   html:

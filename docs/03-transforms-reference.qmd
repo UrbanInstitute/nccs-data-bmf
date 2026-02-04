@@ -4,7 +4,7 @@ title: "Transform Reference"
 
 # Transform Functions
 
-This chapter documents all 18 transform functions in the BMF pipeline. Each function follows a consistent pattern:
+This chapter documents all 24 transform functions in the BMF pipeline. Each function follows a consistent pattern:
 
 1. Input validation
 2. Safe copy of input data
@@ -53,6 +53,8 @@ transform_ein(dt, input_col = "EIN")
 - Left-pads to 9 digits
 - Warns if format mismatch after processing
 
+**Format Note:** Some data providers use an `EIN-XX-XXXXXXX` format with an explicit prefix, but this pipeline uses the `XX-XXXXXXX` format to align with IRS conventions as displayed on Form 990 and official determination letters. This format is also the de facto standard in the nonprofit research ecosystem (used by NCCS, Foundation Center/Candid, and ProPublica), which facilitates cross-dataset linkage without requiring prefix manipulation.
+
 ---
 
 ## transform_organization_name()
@@ -78,24 +80,29 @@ transform_organization_name(dt, input_col = "NAME", name_lookup_path = NULL)
 | `org_name_raw` | character | Original organization name |
 | `org_name_join` | character | Cleaned name for matching/joining |
 | `org_name_display` | character | Title-cased display name |
+| `org_parent_name` | character | Parent organization name (if matched via GEN or abbreviation) |
 | `org_legal_suffix` | character | Extracted suffix (INC, CORP, LLC, etc.) |
 
 **Processing Steps:**
+
 1. Extract legal suffixes using pattern matching
 2. Apply word standardizations (Assn → Association, etc.)
-3. Apply manual overrides (if lookup provided)
-4. Title-case display names
+3. Apply parent organization lookup (matches abbreviations or GEN to parent orgs)
+4. Apply manual overrides (if lookup provided)
+5. Title-case display names
 
 ---
 
-## transform_ico_name()
+## transform_bmf_ico_name()
 
 **File:** `R/ico_name.R`
+
+The In-Care-Of (ICO) field identifies an individual or entity designated to receive correspondence on behalf of the exempt organization. Per IRS instructions for Form 990, this field is used when mail should be directed to a specific person (such as a principal officer, fiduciary, or registered agent) or routed through another organization. In the BMF, the ICO value is prefixed with "%" in the raw data.
 
 Cleans In-Care-Of name field.
 
 ```r
-transform_ico_name(dt, input_col = "ICO")
+transform_bmf_ico_name(dt, input_col = "ICO")
 ```
 
 | Parameter | Type | Default | Description |
@@ -113,14 +120,16 @@ transform_ico_name(dt, input_col = "ICO")
 
 ---
 
-## transform_group_exemption_number()
+## transform_bmf_group_exemption_number()
 
 **File:** `R/group_exemption_number.R`
+
+A Group Exemption Number (GEN) is a 4-digit identifier assigned by the IRS to a central organization that has obtained a group exemption letter under Revenue Procedure 80-27. This allows the central organization to extend its tax-exempt status to subordinate organizations (such as local chapters, lodges, or posts) without each subordinate filing a separate application. Organizations with GEN = 0 are independent and not part of any group exemption arrangement.
 
 Standardizes Group Exemption Number (GEN).
 
 ```r
-transform_group_exemption_number(dt, input_col = "GROUP")
+transform_bmf_group_exemption_number(dt, input_col = "GROUP")
 ```
 
 | Parameter | Type | Default | Description |
@@ -138,14 +147,16 @@ transform_group_exemption_number(dt, input_col = "GROUP")
 
 ---
 
-## transform_ruling_date()
+## transform_bmf_ruling_date()
 
 **File:** `R/ruling_date.R`
+
+The ruling date (also called the determination date) is the year and month when the IRS issued the organization's determination letter formally recognizing its tax-exempt status. This date establishes when the organization's exemption became effective and is recorded in YYYYMM format in the BMF.
 
 Parses IRS ruling/determination date.
 
 ```r
-transform_ruling_date(dt, input_col = "RULING")
+transform_bmf_ruling_date(dt, input_col = "RULING")
 ```
 
 | Parameter | Type | Default | Description |
@@ -163,11 +174,15 @@ transform_ruling_date(dt, input_col = "RULING")
 
 **Sentinel Value:** Missing dates are set to 1900-01-01
 
+**Design Note:** Both the original YYYYMM string and a parsed Date object are retained to serve different use cases. The string format preserves the source data exactly as received from the IRS for auditability and is useful for year-month grouping operations. The Date column enables date arithmetic, filtering by date ranges, and integration with time-series analysis tools that expect proper date types.
+
 ---
 
 ## transform_dba_name()
 
 **File:** `R/dba_name.R`
+
+A "doing business as" (DBA) name, also known as a trade name or fictitious business name, is an alternate name under which an organization operates that differs from its legal name. The IRS SORT_NAME field captures this secondary name when an organization conducts activities or is publicly known by a name other than its registered legal name.
 
 Transforms the SORT_NAME column (doing-business-as name) into cleaned DBA name fields.
 
@@ -198,6 +213,8 @@ transform_dba_name(dt, input_col = "SORT_NAME")
 ## transform_address()
 
 **File:** `R/address.R`
+
+The address fields in the BMF represent the organization's mailing address as reported to the IRS, typically on Form 990 or the exemption application (Form 1023/1024). This is the address where official IRS correspondence is sent and may differ from the organization's physical location or principal place of business.
 
 Standardizes address components using USPS conventions and generates geocoding-ready output with quality flags.
 
@@ -247,35 +264,24 @@ transform_address(dt, street_col = "STREET", city_col = "CITY",
 
 # Classification Transforms
 
-## transform_subsection_classification_codes()
+## transform_bmf_subsection_classification_codes()
 
 **File:** `R/subsection_classification_codes.R`
 
-Transforms SUBSECTION and CLASSIFICATION columns with dimension table creation.
+The subsection code identifies the paragraph of IRC Section 501(c) under which an organization is exempt (e.g., 501(c)(3), 501(c)(4), 501(c)(6)). The classification code is a secondary descriptor indicating the type of organization within that subsection—for example, under 501(c)(3), classification codes distinguish between charitable organizations, educational institutions, religious organizations, and scientific entities. An organization may have multiple classification codes.
+
+Transforms SUBSECTION and CLASSIFICATION columns with dimension table creation. The dimension table is created internally.
 
 ```r
-# Step 1: Create dimension table
-cl_dim <- create_cl_code_dim_table(dt, lookup, year)
-
-# Step 2: Transform main table
-transform_subsection_classification_codes(dt, dim_table, orgtype_lookup)
+transform_bmf_subsection_classification_codes(dt, orgtype_lookup = subsection_orgtype_lookup)
 ```
 
-**create_cl_code_dim_table():**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `dt` | data.table | required | BMF data with SUBSECTION and CLASSIFICATION columns |
+| `orgtype_lookup` | data.table | subsection_orgtype_lookup | Lookup mapping subsection codes to organization types |
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `dt` | data.table | BMF data with ein, SUBSECTION, CLASSIFICATION |
-| `lookup` | data.table | classification_code_lookup |
-| `year` | character | Effective year (e.g., "2025") |
-
-**transform_subsection_classification_codes():**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `dt` | data.table | BMF data |
-| `dim_table` | data.table | From create_cl_code_dim_table() |
-| `orgtype_lookup` | data.table | subsection_orgtype_lookup |
+**Helper Function:** `create_cl_code_dim_table(dt, lookup, year)` creates the SCD Type 2 dimension table internally.
 
 **Output Columns:**
 
@@ -286,14 +292,18 @@ transform_subsection_classification_codes(dt, dim_table, orgtype_lookup)
 | `exempt_organization_type` | character | Human-readable org type |
 | `all_classifications_string` | character | Semicolon-separated descriptions |
 
+**Code Definitions:** See the [Lookup Tables Reference](08-lookup-tables.qmd#subsection-classification-codes) for complete subsection and classification code combinations.
+
 ---
 
-## transform_affiliation_code()
+## transform_bmf_affiliation_code()
 
 **File:** `R/affiliation_code.R`
 
+The affiliation code describes an organization's relationship within a group exemption structure. It distinguishes between central/parent organizations that hold the group exemption, intermediate organizations that coordinate subordinates, independent organizations with no group affiliation, and subordinate organizations covered under a parent's group ruling.
+
 ```r
-transform_affiliation_code(dt, input_col = "AFFILIATION", lookup = affiliation_code_lookup)
+transform_bmf_affiliation_code(dt, input_col = "AFFILIATION", lookup = affiliation_code_lookup)
 ```
 
 **Output Columns:**
@@ -304,6 +314,7 @@ transform_affiliation_code(dt, input_col = "AFFILIATION", lookup = affiliation_c
 | `affiliation_code_definition` | character | Affiliation description |
 
 **Affiliation Codes:**
+
 - 1 = Central organization
 - 2 = Intermediate organization
 - 3 = Independent organization
@@ -314,12 +325,14 @@ transform_affiliation_code(dt, input_col = "AFFILIATION", lookup = affiliation_c
 
 ---
 
-## transform_deductibility_code()
+## transform_bmf_deductibility_code()
 
 **File:** `R/deductibility_code.R`
 
+The deductibility code indicates whether contributions to the organization are tax-deductible under IRC Section 170. Not all tax-exempt organizations qualify for deductible contributions—for example, 501(c)(3) organizations generally do, while 501(c)(4) social welfare organizations generally do not. The code also indicates any limitations on deductibility.
+
 ```r
-transform_deductibility_code(dt, input_col = "DEDUCTIBILITY", lookup = deductibility_code_lookup)
+transform_bmf_deductibility_code(dt, input_col = "DEDUCTIBILITY", lookup = deductibility_code_lookup)
 ```
 
 **Output Columns:**
@@ -329,14 +342,18 @@ transform_deductibility_code(dt, input_col = "DEDUCTIBILITY", lookup = deductibi
 | `deductibility_code` | integer | Deductibility status |
 | `deductibility_code_definition` | character | Deductibility description |
 
+**Code Definitions:** See the [Lookup Tables Reference](08-lookup-tables.qmd#deductibility-codes) for complete deductibility code definitions.
+
 ---
 
-## transform_foundation_code()
+## transform_bmf_foundation_code()
 
 **File:** `R/foundation_code.R`
 
+The foundation code classifies 501(c)(3) organizations based on their public charity or private foundation status under IRC Section 509(a). Public charities receive broad public support and face fewer restrictions, while private foundations (typically funded by a single source) are subject to additional rules on self-dealing, minimum distributions, and excess business holdings. The code identifies which subsection of 509(a) applies or whether the organization is a private operating foundation.
+
 ```r
-transform_foundation_code(dt, input_col = "FOUNDATION", lookup = foundation_code_lookup)
+transform_bmf_foundation_code(dt, input_col = "FOUNDATION", lookup = foundation_code_lookup)
 ```
 
 **Output Columns:**
@@ -346,14 +363,40 @@ transform_foundation_code(dt, input_col = "FOUNDATION", lookup = foundation_code
 | `foundation_code` | integer | Foundation type code |
 | `foundation_code_definition` | character | Foundation type description |
 
+**Foundation Code Definitions:**
+
+| Code | Definition |
+|------|------------|
+| 0 | 4947(a)(1) |
+| 2 | Private operating foundation exempt from payment of section 4940 taxes on investment income |
+| 3 | Private operating foundation |
+| 4 | Private non-operating foundation |
+| 9 | Suspense (a specific type not identified) |
+| 10 | Church—IRC Section 170(b)(1)(A)(i) |
+| 11 | School—IRC Section 170(b)(1)(A)(ii) |
+| 12 | Hospital—IRC Section 170(b)(1)(A)(iii) |
+| 13 | Organizations operated for the benefit of a college or university—IRC Section 170(b)(1)(A)(iv) |
+| 14 | Federal, State or local government unit—IRC Section 170(b)(1)(A)(v) |
+| 15 | Organization receiving support from governmental unit or general public—IRC Section 170(b)(1)(A)(vi) |
+| 16 | General, public charity—IRC Section 509(a)(2) |
+| 17 | Public charity supporting (FC 09–15)—IRC Section 509(a)(3) |
+| 18 | Public safety—IRC Section 509(a)(4) |
+| 21 | Supporting organization - IRC 509(a)(3) - Type I |
+| 22 | Supporting organization - IRC 509(a)(3) - Type II |
+| 23 | Supporting organization - IRC 509(a)(3) - Type III functionally integrated |
+| 24 | Supporting organization - IRC 509(a)(3) - Type III not functionally integrated |
+
+
 ---
 
-## transform_organization_code()
+## transform_bmf_organization_code()
 
 **File:** `R/organization_code.R`
 
+The organization code indicates the legal form or structure of the exempt organization as recognized by the IRS. Common forms include corporation, trust, association, and cooperative. This reflects how the organization was established under state law and affects governance requirements and liability structures.
+
 ```r
-transform_organization_code(dt, input_col = "ORGANIZATION", lookup = organization_code_lookup)
+transform_bmf_organization_code(dt, input_col = "ORGANIZATION", lookup = organization_code_lookup)
 ```
 
 **Output Columns:**
@@ -363,14 +406,28 @@ transform_organization_code(dt, input_col = "ORGANIZATION", lookup = organizatio
 | `organization_code` | integer | Organization structure code |
 | `organization_code_definition` | character | Organization type description |
 
+**Organization Code Definitions**
+
+| Code | Definition |
+|------|------------|
+| 0 | Unassigned |
+| 1 | Corporation |
+| 2 | Trust |
+| 3 | Co-operative |
+| 4 | Partnership |
+| 5 | Association |
+| 6 | Non-exempt Charitable Trust |
+
 ---
 
-## transform_status_code()
+## transform_bmf_status_code()
 
 **File:** `R/status_code.R`
 
+The status code indicates the current standing of an organization's tax-exempt recognition with the IRS. Values distinguish between unconditional exemption (fully recognized), conditional exemption (provisional status), and various termination states including voluntary termination, merger, and automatic revocation for failure to file required returns for three consecutive years.
+
 ```r
-transform_status_code(dt, input_col = "STATUS", lookup = lookup_ls$status_code)
+transform_bmf_status_code(dt, input_col = "STATUS", lookup = status_code_lookup)
 ```
 
 **Output Columns:**
@@ -380,23 +437,38 @@ transform_status_code(dt, input_col = "STATUS", lookup = lookup_ls$status_code)
 | `status_code` | integer | IRS exempt status code |
 | `status_code_definition` | character | Status description |
 
+**Status Code Definitions**
+
+| Code | Definition |
+|------|------------|
+| 1 | Unconditional Exemption |
+| 2 | Conditional Exemption |
+| 12 | Trust described in section 4947(a)(2) of the Internal Revenue Code |
+| 25 | Organization terminating its private foundation status under section 507(b)(1)(B) of the Code |
+
 ---
 
 # Activity Transforms
 
-## create_activity_code_dim_table() / transform_activity_code()
+## transform_bmf_activity_code()
 
 **File:** `R/activity_code.R`
 
-```r
-# Step 1: Create dimension table
-activity_dim <- create_activity_code_dim_table(dt, lookup = activity_code_lookup)
+Activity codes are 3-digit codes from the IRS activity code list that describe the primary purposes or activities of an exempt organization. Each organization may report up to three activity codes, which were self-selected on the original exemption application (Form 1023 or 1024). These codes predate the NTEE system and provide a complementary classification based on organizational activities rather than mission area.
 
-# Step 2: Aggregate back to main table
-transform_activity_code(dt, dim_table = activity_dim)
+Transforms activity codes by creating a dimension table internally and aggregating back to the main table.
+
+```r
+transform_bmf_activity_code(dt)
 ```
 
-**Output Columns (transform):**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `dt` | data.table | required | BMF data with ein and ACTIVITY columns |
+
+**Helper Function:** `create_activity_code_dim_table(dt, lookup, input_col)` creates the SCD Type 2 dimension table internally.
+
+**Output Columns:**
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -412,11 +484,15 @@ transform_activity_code(dt, dim_table = activity_dim)
 | `activity_code_definition` | character | Activity description |
 | `activity_code_category` | character | Activity category |
 
+**Code Definitions:** There are 306 activity codes. See the [Lookup Tables Reference](08-lookup-tables.qmd#irs-activity-codes) for complete definitions.
+
 ---
 
 ## transform_ntee_code()
 
 **File:** `R/transform_ntee_code.R`
+
+The National Taxonomy of Exempt Entities (NTEE) is a classification system developed by the National Center for Charitable Statistics (NCCS) to categorize nonprofit organizations by their primary purpose. NTEE codes consist of a letter indicating the major group (e.g., A=Arts, B=Education, E=Health) followed by digits for more specific categorization. The IRS adopted NTEE for the BMF, and NCCS has since developed NTEE Version 2 (NTEEv2) with improved granularity.
 
 Complex NTEE code transformation with multiple lookups.
 
@@ -444,6 +520,9 @@ transform_ntee_code(
 | `nteev2_subsector` | character | NTEEV2 subsector |
 | `nteev2_org_type` | character | NTEEV2 organization type |
 
+
+**Code Definitions:** See the [Lookup Tables Reference](08-lookup-tables.qmd#ntee-codes) for complete NTEE code definitions, major groups, and common codes.
+
 ---
 
 # Temporal Transforms
@@ -451,6 +530,8 @@ transform_ntee_code(
 ## transform_tax_period()
 
 **File:** `R/transform_tax_period.R`
+
+The tax period represents the ending date of the organization's most recent tax year for which the IRS has processed a return. This reflects when the organization last filed Form 990, 990-EZ, 990-N, or 990-PF, and is stored in YYYYMM format. The tax period helps identify organizations that may be delinquent in their filing obligations.
 
 ```r
 transform_tax_period(dt, input_col = "TAX_PERIOD")
@@ -462,14 +543,19 @@ transform_tax_period(dt, input_col = "TAX_PERIOD")
 |--------|------|-------------|
 | `tax_period_ymd` | Date | Tax period end date |
 | `tax_period_is_missing` | logical | TRUE if missing/invalid |
+| `tax_period_ym_str` | String | Original YYYMM string |
 
 **Sentinel Value:** Missing dates set to 1900-01-01
+
+**Design Note**: Both the original YYYYMM string and a parsed Date object are retained to serve different use cases. The string format preserves the source data exactly as received from the IRS for auditability and is useful for year-month grouping operations. The Date column enables date arithmetic, filtering by date ranges, and integration with time-series analysis tools that expect proper date types.
 
 ---
 
 ## transform_accounting_period()
 
 **File:** `R/accounting_period.R`
+
+The accounting period indicates the month in which the organization's fiscal year ends (1-12, where 12 = December). Most nonprofits use a calendar year (December year-end), but organizations may choose a different fiscal year-end that aligns with their program cycles or funding patterns. This determines when annual Form 990 filings are due (the 15th day of the 5th month after fiscal year-end).
 
 ```r
 transform_accounting_period(dt, input_col = "ACCT_PD", lookup = lookup_ls$accounting_period)
@@ -486,13 +572,15 @@ transform_accounting_period(dt, input_col = "ACCT_PD", lookup = lookup_ls$accoun
 
 # Financial Transforms
 
-## transform_asset_code() / transform_income_code()
+## transform_bmf_asset_code() / transform_bmf_income_code()
 
 **File:** `R/financial_codes.R`
 
+Asset and income codes are single-digit codes (0-9) that place organizations into size categories based on their total assets and total income as reported on Form 990. These codes provide a quick indicator of organizational size without requiring access to the full financial data. The IRS assigns these codes based on the most recently processed return.
+
 ```r
-transform_asset_code(dt, lookup = lookup_ls$asset_code)
-transform_income_code(dt, lookup = lookup_ls$income_code)
+transform_bmf_asset_code(dt, lookup = lookup_ls$asset_code)
+transform_bmf_income_code(dt, lookup = lookup_ls$income_code)
 ```
 
 **Output Columns:**
@@ -503,6 +591,7 @@ transform_income_code(dt, lookup = lookup_ls$income_code)
 | Income | `income_code` | `income_code_definition` |
 
 **Code Ranges (Asset/Income):**
+
 - 0 = $0
 - 1 = $1 - $9,999
 - 2 = $10,000 - $24,999
@@ -519,6 +608,8 @@ transform_income_code(dt, lookup = lookup_ls$income_code)
 ## transform_asset_amount() / transform_income_amount() / transform_revenue_amount()
 
 **File:** `R/asset_amount.R`
+
+These fields contain the actual dollar amounts from the organization's most recently processed Form 990: total assets (end-of-year book value from Part X), total income (gross receipts), and total revenue (Part VIII total). Unlike the coded fields, these amounts provide precise financial figures. Note that income and revenue may be negative due to investment losses or prior-period adjustments.
 
 ```r
 transform_asset_amount(dt)   # Warns on negative values
@@ -538,9 +629,88 @@ transform_revenue_amount(dt) # Allows negative (adjustments)
 
 # Filing Transforms
 
-## transform_code() (Generic)
+## transform_bmf_filing_requirement_code()
 
 **File:** `R/filing_requirement_code.R`
+
+The filing requirement code indicates which annual information return the organization is required to file with the IRS. Options include Form 990 (for larger organizations), Form 990-EZ (for mid-sized organizations), Form 990-N (e-Postcard for small organizations with gross receipts ≤$50,000), or no return required (such as churches and certain religious organizations that are exempt from filing under IRC Section 6033).
+
+Transforms the FILING_REQ_CD column into a standardized filing requirement code with definition.
+
+```r
+transform_bmf_filing_requirement_code(dt, input_col = "FILING_REQ_CD", lookup = filing_requirement_code_lookup)
+```
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `dt` | data.table | required | BMF data with FILING_REQ_CD column |
+| `input_col` | character | "FILING_REQ_CD" | Source column name |
+| `lookup` | data.table | filing_requirement_code_lookup | Lookup table with codes and definitions |
+
+**Output Columns:**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `filing_requirement_code` | integer | Standardized filing requirement code |
+| `filing_requirement_code_definition` | character | Human-readable definition |
+
+**Filing Requirement Code Definitions**
+
+| Code | Definition |
+|------|------------|
+| 0 | 990 - Not required to file (all other) |
+| 1 | 990 (all other) or 990EZ return |
+| 2 | 990 - Required to file Form 990-N - Income less than $50,000 per year |
+| 3 | 990 - Group return |
+| 4 | 990 - Required to file Form 990-BL, Black Lung Trusts |
+| 6 | 990 - Not required to file (church) |
+| 7 | 990 - Government 501(c)(1) |
+| 13 | 990 - Not required to file (religious organization) |
+| 14 | 990 - Not required to file (instrumentalities of states or political subdivisions) |
+
+---
+
+## transform_bmf_pf_filing_requirement_code()
+
+**File:** `R/filing_requirement_code.R`
+
+The private foundation filing requirement code applies specifically to organizations classified as private foundations under IRC Section 509(a). Private foundations must file Form 990-PF annually regardless of their size, and this code indicates their specific filing obligations including any requirements related to excise taxes on investment income (IRC Section 4940).
+
+Transforms the PF_FILING_REQ_CD column into a standardized private foundation filing requirement code with definition.
+
+**PF Filing Requirement Code Definitions**
+
+| Code | Definition |
+|------|------------|
+| 0 | No 990-PF return |
+| 1 | 990-PF return |
+| 2 | 990-PF return |
+| 3 | 990-PF return |
+
+```r
+transform_bmf_pf_filing_requirement_code(dt, input_col = "PF_FILING_REQ_CD", lookup = pf_filing_requirement_code_lookup)
+```
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `dt` | data.table | required | BMF data with PF_FILING_REQ_CD column |
+| `input_col` | character | "PF_FILING_REQ_CD" | Source column name |
+| `lookup` | data.table | pf_filing_requirement_code_lookup | Lookup table with codes and definitions |
+
+**Output Columns:**
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `pf_filing_requirement_code` | integer | Standardized PF filing requirement code |
+| `pf_filing_requirement_code_definition` | character | Human-readable definition |
+
+---
+
+## transform_code() (Generic Helper)
+
+**File:** `R/transform_code.R`
+
+Generic helper function used internally by the filing requirement transforms.
 
 ```r
 transform_code(
@@ -552,7 +722,3 @@ transform_code(
   lookup
 )
 ```
-
-Used for:
-- FILING_REQ_CD → `filing_requirement_code`, `filing_requirement_code_definition`
-- PF_FILING_REQ_CD → `pf_filing_requirement_code`, `pf_filing_requirement_code_definition`

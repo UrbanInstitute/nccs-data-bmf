@@ -11,27 +11,29 @@ The BMF is the IRS's comprehensive database of tax-exempt organizations, contain
 ## What This Pipeline Does
 
 ```{mermaid}
+%%| fig-width: 10
+%%| fig-height: 6
 flowchart LR
-    subgraph input["📥 Input"]
-        A[("🗄️ S3 Bucket<br/>nccsdata/raw/bmf")]
+    subgraph input["Input"]
+        A[("S3 Bucket<br/>nccsdata/raw/bmf")]
     end
 
-    subgraph process["⚙️ Processing"]
-        B["🔄 ETL Pipeline<br/>data.table | R"]
+    subgraph process["Processing"]
+        B["ETL Pipeline<br/>data.table | R"]
     end
 
-    subgraph intermediate["📦 Intermediate"]
+    subgraph intermediate["Intermediate"]
         C[("Parquet<br/>All Columns")]
         D[("Quality Report<br/>JSON")]
     end
 
-    subgraph final["✅ Final Outputs"]
+    subgraph final["Final Outputs"]
         F[("Processed BMF<br/>CSV")]
         G[("Data Dictionary<br/>CSV")]
-        H[("Quality Report<br/>GitHub Pages")]
+        H[("Quality Report<br/>HTML")]
     end
 
-    subgraph storage["🗄️ S3 Storage"]
+    subgraph storage["S3 Storage"]
         E[("nccsdata/<br/>intermediate/bmf")]
         I[("nccsdata/<br/>processed/bmf")]
     end
@@ -46,15 +48,21 @@ flowchart LR
     D --> H
     F --> I
     G --> I
+
+    style input fill:#fff9e6,stroke:#fdbf11
+    style process fill:#fee39b,stroke:#fdbf11
+    style intermediate fill:#fee39b,stroke:#fdbf11
+    style final fill:#fdbf11,stroke:#d19c0f
+    style storage fill:#fdbf11,stroke:#d19c0f
 ```
 
 The pipeline:
 
 1.  **Extracts** raw BMF data from S3 bucket (monthly combined CSV)
-2.  **Transforms** 27 raw columns into \~60 standardized, validated columns
+2.  **Transforms** 31 raw columns into \~76 standardized, validated columns
 3.  **Loads** intermediate data as Parquet files containing all columns for manual inspection
-4.  **Validates** intermediate data sets, producing `.json` and .`html` quality reports
-5.  **Cuts** the ~60 transformed columns into a `.csv` data mart with an accompanying data dictionary
+4.  **Validates** intermediate data sets, producing `.json` and `.html` quality reports
+5.  **Cuts** the ~76 transformed columns into a `.csv` data mart with an accompanying data dictionary
 
 ## Quick Start
 
@@ -119,12 +127,12 @@ The pipeline will:
 | `bmf_YYYY_MM_processed.csv` | Transformed columns only (raw columns removed) | \~1.9M |
 | `bmf_YYYY_MM_data_dictionary.csv` | Column metadata and statistics | \- |
 
-### Quality Reports (`data/quality/`)
+### Quality Reports
 
-| Output File | Description |
-|----------------------------|----------------------------|
-| `bmf_YYYY_MM_quality_report.json` | Quality metrics and validation results |
-| `bmf_YYYY_MM_quality_report.html` | Human-readable quality report (published to GitHub Pages) |
+| Output File | Location | Description |
+|----------------------------|----------------------------|----------------------------|
+| `bmf_YYYY_MM_quality_report.json` | `data/quality/` | Quality metrics and validation results |
+| `bmf_YYYY_MM_quality_report.html` | `docs/quality-reports/` | Human-readable quality report (published to GitHub Pages) |
 
 Checkpoints are saved to `data/checkpoints/` after each transformation phase.
 
@@ -139,6 +147,7 @@ Checkpoints are saved to `data/checkpoints/` after each transformation phase.
 | [Quality Gates](05-quality-gates.qmd) | Pre/post validation, troubleshooting |
 | [Configuration](06-configuration.qmd) | Config files, lookup tables, dependencies |
 | [Developer Guide](07-developer-guide.qmd) | Code patterns, contributing, testing |
+| [Lookup Tables](08-lookup-tables.qmd) | Complete lookup table definitions and values |
 
 ## IRS BMF Source
 
@@ -157,7 +166,7 @@ nccs-data-bmf/
 │   ├── input_validation.R         # Shared validation functions
 │   ├── utils/                     # Logging and utilities
 │   ├── quality/                   # Pre/post quality checks
-│   └── [transform files]          # 18 transformation modules (24 functions)
+│   └── [transform files]          # 21 transformation modules (24 functions)
 ├── data/
 │   ├── raw/                       # Downloaded BMF files
 │   ├── lookup/                    # Reference/lookup tables

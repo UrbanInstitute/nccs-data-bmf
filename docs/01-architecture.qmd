@@ -82,25 +82,25 @@ Transforms organization identification fields:
 | Transform | Input | Outputs |
 |-----------------------------|-------------------|------------------------|
 | `transform_ein()` | EIN | `ein`, `ein_raw` |
-| `transform_organization_name()` | NAME | `org_name_raw`, `org_name_join`, `org_name_display`, `org_legal_suffix` |
+| `transform_organization_name()` | NAME | `org_name_raw`, `org_name_join`, `org_name_display`, `org_legal_suffix`, `org_parent_name` |
 | `transform_dba_name()` | SORT_NAME | `dba_name`, `dba_name_raw` |
-| `transform_ico_name()` | ICO | `in_care_of_name_raw`, `in_care_of_name_clean`, `in_care_of_name_provided` |
-| `transform_group_exemption_number()` | GROUP | `group_exemption_number_raw`, `group_exemption_number`, `group_exemption_is_member` |
-| `transform_ruling_date()` | RULING | `ruling_date_ym_str`, `ruling_date`, `ruling_date_is_missing` |
+| `transform_bmf_ico_name()` | ICO | `in_care_of_name_raw`, `in_care_of_name_clean`, `in_care_of_name_provided` |
+| `transform_bmf_group_exemption_number()` | GROUP | `group_exemption_number_raw`, `group_exemption_number`, `group_exemption_is_member` |
+| `transform_bmf_ruling_date()` | RULING | `ruling_date_ym_str`, `ruling_date`, `ruling_date_is_missing` |
 | `transform_address()` | STREET, CITY, STATE, ZIP | 17 columns (see [Transform Reference](03-transforms-reference.qmd)) |
 
 ### Phase 4: Classification Transformations
 
-Adds IRS classification codes with human-readable definitions:
+Adds IRS classification codes with human-readable definitions. All lookup tables are sheets in `bmf_code_lookup.xlsx`:
 
-| Transform | Lookup Table | Outputs |
+| Transform | Lookup Sheet | Outputs |
 |-----------------------|-----------------------------|--------------------|
-| `transform_subsection_classification_codes()` | `classification_subsection_code_lookup.csv` | `subsection_code`, `classification_code`, `exempt_organization_type`, `all_classifications_string` |
-| `transform_affiliation_code()` | `affiliation_code_lookup.csv` | `affiliation_code`, `affiliation_code_definition` |
-| `transform_deductibility_code()` | `deductibility_code_lookup.csv` | `deductibility_code`, `deductibility_code_definition` |
-| `transform_foundation_code()` | `foundation_code_lookup.csv` | `foundation_code`, `foundation_code_definition` |
-| `transform_organization_code()` | `organization_code_lookup.csv` | `organization_code`, `organization_code_definition` |
-| `transform_status_code()` | `bmf_code_lookup.xlsx` | `status_code`, `status_code_definition` |
+| `transform_bmf_subsection_classification_codes()` | `subsection_classification_code` | `subsection_code`, `classification_code`, `exempt_organization_type`, `all_classifications_string` |
+| `transform_bmf_affiliation_code()` | `affiliation_code` | `affiliation_code`, `affiliation_code_definition` |
+| `transform_bmf_deductibility_code()` | `deductibility_code` | `deductibility_code`, `deductibility_code_definition` |
+| `transform_bmf_foundation_code()` | `foundation_code` | `foundation_code`, `foundation_code_definition` |
+| `transform_bmf_organization_code()` | `organization_code` | `organization_code`, `organization_code_definition` |
+| `transform_bmf_status_code()` | `status_code` | `status_code`, `status_code_definition` |
 
 ### Phase 5: Activity Transformations
 
@@ -109,7 +109,7 @@ Transforms multi-valued activity fields. Internally creates dimension tables for
 | Transform | Pattern | Outputs |
 |---------------------------|-----------------------|-----------------------|
 | `transform_bmf_activity_code()` | Dimension table + Aggregate | `activity_code`, `activity_code_definitions`, `activity_code_categories` |
-| `transform_ntee_code()` | Complex | `ntee_code`, `ntee_code_definition`, `ntee_code_major_group`, `naics_code`, `nteev2_code`, etc. |
+| `transform_ntee_code()` | Complex | `ntee_code_raw`, `ntee_code_clean`, `ntee_code_definition`, `ntee_code_major_group`, `ntee_common_code`, `ntee_common_code_definition`, `naics_code`, `nteev2`, `nteev2_code`, `nteev2_subsector`, `nteev2_org_type` |
 
 ### Phase 6: Temporal Transformations
 
@@ -126,8 +126,8 @@ Processes financial codes and amounts:
 
 | Transform | Input | Outputs |
 |-----------------------------|-------------------|------------------------|
-| `transform_asset_code()` | ASSET_CD | `asset_code`, `asset_code_definition` |
-| `transform_income_code()` | INCOME_CD | `income_code`, `income_code_definition` |
+| `transform_bmf_asset_code()` | ASSET_CD | `asset_code`, `asset_code_definition` |
+| `transform_bmf_income_code()` | INCOME_CD | `income_code`, `income_code_definition` |
 | `transform_asset_amount()` | ASSET_AMT | `asset_amount` |
 | `transform_income_amount()` | INCOME_AMT | `income_amount` |
 | `transform_revenue_amount()` | REVENUE_AMT | `revenue_amount` |
@@ -158,7 +158,7 @@ Saves the **complete** BMF with all columns (both raw IRS columns and transforme
 
 | File | Format | Contents |
 |------|--------|----------|
-| Intermediate BMF | Parquet | All ~90 columns (27 raw + ~63 transformed) |
+| Intermediate BMF | Parquet | All ~107 columns (31 raw + ~76 transformed) |
 | Quality Report | JSON | Validation metrics and summary statistics |
 
 **Local Files:**
@@ -319,7 +319,8 @@ R/
 │
 ├── quality/
 │   ├── pre_checks.R             # validate_raw_bmf_structure()
-│   └── post_checks.R            # generate_quality_report()
+│   ├── post_checks.R            # generate_quality_report()
+│   └── quality_report_template.qmd  # HTML/PDF report template
 │
 ├── ein.R                        # Phase 3
 ├── organization_name.R          # Phase 3

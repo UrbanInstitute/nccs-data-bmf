@@ -18,10 +18,13 @@ CHECKPOINT_DIR <- "data/checkpoints"
 # Enable strict quality gates (stops on validation failure)
 STRICT_QUALITY_GATES <- TRUE
 
+# Enable S3 upload of processed data and quality report
+ENABLE_S3_UPLOAD <- TRUE
+
 # BMF source configuration - set before sourcing to override defaults
 # If not set, downloads most recent BMF file from S3
-BMF_YEAR <- NULL   # e.g., 2025
-BMF_MONTH <- NULL  # e.g., 1
+if (!exists("BMF_YEAR")) BMF_YEAR <- NULL    # e.g., 2025
+if (!exists("BMF_MONTH")) BMF_MONTH <- NULL  # e.g., 1
 
 # Processing year/month - set automatically from downloaded file
 PROCESSING_YEAR <- NULL
@@ -50,6 +53,8 @@ BMF files are downloaded from S3 bucket `nccsdata`. A Lambda function ingests mo
 # S3 bucket configuration
 BMF_S3_BUCKET <- "nccsdata"
 BMF_S3_PREFIX <- "raw/bmf/"
+BMF_S3_INTERMEDIATE_PREFIX <- "intermediate/bmf/"
+BMF_S3_PROCESSED_PREFIX <- "processed/bmf/"
 ```
 
 ### S3 Download Functions
@@ -72,11 +77,15 @@ list_available_bmf_files(bucket = BMF_S3_BUCKET, prefix = BMF_S3_PREFIX)
 
 ### S3 Upload Configuration
 
-Processed BMF files and quality reports can be automatically uploaded to S3 after processing.
+Processed BMF files and quality reports can be automatically uploaded to S3 after processing. The pipeline uploads to two locations:
+
+1. **Intermediate** - All columns (raw + transformed) as parquet
+2. **Processed** - Transformed columns only as CSV, plus data dictionary
 
 ```r
-# S3 upload configuration (in config.R)
+# S3 upload prefixes (in config.R)
 BMF_S3_INTERMEDIATE_PREFIX <- "intermediate/bmf/"
+BMF_S3_PROCESSED_PREFIX <- "processed/bmf/"
 
 # Enable/disable upload in run_pipeline.R
 ENABLE_S3_UPLOAD <- TRUE
@@ -84,7 +93,8 @@ ENABLE_S3_UPLOAD <- TRUE
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `BMF_S3_INTERMEDIATE_PREFIX` | character | `"intermediate/bmf/"` | S3 prefix for processed outputs |
+| `BMF_S3_INTERMEDIATE_PREFIX` | character | `"intermediate/bmf/"` | S3 prefix for intermediate outputs (all columns) |
+| `BMF_S3_PROCESSED_PREFIX` | character | `"processed/bmf/"` | S3 prefix for processed outputs (transformed only) |
 | `ENABLE_S3_UPLOAD` | logical | `TRUE` | Upload processed files to S3 after pipeline completes |
 
 #### Upload Functions
@@ -93,16 +103,22 @@ ENABLE_S3_UPLOAD <- TRUE
 # Generic upload function
 upload_to_s3(local_file, s3_key, bucket = BMF_S3_BUCKET)
 
-# Upload both processed BMF and quality report
+# Upload intermediate BMF (all columns) and quality report
 upload_bmf_results(parquet_path, quality_report_path, year, month)
+
+# Upload processed BMF (transformed columns only), quality report, and data dictionary
+upload_processed_bmf(csv_path, quality_report_path, dictionary_path, year, month)
 ```
 
 **Uploaded Files:**
 
-| File | S3 Location |
-|------|-------------|
-| `bmf_YYYY_MM_processed.parquet` | `s3://nccsdata/intermediate/bmf/YYYY_MM/` |
-| `bmf_YYYY_MM_quality_report.json` | `s3://nccsdata/intermediate/bmf/YYYY_MM/` |
+| File | S3 Location | Description |
+|------|-------------|-------------|
+| `bmf_YYYY_MM_intermediate.parquet` | `s3://nccsdata/intermediate/bmf/YYYY_MM/` | All columns (raw + transformed) |
+| `bmf_YYYY_MM_quality_report.json` | `s3://nccsdata/intermediate/bmf/YYYY_MM/` | Quality metrics |
+| `bmf_YYYY_MM_processed.csv` | `s3://nccsdata/processed/bmf/YYYY_MM/` | Transformed columns only |
+| `bmf_YYYY_MM_data_dictionary.csv` | `s3://nccsdata/processed/bmf/YYYY_MM/` | Column metadata |
+| `bmf_YYYY_MM_quality_report.json` | `s3://nccsdata/processed/bmf/YYYY_MM/` | Quality metrics (copy) |
 
 **AWS Permissions Required:** `s3:PutObject` on the `nccsdata` bucket.
 
@@ -112,16 +128,7 @@ upload_bmf_results(parquet_path, quality_report_path, year, month)
 
 **File:** `R/config.R`
 
-### CSV Lookup Tables
-
-```r
-# Paths to CSV lookup tables (in config.R)
-subsection_classification_code_lookup_path <- "data/lookup/classification_subsection_code_lookup.csv"
-activity_code_lookup_path <- "data/lookup/activity_code_lookup.csv"
-
-# Individual code lookups loaded directly in their transform files using here::here()
-# e.g., affiliation_code_lookup.csv, deductibility_code_lookup.csv, etc.
-```
+All lookup tables are stored in a single Excel workbook (`bmf_code_lookup.xlsx`) and loaded at pipeline startup. One CSV file (`state_abbreviations.csv`) is used for address validation.
 
 ### Excel Lookup Workbook
 
@@ -139,78 +146,43 @@ lookup_ls <- openxlsx::getSheetNames(lookup_path) |>
 
 | Sheet Name | Used By | Key Column |
 |------------|---------|------------|
-| `status_code` | `transform_status_code()` | status_code |
-| `asset_code` | `transform_asset_code()` | asset_code |
-| `income_code` | `transform_income_code()` | income_code |
-| `filing_requirement_code` | `transform_code()` | filing_requirement_code |
-| `pf_filing_requirement_code` | `transform_code()` | pf_filing_requirement_code |
-| `ntee_code` | `transform_ntee_code()` | ntee_code |
-| `ntee_code_major_group` | `transform_ntee_code()` | ntee_code_major_group |
-| `ntee_code_activity_type` | `transform_ntee_code()` | activity_type |
-| `accounting_period` | `transform_accounting_period()` | accounting_period_code |
+| `status_code` | `transform_bmf_status_code()` | status_code |
+| `asset_code` | `transform_bmf_asset_code()` | asset_code |
+| `income_code` | `transform_bmf_income_code()` | income_code |
+| `filing_requirement_code` | `transform_bmf_filing_requirement_code()` | filing_requirement_code |
+| `pf_filing_requirement_code` | `transform_bmf_filing_requirement_code()` | pf_filing_requirement_code |
+| `ntee_code` | `transform_bmf_ntee_code()` | ntee_code |
+| `ntee_code_major_group` | `transform_bmf_ntee_code()` | ntee_code_major_group |
+| `ntee_common_code` | `transform_bmf_ntee_code()` | ntee_common_code |
+| `affiliation_code` | `transform_bmf_affiliation_code()` | affiliation_code |
+| `deductibility_code` | `transform_bmf_deductibility_code()` | deductibility_code |
+| `foundation_code` | `transform_bmf_foundation_code()` | foundation_code |
+| `organization_code` | `transform_bmf_organization_code()` | organization_code |
+| `activity_code` | `transform_bmf_activity_code()` | activity_code |
+| `subsection_classification_code` | `transform_bmf_subsection_classification_codes()` | subsection_code, classification_code |
+| `parent_organization` | `transform_organization_name()` | group_exemption_number |
+
+### CSV Lookup Files
+
+```r
+# State abbreviations for address validation
+state_abbreviations_path <- "data/lookup/state_abbreviations.csv"
+```
 
 ---
 
 # Lookup Table Schemas
 
-## affiliation_code_lookup.csv
+All lookup table schemas and their complete values are documented in the [Lookup Tables Reference](08-lookup-tables.qmd) appendix.
+
+## state_abbreviations.csv
+
+The only CSV lookup file, used for address validation:
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `affiliation_code` | integer | IRS affiliation code (1-9) |
-| `affiliation_code_definition` | character | Code description |
-
-**Values:**
-```
-affiliation_code,affiliation_code_definition
-1,Central organization
-2,Intermediate organization
-3,Independent organization
-6,Central organization (group ruling)
-7,Intermediate organization (group ruling)
-8,Central organization (no group ruling)
-9,Subordinate organization (group ruling)
-```
-
-## deductibility_code_lookup.csv
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `deductibility_code` | integer | Deductibility status |
-| `deductibility_code_definition` | character | Description |
-
-## foundation_code_lookup.csv
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `foundation_code` | integer | Foundation type code |
-| `foundation_code_definition` | character | Foundation type description |
-
-## organization_code_lookup.csv
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `organization_code` | integer | Organization structure code |
-| `organization_code_definition` | character | Organization type |
-
-## activity_code_lookup.csv
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `activity_code` | character | 3-character activity code |
-| `activity_code_category` | character | Activity category |
-| `activity_code_definition` | character | Activity description |
-
-## classification_subsection_code_lookup.csv
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `subsection_code` | character | IRC subsection (e.g., "03") |
-| `classification_code` | character | Single-char classification |
-| `classification_description` | character | Classification description |
-| `exempt_organization_type` | character | Organization type name |
-| `effective_start_date` | date | When code became effective |
-| `effective_end_date` | date | When code was retired (if applicable) |
+| `state_abbr` | character | Two-letter state/territory abbreviation |
+| `state_name` | character | Full state/territory name |
 
 ---
 
@@ -219,7 +191,7 @@ affiliation_code,affiliation_code_definition
 ```
 nccs-data-bmf/
 ├── R/                              # Source code
-│   ├── run_pipeline.R             # Orchestrator
+│   ├── run_pipeline.R             # Orchestrator (11 phases)
 │   ├── config.R                    # S3 configuration and lookups
 │   ├── checkpoints.R               # Checkpoint save/load utilities
 │   ├── input_validation.R          # Validation functions
@@ -228,24 +200,22 @@ nccs-data-bmf/
 │   │   └── transform_utils.R      # Shared utilities
 │   ├── quality/
 │   │   ├── pre_checks.R           # Pre-validation
-│   │   └── post_checks.R          # Post-validation
-│   └── [transform files]           # 18 transform modules
+│   │   ├── post_checks.R          # Post-validation
+│   │   └── quality_report_template.qmd  # HTML/PDF report template
+│   └── [transform files]           # 24 transform functions
 │
 ├── data/
 │   ├── raw/                        # Downloaded BMF files
 │   │   └── bmf_2025_01.csv        # Local copy from S3
 │   │
 │   ├── lookup/                     # Reference tables
-│   │   ├── bmf_code_lookup.xlsx   # Multi-sheet workbook
-│   │   ├── affiliation_code_lookup.csv
-│   │   ├── deductibility_code_lookup.csv
-│   │   ├── foundation_code_lookup.csv
-│   │   ├── organization_code_lookup.csv
-│   │   ├── activity_code_lookup.csv
-│   │   ├── classification_subsection_code_lookup.csv
+│   │   ├── bmf_code_lookup.xlsx   # Multi-sheet workbook (15 sheets)
 │   │   └── state_abbreviations.csv
 │   │
-│   ├── checkpoints/                # Intermediate saves
+│   ├── dictionaries/               # Column metadata
+│   │   └── column_descriptions.csv # Static column descriptions
+│   │
+│   ├── checkpoints/                # Intermediate saves (7 checkpoints)
 │   │   ├── bmf_2025_01_01_raw.parquet
 │   │   ├── bmf_2025_01_02_identity.parquet
 │   │   ├── bmf_2025_01_03_classification.parquet
@@ -254,8 +224,12 @@ nccs-data-bmf/
 │   │   ├── bmf_2025_01_06_financial.parquet
 │   │   └── bmf_2025_01_07_filing.parquet
 │   │
-│   ├── processed/                  # Final outputs
-│   │   └── bmf_2025_01_processed.parquet
+│   ├── intermediate/               # Intermediate outputs (all columns)
+│   │   └── bmf_2025_01_intermediate.parquet
+│   │
+│   ├── processed/                  # Final outputs (transformed only)
+│   │   ├── bmf_2025_01_processed.csv
+│   │   └── bmf_2025_01_data_dictionary.csv
 │   │
 │   └── quality/                    # Quality reports
 │       └── bmf_2025_01_quality_report.json

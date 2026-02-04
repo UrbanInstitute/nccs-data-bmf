@@ -1,0 +1,216 @@
+---
+title: "Lookup Tables Reference"
+---
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+
+library(openxlsx)
+library(knitr)
+library(data.table)
+
+lookup_path <- here::here("data/lookup/bmf_code_lookup.xlsx")
+sheets <- getSheetNames(lookup_path)
+
+# Helper function to read and display a sheet
+read_lookup <- function(sheet_name) {
+  df <- read.xlsx(lookup_path, sheet = sheet_name)
+  setDT(df)
+
+  # Exclude date columns (used internally for SCD Type 2)
+  date_patterns <- "start_date|end_date|effective_date"
+  cols_to_keep <- names(df)[!grepl(date_patterns, names(df), ignore.case = TRUE)]
+  df <- df[, ..cols_to_keep]
+
+  # Sanitize text columns to prevent markdown table breaking
+  char_cols <- names(df)[sapply(df, is.character)]
+  for (col in char_cols) {
+    df[[col]] <- gsub("\\|", "/", df[[col]])
+    df[[col]] <- gsub("\n", " ", df[[col]])
+    df[[col]] <- gsub("\r", " ", df[[col]])
+  }
+
+  return(df)
+}
+```
+
+This appendix contains complete definitions for all coded values in the BMF pipeline. These lookup tables are stored in `data/lookup/bmf_code_lookup.xlsx` and are used by transformation functions to map raw IRS codes to human-readable definitions.
+
+---
+
+# Classification Codes
+
+## Subsection Classification Codes
+
+Maps combinations of IRC subsection and classification codes to exempt organization types.
+
+```{r}
+#| echo: false
+kable(read_lookup("subsection_classification_code"))
+```
+
+---
+
+## Affiliation Codes
+
+Describes an organization's relationship within a group exemption structure.
+
+```{r}
+#| echo: false
+kable(read_lookup("affiliation_code"))
+```
+
+---
+
+## Deductibility Codes
+
+Indicates whether contributions to the organization are tax-deductible under IRC Section 170.
+
+```{r}
+#| echo: false
+kable(read_lookup("deductibility_code"))
+```
+
+---
+
+## Foundation Codes
+
+Classifies 501(c)(3) organizations based on their public charity or private foundation status under IRC Section 509(a).
+
+```{r}
+#| echo: false
+kable(read_lookup("foundation_code"))
+```
+
+---
+
+## Organization Codes
+
+Indicates the legal form or structure of the exempt organization.
+
+```{r}
+#| echo: false
+kable(read_lookup("organization_code"))
+```
+
+---
+
+## Status Codes
+
+Indicates the current standing of an organization's tax-exempt recognition with the IRS.
+
+```{r}
+#| echo: false
+kable(read_lookup("status_code"))
+```
+
+---
+
+# Activity Codes
+
+## IRS Activity Codes
+
+3-digit codes describing the primary purposes or activities of an exempt organization. Each organization may report up to three activity codes.
+
+```{r}
+#| echo: false
+kable(read_lookup("activity_code"))
+```
+
+---
+
+# NTEE Codes
+
+## NTEE Code Definitions
+
+The National Taxonomy of Exempt Entities (NTEE) classification system codes and definitions.
+
+```{r}
+#| echo: false
+kable(read_lookup("ntee_code"))
+```
+
+---
+
+## NTEE Major Groups
+
+Top-level NTEE categories identified by the first letter of the NTEE code.
+
+```{r}
+#| echo: false
+kable(read_lookup("ntee_code_major_group"))
+```
+
+---
+
+## NTEE Common Codes
+
+Common codes that can appear across multiple NTEE major groups.
+
+```{r}
+#| echo: false
+kable(read_lookup("ntee_common_code"))
+```
+
+---
+
+# Financial Codes
+
+## Asset Codes
+
+Single-digit codes (0-9) placing organizations into size categories based on total assets.
+
+```{r}
+#| echo: false
+kable(read_lookup("asset_code"))
+```
+
+---
+
+## Income Codes
+
+Single-digit codes (0-9) placing organizations into size categories based on total income.
+
+```{r}
+#| echo: false
+kable(read_lookup("income_code"))
+```
+
+---
+
+# Filing Requirement Codes
+
+## Filing Requirement Codes
+
+Indicates which annual information return the organization is required to file.
+
+```{r}
+#| echo: false
+kable(read_lookup("filing_requirement_code"))
+```
+
+---
+
+## Private Foundation Filing Requirement Codes
+
+Filing requirements specific to private foundations (Form 990-PF).
+
+```{r}
+#| echo: false
+kable(read_lookup("pf_filing_requirement_code"))
+```
+
+---
+
+# Organization Name Codes
+
+## Parent Organization Lookup
+
+Maps abbreviations and Group Exemption Numbers to parent organization names.
+
+```{r}
+#| echo: false
+kable(read_lookup("parent_organization"))
+```

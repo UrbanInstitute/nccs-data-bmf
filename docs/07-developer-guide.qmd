@@ -58,7 +58,7 @@ transform_module <- function(dt,
                              lookup = module_lookup) {
 
   # Input validation
-  validate_data_table(dt, input_col, context = "BMF data")
+  validate_data_table(dt, c(input_col), context = "BMF data")
   validate_lookup(lookup, MODULE_LOOKUP_COLS, "module_lookup")
 
   # Safe copy (don't mutate input)
@@ -114,29 +114,51 @@ Create `R/new_field.R`:
 # Module Constants
 NEW_FIELD_LOOKUP_COLS <- c("new_field_code", "new_field_definition")
 
-# Load lookup (if external CSV)
-new_field_lookup <- data.table::fread(
-  "data/lookup/new_field_lookup.csv",
-  select = NEW_FIELD_LOOKUP_COLS,
-  colClasses = list(character = NEW_FIELD_LOOKUP_COLS)
-)
-
 #' Transform New Field
+#'
+#' @param dt data.table containing BMF data
+#' @param input_col character name of input column (default: "NEW_FIELD")
+#' @param lookup data.table lookup table (default: from lookup_ls)
+#'
+#' @return data.table with new_field_code and new_field_definition columns
+#'
 #' @export
-transform_new_field <- function(dt, input_col = "NEW_FIELD") {
-  # ... implementation
+transform_bmf_new_field <- function(dt,
+                                    input_col = "NEW_FIELD",
+                                    lookup = lookup_ls$new_field) {
+
+  # Input validation
+
+  validate_data_table(dt, c(input_col), context = "BMF data")
+  validate_lookup(lookup, NEW_FIELD_LOOKUP_COLS, "new_field_lookup")
+
+  # Safe copy
+
+  dt_safe <- data.table::copy(dt)
+
+  # Transform and join
+  dt_safe[, new_field_code := as.character(get(input_col))]
+  dt_safe[lookup, new_field_definition := i.new_field_definition,
+          on = .(new_field_code)]
+
+  # Validate join
+  validate_join_success(dt_safe, "new_field_code", "new_field_definition",
+                        "new_field_lookup")
+
+  return(dt_safe)
 }
 ```
 
 ### Step 2: Create Lookup Table (if needed)
 
-Add `data/lookup/new_field_lookup.csv`:
+Add a new sheet to `data/lookup/bmf_code_lookup.xlsx`:
 
-```csv
-new_field_code,new_field_definition
-1,First Value
-2,Second Value
-```
+| new_field_code | new_field_definition |
+|----------------|----------------------|
+| 1 | First Value |
+| 2 | Second Value |
+
+The lookup will be automatically loaded via `config.R` and accessible as `lookup_ls$new_field`.
 
 ### Step 3: Add to Orchestrator
 
@@ -156,10 +178,37 @@ bmf <- transform_new_field(bmf)
 Add expected output columns to `R/quality/post_checks.R`:
 
 ```r
+# Add to BMF_OUTPUT_COLUMNS vector
 BMF_OUTPUT_COLUMNS <- c(
   # ... existing columns
   "new_field_code",
   "new_field_definition"
+)
+
+# Add to COLUMN_CATEGORIES for detailed quality reporting
+COLUMN_CATEGORIES <- list(
+  # ... existing categories
+  new_field = list(
+    name = "New Field",
+    columns = list(
+      new_field_code = list(type = "code"),
+      new_field_definition = list(type = "character")
+    )
+  )
+)
+
+# Add to SOURCE_COLUMN_MAP for data lineage tracking
+SOURCE_COLUMN_MAP <- list(
+  # ... existing mappings
+  new_field_code = "NEW_FIELD",
+  new_field_definition = "NEW_FIELD"
+)
+
+# Add to COLUMN_DESCRIPTIONS for data dictionary
+COLUMN_DESCRIPTIONS <- list(
+  # ... existing descriptions
+  new_field_code = "Standardized new field code",
+  new_field_definition = "Human-readable new field description"
 )
 ```
 
@@ -177,59 +226,97 @@ Add to this guidebook:
 ### validate_data_table()
 
 ```r
-validate_data_table <- function(dt, required_cols, context = "data") {
-  if (!data.table::is.data.table(dt)) {
-    stop(sprintf("%s must be a data.table", context))
+validate_data_table <- function(dt, required_cols, context = "data.table") {
+  if (!inherits(dt, "data.table")) {
+    stop(sprintf("%s must be a data.table, got %s", context, class(dt)[1]))
   }
 
   missing_cols <- setdiff(required_cols, names(dt))
   if (length(missing_cols) > 0) {
-    stop(sprintf(
-      "%s is missing required columns: %s",
-      context, paste(missing_cols, collapse = ", ")
-    ))
+    stop(sprintf("%s missing required columns: %s",
+                 context, paste(missing_cols, collapse = ", ")))
   }
+
+  invisible(TRUE)
 }
 ```
 
 ### validate_lookup()
 
 ```r
-validate_lookup <- function(lookup, required_cols, lookup_name) {
-  if (!data.table::is.data.table(lookup)) {
-    stop(sprintf("%s must be a data.table", lookup_name))
-  }
-
-  if (nrow(lookup) == 0) {
-    stop(sprintf("%s is empty", lookup_name))
+validate_lookup <- function(lookup, required_cols, lookup_name = "lookup table") {
+  if (!inherits(lookup, "data.table")) {
+    stop(sprintf("%s must be a data.table, got %s", lookup_name, class(lookup)[1]))
   }
 
   missing_cols <- setdiff(required_cols, names(lookup))
   if (length(missing_cols) > 0) {
-    stop(sprintf(
-      "%s missing required columns: %s",
-      lookup_name, paste(missing_cols, collapse = ", ")
-    ))
+    stop(sprintf("%s missing required columns: %s",
+                 lookup_name, paste(missing_cols, collapse = ", ")))
   }
+
+  if (nrow(lookup) == 0) {
+    stop(sprintf("%s is empty (0 rows)", lookup_name))
+  }
+
+  invisible(TRUE)
 }
 ```
 
 ### validate_join_success()
 
 ```r
-validate_join_success <- function(dt, key_col, result_col, lookup_name) {
-  unmatched <- dt[!is.na(get(key_col)) & is.na(get(result_col)), .N]
-  total <- dt[!is.na(get(key_col)), .N]
+validate_join_success <- function(dt,
+                                  key_col,
+                                  result_col,
+                                  lookup_name = "lookup",
+                                  warn_threshold = 0.01,
+                                  error_threshold = NULL) {
 
-  if (unmatched > 0) {
-    pct <- 100 * unmatched / total
-    if (pct > 1) {
-      warning(sprintf(
-        "%s: %.1f%% unmatched (%d of %d)",
-        lookup_name, pct, unmatched, total
-      ))
-    }
+  total_rows <- nrow(dt)
+  unmatched_count <- dt[!is.na(get(key_col)) & is.na(get(result_col)), .N]
+  unmatched_pct <- unmatched_count / total_rows
+
+  result <- list(
+    unmatched_count = unmatched_count,
+    unmatched_pct = unmatched_pct,
+    total_rows = total_rows
+  )
+
+  if (!is.null(error_threshold) && unmatched_pct > error_threshold) {
+    stop(sprintf("Join to %s failed: %d rows (%.2f%%) unmatched",
+                 lookup_name, unmatched_count, unmatched_pct * 100))
   }
+
+  if (unmatched_pct > warn_threshold) {
+    warning(sprintf("Join to %s: %d rows (%.2f%%) unmatched",
+                    lookup_name, unmatched_count, unmatched_pct * 100))
+  }
+
+  invisible(result)
+}
+```
+
+### validate_numeric_range()
+
+```r
+validate_numeric_range <- function(dt, col_name, allow_negative = FALSE) {
+  values <- dt[[col_name]]
+
+  if (!is.numeric(values)) {
+    stop(sprintf("Column '%s' is not numeric", col_name))
+  }
+
+  negative_count <- sum(values < 0, na.rm = TRUE)
+
+  if (negative_count > 0 && !allow_negative) {
+    negative_examples <- head(unique(values[values < 0]), 5)
+    warning(sprintf("Column '%s' contains %d negative values. Examples: %s",
+                    col_name, negative_count,
+                    paste(negative_examples, collapse = ", ")))
+  }
+
+  invisible(negative_count)
 }
 ```
 
@@ -237,11 +324,27 @@ validate_join_success <- function(dt, key_col, result_col, lookup_name) {
 
 ## Logging Functions
 
+The logging system supports configurable log levels via the `BMF_LOG_LEVEL` environment variable (`DEBUG`, `INFO`, `WARN`, `ERROR`).
+
+### Core Logging Functions
+
+```r
+# Log level filtering is automatic based on BMF_LOG_LEVEL
+log_debug <- function(msg)  # Only shown if BMF_LOG_LEVEL=DEBUG
+log_info <- function(msg)   # Standard informational messages
+log_warn <- function(msg)   # Warning messages
+log_error <- function(msg)  # Error messages (stops execution)
+```
+
 ### log_info()
 
 ```r
 log_info <- function(msg) {
-  message(sprintf("[%s] INFO: %s", format(Sys.time(), "%H:%M:%S"), msg))
+  if (.should_log("INFO")) {
+    message(sprintf("[%s] [INFO] %s",
+                    format(Sys.time(), "%Y-%m-%d %H:%M:%S"), msg))
+  }
+  invisible(NULL)
 }
 ```
 
@@ -250,16 +353,98 @@ log_info <- function(msg) {
 ```r
 log_phase_start <- function(phase_name) {
   message("")
-  message(sprintf("========== PHASE: %s ==========", toupper(phase_name)))
-  message("")
+  message(strrep("=", 60))
+  log_info(sprintf("PHASE: %s", phase_name))
+  message(strrep("=", 60))
+  invisible(NULL)
 }
 ```
 
 ### log_transform_start()
 
 ```r
-log_transform_start <- function(transform_name) {
-  message(sprintf("  > %s", transform_name))
+log_transform_start <- function(transform_name, input_rows = NULL) {
+  if (is.null(input_rows)) {
+    log_info(sprintf("Starting transformation: %s", transform_name))
+  } else {
+    log_info(sprintf("Starting transformation: %s (%s rows)",
+                     transform_name, format(input_rows, big.mark = ",")))
+  }
+  invisible(NULL)
+}
+```
+
+### log_transform_complete()
+
+```r
+log_transform_complete <- function(transform_name, output_rows = NULL, duration_secs = NULL) {
+  parts <- sprintf("Completed transformation: %s", transform_name)
+  if (!is.null(output_rows)) {
+    parts <- sprintf("%s (%s rows)", parts, format(output_rows, big.mark = ","))
+  }
+  if (!is.null(duration_secs)) {
+    parts <- sprintf("%s in %.2f seconds", parts, duration_secs)
+  }
+  log_info(parts)
+  invisible(NULL)
+}
+```
+
+### log_quality_report()
+
+```r
+log_quality_report <- function(transform_name, total, valid,
+                               invalid = NULL, undefined = NULL) {
+  message("")
+  message(sprintf("--- %s Quality Report ---", transform_name))
+  message(sprintf("  Total Records:    %s", format(total, big.mark = ",")))
+  message(sprintf("  Valid:            %s (%.2f%%)",
+                  format(valid, big.mark = ","), (valid / total) * 100))
+  # ... additional metrics if provided
+  message("")
+  invisible(NULL)
+}
+```
+
+---
+
+## Checkpoint Functions
+
+Checkpoints allow pipeline recovery and debugging by preserving intermediate states.
+
+### save_checkpoint()
+
+```r
+save_checkpoint <- function(dt, checkpoint_name) {
+  # Only saves if ENABLE_CHECKPOINTS is TRUE
+  # Files saved to: CHECKPOINT_DIR/bmf_{YEAR}_{MONTH}_{checkpoint_name}.parquet
+}
+```
+
+### load_checkpoint()
+
+```r
+load_checkpoint <- function(checkpoint_name) {
+  # Returns data.table if checkpoint exists, NULL otherwise
+  # Example: bmf <- load_checkpoint("02_identity")
+}
+```
+
+### list_checkpoints()
+
+```r
+list_checkpoints <- function() {
+  # Returns character vector of available checkpoint names
+  # Example output: c("01_raw", "02_identity", "03_classification")
+}
+```
+
+### clear_checkpoints()
+
+```r
+clear_checkpoints <- function(confirm = FALSE) {
+  # Removes all checkpoint files for current processing year/month
+  # Must set confirm = TRUE to actually delete files
 }
 ```
 
@@ -334,14 +519,19 @@ feat: add transform for NEW_FIELD column
 
 ## Common Issues
 
-### Issue: "object 'xxx_lookup' not found"
+### Issue: "object 'lookup_ls' not found"
 
-**Cause:** Lookup table not loaded before transform is called
+**Cause:** Lookup tables not loaded before transform is called
 
 **Fix:** Ensure `source()` order in orchestrator loads config.R first:
 ```r
-source(here::here("R", "config.R"))  # Loads lookups
-source(here::here("R", "new_field.R"))  # Uses lookups
+source(here::here("R", "config.R"))  # Loads lookup_ls from Excel workbook
+source(here::here("R", "new_field.R"))  # Uses lookup_ls$new_field
+```
+
+Also verify the sheet exists in `bmf_code_lookup.xlsx`:
+```r
+names(lookup_ls)  # Should include "new_field"
 ```
 
 ### Issue: "Column 'xxx' not found"
@@ -360,11 +550,14 @@ source(here::here("R", "new_field.R"))  # Uses lookups
 
 **Fix:** Ensure consistent types:
 ```r
-# In transform
-dt_safe[, code := as.integer(get(input_col))]
+# In transform - convert to same type as lookup
+dt_safe[, code := as.character(get(input_col))]
 
-# In lookup loading
-lookup <- fread(..., colClasses = list(integer = "code"))
+# Check lookup column types
+str(lookup_ls$new_field)
+
+# If needed, convert lookup column type
+lookup_ls$new_field[, code := as.character(code)]
 ```
 
 ### Issue: Checkpoint won't load

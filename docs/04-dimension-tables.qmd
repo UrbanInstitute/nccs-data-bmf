@@ -6,9 +6,17 @@ title: "Dimension Tables"
 
 The BMF pipeline generates **dimension tables** that track changes across multiple BMF snapshots over time. These tables follow the **SCD Type 2** (Slowly Changing Dimension) pattern from data warehousing, preserving complete historical records.
 
+::: {.callout-note}
+## Planned Functionality
+
+The dimension tables described in this chapter (`dim_org_name`, `dim_org_address`, `dim_ntee`) are **not yet created by this pipeline**. Currently, this pipeline processes individual monthly BMF snapshots.
+
+Once all historical BMF files have been processed, dimension table generation will be integrated into the pipeline to track changes across time. The schemas and patterns documented here describe the planned output structure.
+:::
+
 ## Overview
 
-Dimension tables are created **after all BMF files are processed**, not during individual pipeline runs. They compare records across monthly BMF snapshots to detect and track changes in:
+Dimension tables will be created **after all BMF files are processed**, not during individual pipeline runs. They compare records across monthly BMF snapshots to detect and track changes in:
 
 - Organization names
 - Organization addresses
@@ -16,7 +24,10 @@ Dimension tables are created **after all BMF files are processed**, not during i
 
 ```{mermaid}
 %%| fig-width: 10
+%%| fig-height: 8
 flowchart TB
+    classDef node fill:#d2d2d2,stroke:#333,color:#000
+
     subgraph Monthly["Monthly Pipeline Runs"]
         BMF1[("BMF 2024-01")]
         BMF2[("BMF 2024-02")]
@@ -43,6 +54,10 @@ flowchart TB
     DETECT --> DIM1
     DETECT --> DIM2
     DETECT --> DIM3
+
+    style Monthly fill:#fff9e6,stroke:#fdbf11
+    style Post fill:#fee39b,stroke:#fdbf11
+    style Dims fill:#fdbf11,stroke:#d19c0f
 ```
 
 ## SCD Type 2 Pattern
@@ -99,6 +114,7 @@ Tracks changes to organization names over time.
 library(data.table)
 library(arrow)
 
+# Planned output location once dimension tables are generated
 dim_org_name <- arrow::read_parquet("data/processed/dim_org_name.parquet")
 setDT(dim_org_name)
 
@@ -154,6 +170,7 @@ Tracks changes to organization addresses over time.
 ### Find organizations that relocated
 
 ```r
+# Planned output location once dimension tables are generated
 dim_org_address <- arrow::read_parquet("data/processed/dim_org_address.parquet")
 setDT(dim_org_address)
 
@@ -221,6 +238,7 @@ Tracks changes to NTEE classification codes over time.
 ### Find organizations that changed NTEE codes
 
 ```r
+# Planned output location once dimension tables are generated
 dim_ntee <- arrow::read_parquet("data/processed/dim_ntee.parquet")
 setDT(dim_ntee)
 
