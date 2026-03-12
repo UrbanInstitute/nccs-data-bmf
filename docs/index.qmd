@@ -161,19 +161,24 @@ Field definitions are documented in the IRS Internal Revenue Manual: [IRM 25.7.1
 nccs-data-bmf/
 ├── R/
 │   ├── run_pipeline.R             # Pipeline orchestrator
+│   ├── run_geocoding.R            # Geocoding workflow orchestrator
 │   ├── config.R                   # S3 configuration and lookups
 │   ├── checkpoints.R              # Save/load intermediate states
 │   ├── input_validation.R         # Shared validation functions
+│   ├── geocoding_export.R         # Prepare geocoder batches
+│   ├── geocoding_merge.R          # Merge geocoded results
 │   ├── utils/                     # Logging and utilities
-│   ├── quality/                   # Pre/post quality checks
+│   ├── quality/                   # Pre/post quality checks + geocoding checks
 │   └── [transform files]          # 21 transformation modules (24 functions)
 ├── data/
 │   ├── raw/                       # Downloaded BMF files
 │   ├── lookup/                    # Reference/lookup tables
 │   ├── dictionaries/              # Column descriptions for data dictionary
+│   ├── s3-readme/                 # S3 bucket README (uploaded to bucket root)
 │   ├── checkpoints/               # Intermediate saves
 │   ├── intermediate/              # Intermediate parquet outputs
 │   ├── processed/                 # Final output files
+│   ├── geocoding/                 # Geocoding workflow data
 │   └── quality/                   # Quality reports
 └── docs/                          # This guidebook
 ```

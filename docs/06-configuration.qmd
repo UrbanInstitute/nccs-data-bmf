@@ -55,6 +55,8 @@ BMF_S3_BUCKET <- "nccsdata"
 BMF_S3_PREFIX <- "raw/bmf/"
 BMF_S3_INTERMEDIATE_PREFIX <- "intermediate/bmf/"
 BMF_S3_PROCESSED_PREFIX <- "processed/bmf/"
+BMF_S3_GEOCODING_PREFIX <- "geocoding/bmf/"
+GEOCODER_BATCH_SIZE <- 900000
 ```
 
 ### S3 Download Functions
@@ -95,6 +97,8 @@ ENABLE_S3_UPLOAD <- TRUE
 |---------|------|---------|-------------|
 | `BMF_S3_INTERMEDIATE_PREFIX` | character | `"intermediate/bmf/"` | S3 prefix for intermediate outputs (all columns) |
 | `BMF_S3_PROCESSED_PREFIX` | character | `"processed/bmf/"` | S3 prefix for processed outputs (transformed only) |
+| `BMF_S3_GEOCODING_PREFIX` | character | `"geocoding/bmf/"` | S3 prefix for geocoded outputs |
+| `GEOCODER_BATCH_SIZE` | integer | `900000` | Max rows per geocoder batch (under 1M limit) |
 | `ENABLE_S3_UPLOAD` | logical | `TRUE` | Upload processed files to S3 after pipeline completes |
 
 #### Upload Functions
@@ -108,6 +112,12 @@ upload_bmf_results(parquet_path, quality_report_path, year, month)
 
 # Upload processed BMF (transformed columns only), quality report, and data dictionary
 upload_processed_bmf(csv_path, quality_report_path, dictionary_path, year, month)
+
+# Upload geocoded BMF (parquet, CSV, quality report, data dictionary)
+upload_geocoded_bmf(parquet_path, csv_path, quality_report_path, dictionary_path, year, month)
+
+# Upload S3 bucket README from data/s3-readme/README.md
+upload_s3_readme()
 ```
 
 **Uploaded Files:**
@@ -119,6 +129,11 @@ upload_processed_bmf(csv_path, quality_report_path, dictionary_path, year, month
 | `bmf_YYYY_MM_processed.csv` | `s3://nccsdata/processed/bmf/YYYY_MM/` | Transformed columns only |
 | `bmf_YYYY_MM_data_dictionary.csv` | `s3://nccsdata/processed/bmf/YYYY_MM/` | Column metadata |
 | `bmf_YYYY_MM_quality_report.json` | `s3://nccsdata/processed/bmf/YYYY_MM/` | Quality metrics (copy) |
+| `bmf_YYYY_MM_geocoded.parquet` | `s3://nccsdata/geocoding/bmf/YYYY_MM/merged/` | Geocoded BMF (parquet) |
+| `bmf_YYYY_MM_geocoded.csv` | `s3://nccsdata/geocoding/bmf/YYYY_MM/merged/` | Geocoded BMF (CSV) |
+| `bmf_YYYY_MM_geocoding_quality_report.json` | `s3://nccsdata/geocoding/bmf/YYYY_MM/merged/` | Geocoding quality metrics |
+| `bmf_YYYY_MM_geocoding_data_dictionary.csv` | `s3://nccsdata/geocoding/bmf/YYYY_MM/merged/` | Geocoding column metadata |
+| `README.md` | `s3://nccsdata/` | Bucket documentation (from `data/s3-readme/README.md`) |
 
 **AWS Permissions Required:** `s3:PutObject` on the `nccsdata` bucket.
 
@@ -201,7 +216,11 @@ nccs-data-bmf/
 │   ├── quality/
 │   │   ├── pre_checks.R           # Pre-validation
 │   │   ├── post_checks.R          # Post-validation
+│   │   ├── geocoding_checks.R     # Geocoding quality validation
 │   │   └── quality_report_template.qmd  # HTML/PDF report template
+│   ├── run_geocoding.R            # Geocoding workflow orchestrator
+│   ├── geocoding_export.R         # Prepare geocoder batches
+│   ├── geocoding_merge.R          # Merge geocoded results
 │   └── [transform files]           # 24 transform functions
 │
 ├── data/
@@ -214,6 +233,15 @@ nccs-data-bmf/
 │   │
 │   ├── dictionaries/               # Column metadata
 │   │   └── column_descriptions.csv # Static column descriptions
+│   │
+│   ├── s3-readme/                  # Version-controlled S3 bucket README
+│   │   └── README.md              # Uploaded to s3://nccsdata/README.md
+│   │
+│   ├── geocoding/                  # Geocoding workflow data (gitignored)
+│   │   └── YYYY_MM/
+│   │       ├── input/             # Address batches for geocoder
+│   │       ├── output/            # Raw geocoder results
+│   │       └── merged/            # Final geocoded BMF
 │   │
 │   ├── checkpoints/                # Intermediate saves (7 checkpoints)
 │   │   ├── bmf_2025_01_01_raw.parquet

@@ -620,8 +620,7 @@ dt[lookup, definition := i.definition, on = .(code_col = code)]
 1. **targets Integration**: Migrate to targets package for DAG-based orchestration
 2. **Unit Tests**: Add testthat test suite
 3. **DuckDB Backend**: For larger-than-memory processing
-4. **Address Geocoding**: Add lat/long from addresses
-5. **E-file Integration**: Complement BMF with Form 990 e-file data
+4. **E-file Integration**: Complement BMF with Form 990 e-file data
 
 ### Contributing
 

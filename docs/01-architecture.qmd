@@ -320,7 +320,12 @@ R/
 ├── quality/
 │   ├── pre_checks.R             # validate_raw_bmf_structure()
 │   ├── post_checks.R            # generate_quality_report()
+│   ├── geocoding_checks.R       # Geocoding quality validation
 │   └── quality_report_template.qmd  # HTML/PDF report template
+│
+├── run_geocoding.R              # Geocoding workflow orchestrator
+├── geocoding_export.R           # Prepare geocoder batches
+├── geocoding_merge.R            # Merge geocoded results
 │
 ├── ein.R                        # Phase 3
 ├── organization_name.R          # Phase 3
@@ -394,6 +399,8 @@ BMF_S3_BUCKET <- "nccsdata"
 BMF_S3_PREFIX <- "raw/bmf/"
 BMF_S3_INTERMEDIATE_PREFIX <- "intermediate/bmf/"
 BMF_S3_PROCESSED_PREFIX <- "processed/bmf/"
+BMF_S3_GEOCODING_PREFIX <- "geocoding/bmf/"
+GEOCODER_BATCH_SIZE <- 900000
 
 # Download functions
 download_bmf_from_s3(bucket, prefix, year, month)

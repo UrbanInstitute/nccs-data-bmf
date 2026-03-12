@@ -37,6 +37,19 @@ Control flags in `run_pipeline.R`:
 - `ENABLE_S3_UPLOAD` - Upload results to S3 (default: TRUE)
 - `CHECKPOINT_DIR` - Directory for checkpoints (default: "data/checkpoints")
 
+### Run the Geocoding Workflow
+```r
+# Phase 1: Export address batches for geocoding
+GEOCODING_MODE <- "export"
+source("R/run_geocoding.R")
+
+# ... upload to Urban Institute geocoder, download results ...
+
+# Phase 2: Merge geocoded results back into BMF
+GEOCODING_MODE <- "merge"
+source("R/run_geocoding.R")
+```
+
 ### Build Documentation
 ```bash
 # Generate HTML guidebook from Quarto
@@ -61,17 +74,23 @@ S3 (raw/bmf/YYYY-MM-BMF.csv) → Download → Transform → Validated BMF (parqu
 8. **Filing** - Transform filing requirement codes
 9. **Post-validation** - Generate quality report with completeness metrics
 10. **Intermediate Output** - Save parquet with all columns to intermediate/ folder in S3
-11. **Processed Output** - Save parquet without raw columns to processed/ folder in S3
+11. **Processed Output** - Save CSV without raw columns to processed/ folder in S3
 
 ### Key Files
 
 **Core Infrastructure:**
 - `R/run_pipeline.R` - Main orchestration (11 phases)
-- `R/config.R` - S3 configuration, lookup table loading
+- `R/config.R` - S3 configuration, lookup table loading, upload functions
 - `R/checkpoints.R` - Save/load intermediate states
 - `R/input_validation.R` - Shared validation functions
 - `R/utils/logging.R` - Structured logging utilities
 - `R/utils/transform_utils.R` - Reusable transformation helpers
+
+**Geocoding Workflow:**
+- `R/run_geocoding.R` - Geocoding orchestrator (export/merge modes)
+- `R/geocoding_export.R` - Prepare address batches for Urban geocoder
+- `R/geocoding_merge.R` - Merge geocoded results back into processed BMF
+- `R/quality/geocoding_checks.R` - Geocoding quality validation
 
 **Quality Gates:**
 - `R/quality/pre_checks.R` - Pre-transformation validation
@@ -122,16 +141,23 @@ Pipeline saves intermediate states for recovery and debugging. Checkpoint number
 
 **Local files:**
 - `data/intermediate/bmf_YYYY_MM_intermediate.parquet` - All columns (raw + transformed)
-- `data/processed/bmf_YYYY_MM_processed.parquet` - Transformed columns only
+- `data/processed/bmf_YYYY_MM_processed.csv` - Transformed columns only
 - `data/processed/bmf_YYYY_MM_data_dictionary.csv` - Column metadata and stats
 - `data/quality/bmf_YYYY_MM_quality_report.json` - Quality metrics
+- `data/geocoding/YYYY_MM/merged/bmf_YYYY_MM_geocoded.parquet` - Geocoded BMF
 
 **S3 upload (if enabled):**
 - `intermediate/bmf/YYYY_MM/bmf_YYYY_MM_intermediate.parquet` - All columns
 - `intermediate/bmf/YYYY_MM/bmf_YYYY_MM_quality_report.json`
-- `processed/bmf/YYYY_MM/bmf_YYYY_MM_processed.parquet` - Transformed only
+- `processed/bmf/YYYY_MM/bmf_YYYY_MM_processed.csv` - Transformed only
 - `processed/bmf/YYYY_MM/bmf_YYYY_MM_data_dictionary.csv` - Column metadata
 - `processed/bmf/YYYY_MM/bmf_YYYY_MM_quality_report.json`
+- `geocoding/bmf/YYYY_MM/merged/bmf_YYYY_MM_geocoded.parquet` - Geocoded BMF
+- `geocoding/bmf/YYYY_MM/merged/bmf_YYYY_MM_geocoded.csv`
+- `README.md` - Bucket documentation (uploaded by `upload_s3_readme()`)
+
+**S3 bucket documentation:**
+- `data/s3-readme/README.md` - Version-controlled README uploaded to bucket root
 
 ## Key Dependencies
 
