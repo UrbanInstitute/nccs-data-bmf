@@ -109,7 +109,7 @@ Transforms multi-valued activity fields. Internally creates dimension tables for
 | Transform | Pattern | Outputs |
 |---------------------------|-----------------------|-----------------------|
 | `transform_bmf_activity_code()` | Dimension table + Aggregate | `activity_code`, `activity_code_definitions`, `activity_code_categories` |
-| `transform_ntee_code()` | Complex | `ntee_code_raw`, `ntee_code_clean`, `ntee_code_definition`, `ntee_code_major_group`, `ntee_common_code`, `ntee_common_code_definition`, `naics_code`, `nteev2`, `nteev2_code`, `nteev2_subsector`, `nteev2_org_type` |
+| `transform_ntee_code()` | Complex | `ntee_code_raw`, `ntee_code_clean`, `ntee_code_definition`, `ntee_code_major_group`, `ntee_common_code`, `ntee_common_code_definition`, `naics_code`, `nteev2`, `nteev2_code`, `nteev2_subsector`, `nteev2_subsector_definition`, `nteev2_org_type` |
 
 ### Phase 6: Temporal Transformations
 
