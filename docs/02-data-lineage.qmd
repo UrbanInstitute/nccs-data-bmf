@@ -664,12 +664,12 @@ flowchart LR
 | `activity_code_definitions` | char | ACTIVITY + lookup | Semicolon-separated descriptions of activity codes |
 | `activity_code_categories` | char | ACTIVITY + lookup | Semicolon-separated activity categories |
 | `ntee_code_raw` | char | NTEE_CD | Original NTEE code from source file (1-4 characters) |
-| `ntee_code_clean` | char | NTEE_CD | Standardized 3-character NTEE code |
-| `ntee_code_definition` | char | lookup | Full description of NTEE classification |
-| `ntee_code_major_group` | char | NTEE_CD | NTEE major group letter (A-Z) indicating broad category |
-| `ntee_common_code` | char | NTEE_CD | Common code suffix for 4-character NTEE codes |
+| `ntee_code_clean` | char | NTEE_CD | Standardized 3-character NTEE code. `UNDEFINED` if missing/empty; `INVALID` if malformed |
+| `ntee_code_definition` | char | lookup | Full description of NTEE classification. `UNDEFINED` if code is missing/invalid |
+| `ntee_code_major_group` | char | NTEE_CD | NTEE major group letter (A-Z) indicating broad category. `Unknown` for Z-prefix codes (from lookup); `UNDEFINED` if code is missing/invalid |
+| `ntee_common_code` | char | NTEE_CD | Common code suffix for 4-character NTEE codes. `Undefined` if not a 4-character code with recognized common suffix |
 | `ntee_common_code_definition` | char | lookup | Description of common code suffix |
-| `naics_code` | char | lookup | North American Industry Classification System code derived from NTEE |
+| `naics_code` | char | lookup | North American Industry Classification System code derived from NTEE. `UNDEFINED` if NTEE code is missing/invalid |
 | `nteev2` | char | derived | Full NTEEv2 code in SUBSECTOR-CODE-TYPE format |
 | `nteev2_code` | char | derived | NTEEv2 code portion (3 characters) |
 | `nteev2_subsector` | char | derived | NTEEv2 subsector code (e.g. UNI HOS ART ENV) |

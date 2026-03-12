@@ -45,7 +45,7 @@ organization_code,Code for type of organization (corporation trust etc.)
 organization_code_definition,Description of organization type
 status_code,IRS determination status code (01-99)
 status_code_definition,Description of exempt status
-naics_code,North American Industry Classification System code derived from NTEE
+naics_code,North American Industry Classification System code derived from NTEE. UNDEFINED if source NTEE code is missing/empty or invalid
 ruling_date_ym_str,Ruling date as YYYYMM string
 ruling_date,Date of IRS ruling granting exempt status. If missing assigned 1900-01-01
 ruling_date_is_missing,TRUE if ruling date is missing or invalid
@@ -68,12 +68,12 @@ filing_requirement_code_definition,Description of filing requirement (990 990-EZ
 pf_filing_requirement_code,Private foundation filing requirement code
 pf_filing_requirement_code_definition,Description of private foundation filing requirement
 ntee_code_raw,Original NTEE code from source file (1-4 characters)
-ntee_code_clean,Standardized 3-character NTEE code
-ntee_code_definition,Full description of NTEE classification
-ntee_code_major_group,NTEE major group letter (A-Z) indicating broad category
+ntee_code_clean,Standardized 3-character NTEE code. UNDEFINED if source code is missing/empty; INVALID if source code is malformed (no leading letter or not in lookup table)
+ntee_code_definition,Full description of NTEE classification. UNDEFINED if source NTEE code is missing/empty or invalid
+ntee_code_major_group,NTEE major group letter (A-Z) indicating broad category. Unknown for Z-prefix codes (unclassifiable organizations per lookup table); UNDEFINED if source NTEE code is missing/empty or invalid
 ntee_activity_code,NTEE activity type code (2-digit numeric portion)
 ntee_activity_code_definition,Description of NTEE activity type
-ntee_common_code,Common code suffix for 4-character NTEE codes (e.g. 01-99)
+ntee_common_code,Common code suffix for 4-character NTEE codes (e.g. 01-99). Undefined (title case) if the source code is not a 4-character code with a recognized common suffix
 ntee_common_code_definition,Description of common code suffix
 nteev2,Full NTEEv2 code in SUBSECTOR-CODE-TYPE format
 nteev2_code,NTEEv2 code portion (3 characters)

@@ -521,6 +521,22 @@ transform_ntee_code(
 | `nteev2_org_type` | character | NTEEV2 organization type |
 
 
+**Sentinel Values:**
+
+Several NTEE output columns use sentinel string values to represent missing, invalid, or inapplicable data. These values are intentionally distinct:
+
+| Column | Value | Meaning |
+|--------|-------|---------|
+| `ntee_code_clean` | `UNDEFINED` | Source NTEE code is missing or empty |
+| `ntee_code_clean` | `INVALID` | Source NTEE code is malformed (no leading letter) or not found in the lookup table |
+| `ntee_code_major_group` | `Unknown` | Valid Z-prefix NTEE code — the lookup table maps Z codes to "Unknown" (IRS code Z99 = "unclassifiable organization") |
+| `ntee_code_major_group` | `UNDEFINED` | Source NTEE code is missing/empty or invalid (propagated from `ntee_code_clean`) |
+| `ntee_code_definition` | `UNDEFINED` | Source NTEE code is missing/empty or invalid |
+| `ntee_common_code` | `Undefined` | Source code is not a 4-character NTEE code with a recognized common suffix (01, 02, 03, 05, 11, 12, or 19) |
+| `naics_code` | `UNDEFINED` | Source NTEE code is missing/empty or invalid |
+
+Note that `UNDEFINED` (all caps), `Unknown` (from lookup), and `Undefined` (title case) are three distinct values with different origins and semantics.
+
 **Code Definitions:** See the [Lookup Tables Reference](08-lookup-tables.qmd#ntee-codes) for complete NTEE code definitions, major groups, and common codes.
 
 ---
