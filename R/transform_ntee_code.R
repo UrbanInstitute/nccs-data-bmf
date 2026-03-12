@@ -87,6 +87,7 @@ NTEEV2_SUBSECTOR_HOSPITAL <- c("E20", "E21", "E22", "E24")
     ntee_common_code,
     nteev2_code,
     nteev2_subsector,
+    nteev2_subsector_definition,
     nteev2_org_type
   )]
   scd[, effective_year := year]
@@ -140,7 +141,8 @@ NTEEV2_SUBSECTOR_HOSPITAL <- c("E20", "E21", "E22", "E24")
 #'   \code{ntee_code_raw}, \code{ntee_code_clean}, \code{ntee_code_definition},
 #'   \code{ntee_code_major_group}, \code{naics_code}, \code{ntee_common_code},
 #'   \code{ntee_common_code_definition}, \code{nteev2_code},
-#'   \code{nteev2_subsector}, \code{nteev2_org_type}, \code{nteev2}.
+#'   \code{nteev2_subsector}, \code{nteev2_subsector_definition},
+#'   \code{nteev2_org_type}, \code{nteev2}.
 #'
 #' @details
 #' Transformation steps:
@@ -171,6 +173,7 @@ transform_ntee_code <- function(
     ntee_code_lookup = lookup_ls$ntee_code,
     ntee_major_group_lookup = lookup_ls$ntee_code_major_group,
     ntee_common_code_lookup = lookup_ls$ntee_common_code,
+    nteev2_subsector_lookup = lookup_ls$nteev2_subsector,
     input_ntee_col = "NTEE_CD",
     year = PROCESSING_YEAR,
     path = NULL,
@@ -277,6 +280,11 @@ transform_ntee_code <- function(
   # NTEEV2 Transformation
   # ---------------------------------------------------------------------------
   dt <- .nteev2_code_transform(dt)
+
+  # NTEEV2 subsector definition lookup
+  dt[nteev2_subsector_lookup,
+     nteev2_subsector_definition := i.nteev2_subsector_definition,
+     on = .(nteev2_subsector)]
 
   # ---------------------------------------------------------------------------
   # Cleanup Helper Columns

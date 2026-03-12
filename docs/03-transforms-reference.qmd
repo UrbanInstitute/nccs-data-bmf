@@ -518,6 +518,7 @@ transform_ntee_code(
 | `naics_code` | character | Mapped NAICS industry code |
 | `nteev2_code` | character | NTEE Version 2 code |
 | `nteev2_subsector` | character | NTEEV2 subsector |
+| `nteev2_subsector_definition` | character | Human-readable NTEEv2 subsector name |
 | `nteev2_org_type` | character | NTEEV2 organization type |
 
 

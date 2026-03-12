@@ -588,7 +588,7 @@ flowchart LR
 | ASSET_AMT | numeric | `transform_asset_amount()` | `asset_amount` |
 | INCOME_AMT | numeric | `transform_income_amount()` | `income_amount` |
 | REVENUE_AMT | numeric | `transform_revenue_amount()` | `revenue_amount` |
-| NTEE_CD | char(4) | `transform_ntee_code()` | `ntee_code_raw`, `ntee_code_clean`, `ntee_code_definition`, `ntee_code_major_group`, `ntee_common_code`, `ntee_common_code_definition`, `naics_code`, `nteev2`, `nteev2_code`, `nteev2_subsector`, `nteev2_org_type` |
+| NTEE_CD | char(4) | `transform_ntee_code()` | `ntee_code_raw`, `ntee_code_clean`, `ntee_code_definition`, `ntee_code_major_group`, `ntee_common_code`, `ntee_common_code_definition`, `naics_code`, `nteev2`, `nteev2_code`, `nteev2_subsector`, `nteev2_subsector_definition`, `nteev2_org_type` |
 | SORT_NAME | char | `transform_dba_name()` | `dba_name_raw`, `dba_name` |
 | REGION | int | (none) | Removed in processed output |
 | RYEAR | int | (none) | Removed in processed output |
@@ -673,6 +673,7 @@ flowchart LR
 | `nteev2` | char | derived | Full NTEEv2 code in SUBSECTOR-CODE-TYPE format |
 | `nteev2_code` | char | derived | NTEEv2 code portion (3 characters) |
 | `nteev2_subsector` | char | derived | NTEEv2 subsector code (e.g. UNI HOS ART ENV) |
+| `nteev2_subsector_definition` | char | lookup | Human-readable NTEEv2 subsector name |
 | `nteev2_org_type` | char | derived | NTEEv2 organization type (RG=Regular AA=Alliance etc.) |
 
 #### Temporal Columns

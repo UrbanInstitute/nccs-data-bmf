@@ -78,6 +78,7 @@ ntee_common_code_definition,Description of common code suffix
 nteev2,Full NTEEv2 code in SUBSECTOR-CODE-TYPE format
 nteev2_code,NTEEv2 code portion (3 characters)
 nteev2_subsector,NTEEv2 subsector code (e.g. UNI HOS ART ENV)
+nteev2_subsector_definition,Human-readable NTEEv2 subsector name (e.g. Universities Hospitals Arts Culture and Humanities)
 nteev2_org_type,NTEEv2 organization type (RG=Regular AA=Alliance etc.)
 geo_lat,WGS 84 latitude (EPSG 4326) from geocoder
 geo_lon,WGS 84 longitude (EPSG 4326) from geocoder
