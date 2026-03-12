@@ -374,6 +374,10 @@ if (ENABLE_S3_UPLOAD) {
     year = PROCESSING_YEAR,
     month = PROCESSING_MONTH
   )
+
+  # Upload bucket README
+  log_info("Uploading S3 bucket README")
+  upload_s3_readme()
 }
 
 # Note: Dimension tables are not saved per-file.

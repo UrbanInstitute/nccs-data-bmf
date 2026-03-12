@@ -15,8 +15,10 @@ docs/GUIDEBOOK/
 # Data directories (large files, generated outputs)
 data/raw/
 data/processed/
+data/intermediate/
 data/checkpoints/
 data/quality/
+data/geocoding/
 data/test/
 data/validate/
 

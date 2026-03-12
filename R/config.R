@@ -6,6 +6,8 @@ BMF_S3_BUCKET <- "nccsdata"
 BMF_S3_PREFIX <- "raw/bmf/"
 BMF_S3_INTERMEDIATE_PREFIX <- "intermediate/bmf/"
 BMF_S3_PROCESSED_PREFIX <- "processed/bmf/"
+BMF_S3_GEOCODING_PREFIX <- "geocoding/bmf/"
+GEOCODER_BATCH_SIZE <- 900000
 
 # ============================================================================
 # S3 Download Functions
@@ -287,6 +289,83 @@ upload_processed_bmf <- function(csv_path,
   }
 
   return(results)
+}
+
+#' Upload geocoded BMF results to S3
+#'
+#' @description
+#' Uploads the geocoded BMF parquet, CSV, quality report, and data dictionary
+#' to S3. Files are uploaded to geocoding/bmf/YYYY_MM/merged/ directory.
+#'
+#' @param parquet_path Path to the geocoded BMF parquet file
+#' @param csv_path Path to the geocoded BMF CSV file
+#' @param quality_report_path Path to the geocoding quality report JSON
+#' @param dictionary_path Path to the data dictionary CSV
+#' @param year Processing year (YYYY)
+#' @param month Processing month (MM)
+#' @param bucket S3 bucket name (default: "nccsdata")
+#'
+#' @return Named list with upload status for each file
+#'
+#' @export
+upload_geocoded_bmf <- function(parquet_path,
+                                 csv_path,
+                                 quality_report_path,
+                                 dictionary_path,
+                                 year,
+                                 month,
+                                 bucket = BMF_S3_BUCKET) {
+
+  # Construct S3 directory path: geocoding/bmf/YYYY_MM/merged/
+  s3_dir <- sprintf("%s%s_%s/merged/", BMF_S3_GEOCODING_PREFIX, year, month)
+
+  # Construct S3 keys for each file
+  parquet_s3_key <- sprintf("%sbmf_%s_%s_geocoded.parquet", s3_dir, year, month)
+  csv_s3_key <- sprintf("%sbmf_%s_%s_geocoded.csv", s3_dir, year, month)
+  quality_s3_key <- sprintf("%sbmf_%s_%s_geocoding_quality_report.json", s3_dir, year, month)
+  dictionary_s3_key <- sprintf("%sbmf_%s_%s_geocoding_data_dictionary.csv", s3_dir, year, month)
+
+  message(sprintf("Uploading geocoded BMF to s3://%s/%s", bucket, s3_dir))
+
+  parquet_success <- upload_to_s3(parquet_path, parquet_s3_key, bucket)
+  csv_success <- upload_to_s3(csv_path, csv_s3_key, bucket)
+  quality_success <- upload_to_s3(quality_report_path, quality_s3_key, bucket)
+  dictionary_success <- upload_to_s3(dictionary_path, dictionary_s3_key, bucket)
+
+  results <- list(
+    parquet = parquet_success,
+    csv = csv_success,
+    quality_report = quality_success,
+    data_dictionary = dictionary_success
+  )
+
+  if (all(unlist(results))) {
+    message("Geocoded files uploaded successfully")
+  } else {
+    message("WARNING: Some uploads failed")
+  }
+
+  return(results)
+}
+
+# ============================================================================
+# S3 README Upload
+# ============================================================================
+
+#' Upload S3 bucket README
+#'
+#' @description
+#' Uploads the locally maintained README.md to the root of the S3 bucket
+#' so that team members browsing the bucket can understand the folder structure.
+#'
+#' @param bucket S3 bucket name (default: "nccsdata")
+#'
+#' @return TRUE if upload succeeded, FALSE otherwise
+#'
+#' @export
+upload_s3_readme <- function(bucket = BMF_S3_BUCKET) {
+  readme_path <- here::here("data/s3-readme/README.md")
+  upload_to_s3(readme_path, "README.md", bucket)
 }
 
 # ============================================================================

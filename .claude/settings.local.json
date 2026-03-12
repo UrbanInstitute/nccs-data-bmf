@@ -12,7 +12,11 @@
       "Bash(quarto render:*)",
       "WebSearch",
       "Bash(numeric\" to \"numeric)",
-      "Bash(numeric\" for amount validation\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(numeric\" for amount validation\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(python3 -c \"import openpyxl; wb = openpyxl.load_workbook\\(''data/lookup/bmf_code_lookup.xlsx'', read_only=True\\); print\\(''Sheets:'', wb.sheetnames\\)\")",
+      "Bash(Rscript -e \"library\\(openxlsx\\); sheets <- getSheetNames\\(''data/lookup/bmf_code_lookup.xlsx''\\); print\\(sheets\\)\")",
+      "Bash(Rscript:*)",
+      "Bash(find /mnt/c/Users/tpoongundranar/Documents/Urban/NCCS/nccs-data-bmf -name \"*.pdf\" -o -name \"*.txt\" 2>/dev/null | head -20)"
     ]
   }
 }
