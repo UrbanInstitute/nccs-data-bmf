@@ -26,6 +26,8 @@ data/validate/
 *.csv
 !data/lookup/*.csv
 !data/dictionaries/*.csv
+!data/crosswalks/*.csv
+!data/crosswalks/legacy_dictionaries_raw/*.csv
 
 # Temp and misc
 *.png

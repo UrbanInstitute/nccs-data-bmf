@@ -1,0 +1,48 @@
+legacy_name_upper,legacy_case_variants,current_name,disposition,subcategory,n_dicts_observed,year_month_first,year_month_last,legacy_label,legacy_dtype,legacy_length,legacy_description,notes
+ACCPER,ACCPER;accper,ACCT_PD,rename,alias,67,2000-05,2016-08,Accounting period (MM),Character,2,Accounting period,Accounting period (fiscal year-end month)
+ASSETS,ASSETS,ASSET_AMT,rename,alias,72,1995-08,2016-08,"Total assets, end of year",Numeric,1,Total assets (end of year) from most recent Form 990,Total assets end-of-year from most recent Form 990
+CITY,CITY,CITY,rename,identity,73,1989-06,2016-08,City,Character,22,City,
+EIN,EIN,EIN,rename,identity,73,1989-06,2016-08,Employer Identification Number,Character,9,Employer identification number.,
+FRCD,FRCD,FILING_REQ_CD,rename,alias,42,2002-01,2016-08,Filing Requirement Code,Character,6,Filing requirements code. The 1st 2 characters indicate the requirements for 990/990-EZ forms. The 3rd character = 1 if a 990-PF is required or 0 if not.,Filing requirement code
+FNDNCD,FNDNCD,FOUNDATION,rename,alias,72,1995-08,2016-08,Reason for 501(c)(3) status,Character,6,"Reason for & type of 501(c)(3) exempt status including codes for operating and grantmaking foundations, and broad type of public charity",Foundation code (Type of Foundation)
+GEN,GEN,GROUP,rename,alias,41,2010-08,2016-08,Group Exemption Number,Character,4,Group Exemption Number,Group Exemption Number
+INCOME,INCOME,INCOME_AMT,rename,alias,72,1995-08,2016-08,Gross receipts,Numeric,1,Gross receipts from most recently filed Form 990,Gross receipts from most recent Form 990; semantically aligned with INCOME_AMT
+NAME,NAME,NAME,rename,identity,73,1989-06,2016-08,Name of organization,Character,60,Organization name.,
+NTEECC,NTEECC,NTEE_CD,rename,alias,73,1989-06,2016-08,NTEECC primary purpose,Character,4,NTEECC classification,NTEE Core Code
+CTOTREV,cTotRev,REVENUE_AMT,rename,nccs-curated,72,1995-08,2016-08,Total Revenue,Numeric,6,"Total Revenue from most recent Form 990 (Part I, line 12 on Form 990; Part I, line 9 on Form 990-EZ; or Part I, line 12(a) on Form 990-PF)","Total Revenue from Form 990 (Part I, line 12). NCCS-curated rather than raw BMF; only legacy source for revenue. Provenance differs from current REVENUE_AMT (which is raw BMF)."
+RULEDATE,RULEDATE,RULING,rename,alias,72,1995-08,2016-08,Ruling date (YYYYMM) from IRS,Character,6,Ruling date: year and month of IRS ruling or determination letter recognizing orgs exempt status (YYYYMM),Ruling/determination date YYYYMM
+SEC_NAME,SEC_NAME,SORT_NAME,rename,alias,64,2002-07,2016-08,Sort Name (Secondary name),Character,35,Secondary organization name,Secondary/sort name (DBA)
+STATE,STATE,STATE,rename,identity,73,1989-06,2016-08,State,Character,2,Two-letter state abbreviation.,
+SUBSECCD,SUBSECCD,SUBSECTION,rename,alias,73,1989-06,2016-08,Subsection code,Character,20,"IRS subsection code (03=501(c)(3), etc.)",Subsection code (IRC 501(c) paragraph)
+TAXPER,TAXPER,TAX_PERIOD,rename,alias,55,2006-11,2016-08,Ending date for tax period,Character,20,"Ending date for tax period of financial data. Core files for 1997 on are in ""yyyymm"" format (199412=Dec. 1994). Earlier years use 2-digit year (""9412"").",Tax period end YYYYMM
+ZIP5,zip5,ZIP,rename,alias,73,1989-06,2016-08,"Zip code, 5 digits",Character,5,First 5 digits of zip code,5-digit ZIP only; current ZIP transform parses 5+4
+FIPS,FIPS,,drop,geographic,73,1989-06,2016-08,State + County FIPS code,Character,5,2-digit State + 3-digit County FIPS code (Federal Information Processing Standard). See also U.S. Census Bureau State & County QuickFacts .,State+county FIPS; not used as input by current pipeline
+LATITUDE,LATITUDE,,drop,geographic,1,2010-04,2010-04,Latitude,Numeric,2,"Latitude of organization headquarters or address provided to IRS, including some P.O. Boxes.",Geocoded latitude (only 2010-04)
+LONGITUDE,LONGITUDE,,drop,geographic,1,2010-04,2010-04,Longitude,Numeric,2,Longitude of the organization headquarters or address provided to IRS (includes some PO Boxes),Geocoded longitude (only 2010-04)
+MSA,MSA,,drop,geographic,8,2003-07,2006-05,Metropolitan Statistical Area,Character,4,Metropolitan Statistical Area (NCCS file) ( list ),"MSA (only 8 dicts, 2003-07..2006-05)"
+MSA_NECH,MSA_NECH,,drop,geographic,71,1989-06,2016-08,Metropolitan Statistical Area,Character,4,Metropolitan Statistical Area (NCCS file) ( list ),Metropolitan Statistical Area (NECH variant)
+PMSA,PMSA,,drop,geographic,73,1989-06,2016-08,Primary MSA,Character,4,Primary Metropolitan Statistical Area,Primary Metropolitan Statistical Area
+CASSETS,cAssets,,drop,nccs-curated,72,1995-08,2016-08,"Total Assets, BV End of Year",Numeric,6,"Total Assets (Book Value at end of year) from most recent Form 990 (Part IV, line 59(B) on Form 990; Part II, line 25(B) on Form 990-EZ; or Part II, line 16(b) on Form 990-PF)",NCCS-curated assets BV end-of-year; redundant with ASSETS->ASSET_AMT
+CTAXPER,cTaxPer,,drop,nccs-curated,72,1995-08,2016-08,Ending date for tax period,Character,6,Ending date for tax period of NCCS financial data in yyyymm format.,NCCS-curated tax period; redundant with TAXPER->TAX_PERIOD
+CFILER,cFiler,,drop,nccs-flag,72,1995-08,2016-08,990 filing w/n 2 years? (Y/N),Character,1,Filed 990 return within 24 months of BMF file date? (Y/N),NCCS 24-month 990 filed flag
+CFINSRC,cFinSrc,,drop,nccs-flag,72,1995-08,2016-08,Source of NCCS Financial Data,Character,10,Source of financial data added by NCCS (primarily the most recent Form 990 filing as of BMF date from NCCS Core files),Source of NCCS financial data
+CZFILER,cZFiler;czFiler,,drop,nccs-flag,67,2000-05,2016-08,990 filing $0 inc/assets w/n 2 years? (Y/N),Character,1,"Filed 990 return with zero income and assets within 24 months of BMF file? (Y/N) - Beginning 2008, over 95% of 'zero filers' (cZFiler=Y) filed Form 990-N (e-Postcard) for tax years ending on or after December 31, 2007.",NCCS 24-month no-income 990 filed flag (curated variant)
+FILER,Filer,,drop,nccs-flag,73,1989-06,2016-08,990 filing w/n 2 years? (Y/N),Character,20,"Filed 990 return (Form 990, Form 990-EZ, Form 990-PF, or Form 990-N) within 24 months of BMF file? (Y/N)",NCCS 24-month any-990 filed flag
+OUTNCCS,outnccs,,drop,nccs-flag,73,1989-06,2016-08,Out of Scope flag,Character,20,Out-of-scope (IN/OUT) (see OUTREAS doc. for details),NCCS out-of-scope flag (foreign/territory/etc)
+OUTREAS,OUTREAS,,drop,nccs-flag,73,1989-06,2016-08,Reason why out of scope,Character,20,Reason why out of scope,NCCS out-of-scope reason
+RANDNUM,RandNum;randnum,,drop,nccs-flag,73,1989-06,2016-08,Random number between 0 and 1,Numeric,2,Random number between 0 and 1 used for creating samples,NCCS random number (sampling aid)
+ZFILER,ZFILER;ZFiler,,drop,nccs-flag,67,2000-05,2016-08,990 filing $0 inc/assets w/n 2 years? (Y/N),Character,20,"Filed 990 return with zero income and assets within 24 months of BMF file? (Y/N) - Beginning 2008, over 95% of 'zero filers' (ZFiler=Y) filed Form 990-N (e-Postcard) for tax years ending on or after December 31, 2007.",NCCS 24-month no-income 990 filed flag
+LEVEL1,LEVEL1,,drop,ntee-refinement,73,1989-06,2016-08,Public charity or priv. fndn?,Character,4,Public charity or private foundation?,NCCS NTEE hierarchical level
+LEVEL2,LEVEL2,,drop,ntee-refinement,73,1989-06,2016-08,Reporting public charity group,Character,4,Reporting public charity groups.,NCCS NTEE hierarchical level
+LEVEL3,level3,,drop,ntee-refinement,73,1989-06,2016-08,Major NTEE category,Character,4,Major NTEE category,NCCS NTEE hierarchical level
+LEVEL4,level4,,drop,ntee-refinement,73,1989-06,2016-08,NTEE-CC Major Group,Character,4,NTEE-CC Major Group,NCCS NTEE hierarchical level
+MAJGRPB,MAJGRPB,,drop,ntee-refinement,73,1989-06,2016-08,Major NTEE group,Character,1,Major NTEE group plus hospitals and higher education,NCCS NTEE major group variant
+NTEE1,NTEE1,,drop,ntee-refinement,73,1989-06,2016-08,NTEE major group,Character,2,NTEE major group (A-Z),NTEE major group letter; derived in current pipeline
+NTEECONF,NTEEconf,,drop,ntee-refinement,73,1989-06,2016-08,NTEE confidence rating,Character,1,NTEE classification confidence rating (A/B/C),NCCS NTEE confidence flag (A/B/C)
+NTMAJ10,ntmaj10,,drop,ntee-refinement,73,1989-06,2016-08,NTEE major group (10),Character,20,10 NTEE major groups,NCCS 10-category collapsed NTEE
+NTMAJ12,ntmaj12,,drop,ntee-refinement,73,1989-06,2016-08,NTEE major group (12),Character,20,12 NTEE major groups: ntmaj10 plus higher education (BH) and hospitals (EH),NCCS 12-category collapsed NTEE
+NTMAJ5,ntmaj5,,drop,ntee-refinement,73,1989-06,2016-08,Major subsector,Character,20,Major subsector (5),NCCS 5-category collapsed NTEE
+NAICS,NAICS,,drop,other,73,1989-06,2016-08,NAICS,Character,6,NAICS Code,NAICS code; current pipeline derives NAICS from NTEE_CD
+ORGTYPCD,ORGTYPCD,,drop,single-year,1,1989-06,1989-06,Org. type,Character,3,"Org.type (F=private foundation, C=charity, T=trust, O=other exempt org.)",Organization type code (1989-only); not propagated to later dictionaries
+V_ERRORCD,v_errorCd,,drop,single-year,1,1989-06,1989-06,Possible error code,Character,1,Code for possible error,Possible error code (1989-only NCCS validation flag)
+ZIP,ZIP,,drop,single-year,1,1989-06,1989-06,Zip Code,Character,10,ZIP code.,Full ZIP from 1989-only dictionary; superseded by zip5 in later years

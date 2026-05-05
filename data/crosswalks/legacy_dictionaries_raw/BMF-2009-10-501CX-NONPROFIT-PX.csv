@@ -1,0 +1,40 @@
+section,name,name_upper,dtype,length,label,description
+Basic Info,EIN,EIN,Character,9,Employer Identification Number,Employer identification number.
+Basic Info,NAME,NAME,Character,60,Name of organization,Organization name.
+Basic Info,STATE,STATE,Character,2,State,Two-letter state abbreviation.
+Basic Info,NTEE1,NTEE1,Character,2,NTEE major group,NTEE major group (A-Z)
+Basic Info,NTEECC,NTEECC,Character,4,NTEECC primary purpose,NTEECC classification
+Basic Info,CITY,CITY,Character,22,City,City
+Basic Info,zip5,ZIP5,Character,5,"Zip code, 5 digits",First 5 digits of zip code
+Basic Info,FIPS,FIPS,Character,5,State + County FIPS code,2-digit State + 3-digit County FIPS code (Federal Information Processing Standard). See also U.S. Census Bureau State & County QuickFacts .
+Basic Info,MSA_NECH,MSA_NECH,Character,4,Metropolitan Statistical Area,Metropolitan Statistical Area (NCCS file) ( list )
+Basic Info,PMSA,PMSA,Character,4,Primary MSA,Primary Metropolitan Statistical Area
+Basic Info,TAXPER,TAXPER,Character,20,Ending date for tax period,"Ending date for tax period of financial data. Core files for 1997 on are in ""yyyymm"" format (199412=Dec. 1994). Earlier years use 2-digit year (""9412"")."
+Basic Info,outnccs,OUTNCCS,Character,20,Out of Scope flag,Out-of-scope (IN/OUT) (see OUTREAS doc. for details)
+Basic Info,OUTREAS,OUTREAS,Character,20,Reason why out of scope,Reason why out of scope
+Basic Info,Filer,FILER,Character,20,990 filing w/n 2 years? (Y/N),"Filed 990 return (Form 990, Form 990-EZ, Form 990-PF, or Form 990-N) within 24 months of BMF file? (Y/N)"
+Basic Info,ZFILER,ZFILER,Character,20,990 filing $0 inc/assets w/n 2 years? (Y/N),"Filed 990 return with zero income and assets within 24 months of BMF file? (Y/N) - Beginning 2008, over 95% of 'zero filers' (ZFiler=Y) filed Form 990-N (e-Postcard) for tax years ending on or after December 31, 2007."
+Classification,SUBSECCD,SUBSECCD,Character,20,Subsection code,"IRS subsection code (03=501(c)(3), etc.)"
+Classification,ntmaj5,NTMAJ5,Character,20,Major subsector,Major subsector (5)
+Classification,ntmaj10,NTMAJ10,Character,20,NTEE major group (10),10 NTEE major groups
+Classification,ntmaj12,NTMAJ12,Character,20,NTEE major group (12),12 NTEE major groups: ntmaj10 plus higher education (BH) and hospitals (EH)
+Classification,NTEEconf,NTEECONF,Character,1,NTEE confidence rating,NTEE classification confidence rating (A/B/C)
+Classification,MAJGRPB,MAJGRPB,Character,1,Major NTEE group,Major NTEE group plus hospitals and higher education
+Financial Info,INCOME,INCOME,Numeric,1,Gross receipts,Gross receipts from most recently filed Form 990
+Financial Info,ASSETS,ASSETS,Numeric,1,"Total assets, end of year",Total assets (end of year) from most recent Form 990
+NCCS Financial Info,cFiler,CFILER,Character,1,990 filing w/n 2 years? (Y/N),Filed 990 return within 24 months of BMF file date? (Y/N)
+NCCS Financial Info,cZFiler,CZFILER,Character,1,990 filing $0 inc/assets w/n 2 years? (Y/N),"Filed 990 return with zero income and assets within 24 months of BMF file? (Y/N) - Beginning 2008, over 95% of 'zero filers' (cZFiler=Y) filed Form 990-N (e-Postcard) for tax years ending on or after December 31, 2007."
+NCCS Financial Info,cTaxPer,CTAXPER,Character,6,Ending date for tax period,Ending date for tax period of NCCS financial data in yyyymm format.
+NCCS Financial Info,cTotRev,CTOTREV,Numeric,6,Total Revenue,"Total Revenue from most recent Form 990 (Part I, line 12 on Form 990; Part I, line 9 on Form 990-EZ; or Part I, line 12(a) on Form 990-PF)"
+NCCS Financial Info,cAssets,CASSETS,Numeric,6,"Total Assets, BV End of Year","Total Assets (Book Value at end of year) from most recent Form 990 (Part IV, line 59(B) on Form 990; Part II, line 25(B) on Form 990-EZ; or Part II, line 16(b) on Form 990-PF)"
+NCCS Financial Info,cFinSrc,CFINSRC,Character,10,Source of NCCS Financial Data,Source of financial data added by NCCS (primarily the most recent Form 990 filing as of BMF date from NCCS Core files)
+Other Descriptive Info,RULEDATE,RULEDATE,Character,6,Ruling date (YYYYMM) from IRS,Ruling date: year and month of IRS ruling or determination letter recognizing orgs exempt status (YYYYMM)
+Other Descriptive Info,FNDNCD,FNDNCD,Character,6,Reason for 501(c)(3) status,"Reason for & type of 501(c)(3) exempt status including codes for operating and grantmaking foundations, and broad type of public charity"
+Other Descriptive Info,SEC_NAME,SEC_NAME,Character,35,Sort Name (Secondary name),Secondary organization name
+Other Classification,LEVEL1,LEVEL1,Character,35,Public charity or priv. fndn?,Public charity or private foundation?
+Other Classification,LEVEL2,LEVEL2,Character,35,Reporting public charity group,Reporting public charity groups.
+Other Classification,level3,LEVEL3,Character,35,Major NTEE category,Major NTEE category
+Other Classification,level4,LEVEL4,Character,35,NTEE-CC Major Group,NTEE-CC Major Group
+Other Classification,NAICS,NAICS,Character,6,NAICS,NAICS Code
+Miscellaneous,ACCPER,ACCPER,Character,2,Accounting period (MM),Accounting period
+Miscellaneous,randnum,RANDNUM,Numeric,2,Random number between 0 and 1,Random number between 0 and 1 used for creating samples

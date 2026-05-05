@@ -13,9 +13,16 @@ BMF_REQUIRED_COLUMNS <- c(
   "GROUP", "SUBSECTION", "AFFILIATION", "CLASSIFICATION",
   "RULING", "DEDUCTIBILITY", "FOUNDATION", "ACTIVITY",
   "ORGANIZATION", "STATUS", "TAX_PERIOD", "ASSET_CD",
-  "INCOME_CD", "FILING_REQ_CD", "PF_FILING_REQ_CD", 
-  "ASSET_AMT", "INCOME_AMT", "REVENUE_AMT", "NTEE_CD", 
+  "INCOME_CD", "FILING_REQ_CD", "PF_FILING_REQ_CD",
+  "ASSET_AMT", "INCOME_AMT", "REVENUE_AMT", "NTEE_CD",
   "SORT_NAME", "ACCT_PD", "REGION", "RYEAR", "ID"
+)
+
+# Minimum columns required after legacy BMF harmonization. These are the only
+# current-schema columns that appear (under their legacy aliases) in every
+# 501CX-NONPROFIT-PX dictionary from 1989-2016. See data/crosswalks/XWALK-BMF-V2.0.csv.
+BMF_LEGACY_MIN_COLUMNS <- c(
+  "EIN", "NAME", "CITY", "STATE", "ZIP", "SUBSECTION", "NTEE_CD"
 )
 
 # ============================================================================

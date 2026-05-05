@@ -1,0 +1,29 @@
+section,name,name_upper,dtype,length,label,description
+Basic Info,EIN,EIN,Character,9,Employer Identification Number,Employer identification number.
+Basic Info,NAME,NAME,Character,70,Name of Org.,Organization name.
+Basic Info,STATE,STATE,Character,2,State,Two-letter state abbreviation.
+Basic Info,NTEE1,NTEE1,Character,2,NTEE major group,NTEE major group (A-Z)
+Basic Info,NTEECC,NTEECC,Character,4,NTEECC primary purpose,NTEECC classification
+Basic Info,CITY,CITY,Character,25,City,City
+Basic Info,zip5,ZIP5,Character,5,"Zip code, 5 digits",First 5 digits of zip code
+Basic Info,ZIP,ZIP,Character,10,Zip Code,ZIP code.
+Basic Info,FIPS,FIPS,Character,5,State + County FIPS code,2-digit State + 3-digit County FIPS code (Federal Information Processing Standard). See also U.S. Census Bureau State & County QuickFacts .
+Basic Info,MSA_NECH,MSA_NECH,Character,9,Metropolitan Statistical Area,Metropolitan Statistical Area (NCCS file) ( list )
+Basic Info,PMSA,PMSA,Character,4,Primary MSA,Primary Metropolitan Statistical Area - the component areas that comprise a CMSA (76 PMSAs as of 1995). ( list )
+Basic Info,outnccs,OUTNCCS,Character,3,Out of Scope flag,Out-of-scope (IN/OUT) (see OUTREAS doc. for details)
+Basic Info,OUTREAS,OUTREAS,Character,3,Reason why out of scope,Reason why out of scope
+Basic Info,Filer,FILER,Character,3,990 filing w/n 2 years? (Y/N),Filed 990 return within 24 months of BMF file? (Y/N)
+Basic Info,ORGTYPCD,ORGTYPCD,Character,3,Org. type,"Org.type (F=private foundation, C=charity, T=trust, O=other exempt org.)"
+Classification,SUBSECCD,SUBSECCD,Character,3,Subsection code,"IRS subsection code (03=501(c)(3), etc.)"
+Classification,ntmaj5,NTMAJ5,Character,3,Major subsector,Major subsector (5)
+Classification,ntmaj10,NTMAJ10,Character,3,NTEE major group (10),10 NTEE major groups
+Classification,ntmaj12,NTMAJ12,Character,3,NTEE major group (12),12 NTEE major groups: ntmaj10 plus higher education (BH) and hospitals (EH)
+Classification,NTEEconf,NTEECONF,Character,1,NTEE confidence rating,NTEE classification confidence rating (A/B/C)
+Classification,MAJGRPB,MAJGRPB,Character,1,Major NTEE group,Major NTEE group plus hospitals and higher education
+Other Classification,LEVEL1,LEVEL1,Character,1,Public charity or priv. fndn?,Public charity or private foundation?
+Other Classification,LEVEL2,LEVEL2,Character,1,Reporting public charity group,Reporting public charity groups.
+Other Classification,level3,LEVEL3,Character,1,Major NTEE category,Major NTEE category
+Other Classification,level4,LEVEL4,Character,1,NTEE-CC Major Group,NTEE-CC Major Group
+Other Classification,NAICS,NAICS,Character,6,NAICS,NAICS Code
+Verification,v_errorCd,V_ERRORCD,Character,1,Possible error code,Code for possible error
+Miscellaneous,RandNum,RANDNUM,Numeric,1,Random number between 0 and 1,Random number between 0 and 1 used for creating samples
