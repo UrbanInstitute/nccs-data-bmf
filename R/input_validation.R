@@ -100,6 +100,10 @@ validate_join_success <- function(dt,
 
   total_rows <- nrow(dt)
 
+  if (total_rows == 0) {
+    return(invisible(list(unmatched_count = 0L, unmatched_pct = 0, total_rows = 0L)))
+  }
+
   # Count rows where key exists but result is NA (unmatched)
   unmatched_count <- dt[!is.na(get(key_col)) & is.na(get(result_col)), .N]
   unmatched_pct <- unmatched_count / total_rows

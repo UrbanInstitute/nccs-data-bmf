@@ -231,8 +231,12 @@ quality_html_dir <- here::here("docs", "quality-reports")
 if (!dir.exists(quality_html_dir)) dir.create(quality_html_dir, recursive = TRUE)
 quality_html_path <- file.path(quality_html_dir,
   sprintf("bmf_legacy_%s_%s_quality_report.html", PROCESSING_YEAR, PROCESSING_MONTH))
-render_quality_report(quality_report, quality_html_path, format = "html")
-log_info(sprintf("Quality report HTML rendered: %s", quality_html_path))
+tryCatch({
+  render_quality_report(quality_report, quality_html_path, format = "html")
+  log_info(sprintf("Quality report HTML rendered: %s", quality_html_path))
+}, error = function(e) {
+  log_warn(sprintf("HTML quality report render failed (non-fatal): %s", conditionMessage(e)))
+})
 
 # ============================================================================
 # PHASE 10: INTERMEDIATE OUTPUT (FULL schema, all cols)

@@ -91,10 +91,14 @@ load_crosswalk_v2 <- function(path = here::here("data", "crosswalks", "XWALK-BMF
 #' @return list(dt = harmonized data.table, report = list of harmonization details)
 harmonize_legacy_bmf <- function(dt, crosswalk) {
   dt <- data.table::copy(dt)
-  original_names <- names(dt)
+  # data.table's names() returns a reference that tracks subsequent setnames/
+  # :=NULL operations on dt. paste0() forces allocation of a fresh character
+  # vector so the audit trail reflects the pre-harmonization input state.
+  original_names <- paste0(names(dt))
+  n_input_cols <- ncol(dt)
 
   data.table::setnames(dt, original_names, toupper(original_names))
-  upper_names <- names(dt)
+  upper_names <- paste0(names(dt))
 
   unknown <- setdiff(upper_names, crosswalk$legacy_name_upper)
   if (length(unknown) > 0) {
@@ -129,7 +133,7 @@ harmonize_legacy_bmf <- function(dt, crosswalk) {
 
   report <- list(
     timestamp = format(Sys.time(), "%Y-%m-%dT%H:%M:%S"),
-    input_column_count = length(original_names),
+    input_column_count = n_input_cols,
     input_columns = original_names,
     columns_dropped = drops,
     columns_renamed = rename_pairs,
@@ -139,7 +143,7 @@ harmonize_legacy_bmf <- function(dt, crosswalk) {
 
   log_info(sprintf(
     "Harmonization: %d input cols -> dropped %d, renamed %d, NA-filled %d, final %d cols",
-    length(original_names), length(drops), nrow(rename_rows),
+    n_input_cols, length(drops), nrow(rename_rows),
     length(na_filled), ncol(dt)
   ))
 
