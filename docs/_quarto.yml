@@ -22,6 +22,7 @@ book:
     - 06-configuration.qmd
     - 07-developer-guide.qmd
     - 08-lookup-tables.qmd
+    - 09-legacy-harmonization.qmd
 
 format:
   html:

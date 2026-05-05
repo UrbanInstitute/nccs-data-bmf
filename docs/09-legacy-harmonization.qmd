@@ -1,0 +1,201 @@
+---
+title: "Legacy BMF Harmonization"
+---
+
+# Overview
+
+Legacy NCCS 501CX-NONPROFIT-PX BMF files (1989–2016) use NCCS-curated
+column names that differ from the current IRS BMF schema. The legacy
+pipeline harmonizes these files, runs the same transforms as the
+modern pipeline, and writes a slim per-file processed output that
+contains only columns whose underlying input was actually populated.
+
+Legacy files are *NCCS profile extracts*, not raw IRS BMF — they include
+geographic enrichments and analytic flags but drop many raw IRS fields
+(filing requirements, affiliation, deductibility, ICO, STREET, activity,
+classification, status, organization type, asset/income codes,
+PF filing). 14 current-schema columns therefore have no legacy source
+at all and are excluded from the slim output.
+
+# Pipeline Differences
+
+`R/run_legacy_pipeline.R` mirrors `R/run_pipeline.R` with these changes:
+
+| Phase | Modern | Legacy |
+|---|---|---|
+| 1 Extraction | Download from S3 | Read from `data/raw/legacy/<file>.csv` (set `LEGACY_BMF_FILE` before sourcing) |
+| 1.5 Harmonization | n/a | `harmonize_legacy_bmf()` — uppercase, drop, rename, NA-fill |
+| 2 Pre-validation | Requires all 31 `BMF_REQUIRED_COLUMNS` | Requires only 7 `BMF_LEGACY_MIN_COLUMNS` populated |
+| 3–9 Transforms | unchanged | unchanged (same code path; NA inputs propagate) |
+| 10 Intermediate parquet | full schema | full schema (audit/debug) |
+| 11 Processed CSV | full schema | slim schema (only populated cols) |
+| S3 upload | enabled by default | disabled by default |
+
+# Harmonization Steps
+
+Implemented in `harmonize_legacy_bmf(dt, crosswalk)` in
+`R/legacy_bmf_adapter.R`:
+
+1. **Uppercase column names** — handles case-aliasing across years
+   (e.g., `cZFiler` vs `czFiler`, `ZFiler` vs `ZFILER`, `accper` vs
+   `ACCPER`, `RandNum` vs `randnum`).
+2. **Reject unknown columns** — every column in the input file must
+   have a row in `XWALK-BMF-V2.0.csv`. Unknown columns trigger a hard
+   stop. This is the safety net against silently leaving columns
+   behind.
+3. **Drop columns marked `disposition=drop`** — NCCS analytic flags,
+   NTEE refinements, geographic enrichments, single-year columns.
+4. **Rename columns marked `disposition=rename`** to their
+   `current_name` target.
+5. **NA-fill missing required columns** — any
+   `BMF_REQUIRED_COLUMNS` member not produced by step 4 is added as an
+   NA character column, so existing transforms run unmodified. The
+   transforms propagate NA through their outputs.
+
+The output is a data.table with exactly the 31 columns in
+`BMF_REQUIRED_COLUMNS`, in arbitrary order.
+
+# Crosswalk: `XWALK-BMF-V2.0.csv`
+
+Built from two sources:
+
+1. **Scraped dictionaries** — 73 of 88 listed 501CX-NONPROFIT-PX
+   dictionary pages from the NCCS catalog
+   (`https://nccs.urban.org/nccs/catalogs/catalog-bmf.html`). The other
+   15 are "data unavailable" placeholders. 47 distinct upper-cased
+   columns observed across the 73 dictionaries.
+
+2. **Direct file inspection** — the dictionaries undercount real file
+   contents. The 1989-06 raw file has 42 columns vs. the 28 listed in
+   its dictionary; the extras are accumulated NCCS reprocessing
+   artifacts (e.g., `Ntee2007a`, `Confidence2007a`, `nteeFinal`,
+   `*Old1` suffixes). When a new legacy file surfaces unknown
+   columns, add their dispositions to the crosswalk before re-running.
+
+## Schema
+
+| Column | Description |
+|---|---|
+| `legacy_name_upper` | Upper-cased legacy column name (key) |
+| `legacy_case_variants` | All observed source casings (semicolon-separated) |
+| `current_name` | Target column in current schema (blank if `drop`) |
+| `disposition` | `rename` or `drop` |
+| `subcategory` | `identity`, `alias`, `nccs-curated`, `nccs-flag`, `nccs-derived`, `ntee-refinement`, `geographic`, `single-year`, `other` |
+| `n_dicts_observed` | How many of the 73 dictionaries contain this column |
+| `year_month_first`, `year_month_last` | Year-month range observed |
+| `legacy_label`, `legacy_dtype`, `legacy_length`, `legacy_description` | Metadata from the source dictionary |
+| `notes` | Provenance/semantic notes |
+
+## Renames
+
+18 legacy columns map to current schema columns. Notable cases:
+
+- **`cTotRev` → `REVENUE_AMT`** — NCCS-curated total revenue from
+  Form 990 (Part I, line 12). The only legacy source for revenue;
+  provenance differs from the modern pipeline's `REVENUE_AMT`
+  (which is raw BMF). Flagged in the `notes` field.
+- **`zip5` → `ZIP`** — current pipeline's ZIP transform internally
+  parses 5+4.
+- **`INCOME` → `INCOME_AMT`** — Gross receipts from Form 990,
+  semantically aligned with `INCOME_AMT`.
+- **Identity renames (`EIN`, `NAME`, `CITY`, `STATE`)** — same name in
+  both schemas.
+
+## Drops
+
+41 legacy columns are dropped. Categories:
+
+- **NCCS NTEE refinements** (`NTEE1`, `MAJGRPB`, `ntmaj5/10/12`,
+  `NTEEconf`, `LEVEL1-4`, etc.) — current pipeline derives these from
+  `NTEE_CD`.
+- **NCCS analytic flags** (`Filer`, `cFiler`, `ZFiler`, `cZFiler`,
+  `cFinSrc`, `outnccs`, `OUTREAS`, `RandNum`) — Core file derivations,
+  not raw fields.
+- **NCCS curated F990 derivations** (`cAssets`, `cTaxPer`) — redundant
+  with the raw BMF aliases we already keep (`ASSETS`, `TAXPER`).
+- **Geographic enrichments** (`FIPS`, `MSA_NECH`, `PMSA`, `MSA`,
+  `LATITUDE`, `LONGITUDE`, `fipsold`, `*Old1` historical values).
+- **Single-year columns** (`ZIP` 1989-only, `ORGTYPCD`, `v_errorCd`).
+- **Other** (`NAICS` — derived from NTEE in current pipeline).
+
+# Current-Schema Columns With No Legacy Source
+
+These 14 columns will always be NA in legacy intermediate output and
+are dropped from legacy processed output:
+
+`ICO`, `STREET`, `AFFILIATION`, `CLASSIFICATION`, `DEDUCTIBILITY`,
+`ACTIVITY`, `ORGANIZATION` (1989 file is the exception via `ORGCD`),
+`STATUS`, `ASSET_CD`, `INCOME_CD`, `PF_FILING_REQ_CD`, `REGION`,
+`RYEAR`, `ID`.
+
+Several legacy aliases only appear in some years
+(e.g., `TAXPER` is 2006-11+, `GEN` is 2010-08+, `FRCD` is 2002-01+,
+`SEC_NAME` is 2002-07+). Files from earlier years will have additional
+columns that are NA-filled.
+
+# Phase 11 Output Schema
+
+`compute_legacy_output_columns(populated_raw_columns)` in
+`R/legacy_bmf_adapter.R` returns the per-file keep-list. The mapping
+from each current-schema raw column to its transform output columns is
+encoded in `RAW_TO_OUTPUT_MAP`. Output columns derived from multiple
+inputs (`org_addr_full`, `org_addr_is_missing`) are kept only when
+*all* their inputs were populated (encoded in `DERIVED_OUTPUT_COLUMNS`).
+
+This means a 1989-06 file with no `STREET` will:
+
+- Keep `org_addr_city*`, `org_addr_state*`, `org_addr_zip*` (city,
+  state, zip were populated)
+- Drop `org_addr_street*`, `org_addr_full`, `org_addr_is_missing`
+  (depend on STREET)
+
+# Output Files
+
+For a legacy file `BMF-YYYY-MM-501CX-NONPROFIT-PX.csv`:
+
+- `data/intermediate/bmf_legacy_YYYY_MM_intermediate.parquet` — full
+  ~110-column schema, includes NA-filled columns. Use for audit and
+  debugging.
+- `data/processed/bmf_legacy_YYYY_MM_processed.csv` — slim schema,
+  varies per file based on populated inputs.
+- `data/processed/bmf_legacy_YYYY_MM_data_dictionary.csv` — column
+  metadata for the slim schema.
+- `data/quality/bmf_legacy_YYYY_MM_harmonization_report.json` —
+  per-file audit: input column count, drops, renames, NA-fills.
+- `data/quality/bmf_legacy_YYYY_MM_quality_report.json` — same shape
+  as modern pipeline quality reports.
+- `docs/quality-reports/bmf_legacy_YYYY_MM_quality_report.html` —
+  rendered quality report.
+
+# Adding New Legacy Files
+
+1. Drop the CSV in `data/raw/legacy/`.
+2. Run:
+   ```r
+   LEGACY_BMF_FILE <- "data/raw/legacy/<filename>.csv"
+   source("R/run_legacy_pipeline.R")
+   ```
+3. If pre-harmonization fails with "Legacy BMF contains N column(s)
+   not present in XWALK-BMF-V2.0.csv":
+   - Add a row to `data/crosswalks/XWALK-BMF-V2.0.csv` for each
+     unknown column (`legacy_name_upper`, `legacy_case_variants`,
+     `disposition`, `subcategory`, etc.).
+   - Set `n_dicts_observed=0` and leave `year_month_*` blank to flag
+     "discovered in raw file, not in dictionary."
+   - Re-run.
+
+# Implementation Notes
+
+- **`paste0(names(dt))` not `names(dt)`** — `data.table::names(dt)`
+  returns a reference that mutates with `setnames`/`:=NULL`
+  operations. The harmonization adapter uses `paste0()` to force a
+  fresh character vector for the audit trail. See
+  `R/legacy_bmf_adapter.R`.
+- **`validate_join_success()` zero-row guard** — `R/input_validation.R`
+  short-circuits when the dim table is empty (e.g., all-NA
+  CLASSIFICATION input → empty `dim_classification`). Without this,
+  the empty-table case produces NaN that breaks the threshold
+  comparison.
+- **HTML rendering is non-fatal** — wrapped in `tryCatch` so a missing
+  `quarto` R package or render failure doesn't abort the pipeline. The
+  JSON quality report is already saved by that point.

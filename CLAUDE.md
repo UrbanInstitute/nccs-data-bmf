@@ -50,6 +50,24 @@ GEOCODING_MODE <- "merge"
 source("R/run_geocoding.R")
 ```
 
+### Run the Legacy BMF Pipeline
+For NCCS legacy 501CX-NONPROFIT-PX BMF files (1989–2016 vintages). These
+files use NCCS-curated column names that differ from the current IRS BMF
+schema; the legacy pipeline harmonizes them and runs the same transforms.
+
+```r
+# Drop a legacy CSV in data/raw/legacy/ then:
+LEGACY_BMF_FILE <- "data/raw/legacy/BMF-2013-07-501CX-NONPROFIT-PX.csv"
+source("R/run_legacy_pipeline.R")
+```
+
+Legacy outputs use a `bmf_legacy_YYYY_MM_*` prefix and default to local
+storage only (`ENABLE_S3_UPLOAD <- FALSE`). The Phase 11 processed CSV
+contains a slim per-file schema — only columns whose underlying input
+was actually populated in the legacy file. The intermediate parquet
+keeps the full schema for audit. See `docs/09-legacy-harmonization.qmd`
+for the full design.
+
 ### Build Documentation
 ```bash
 # Generate HTML guidebook from Quarto
@@ -93,8 +111,18 @@ S3 (raw/bmf/YYYY-MM-BMF.csv) → Download → Transform → Validated BMF (parqu
 - `R/quality/geocoding_checks.R` - Geocoding quality validation
 
 **Quality Gates:**
-- `R/quality/pre_checks.R` - Pre-transformation validation
+- `R/quality/pre_checks.R` - Pre-transformation validation (defines `BMF_REQUIRED_COLUMNS` and `BMF_LEGACY_MIN_COLUMNS`)
 - `R/quality/post_checks.R` - Post-transformation quality reporting
+- `R/quality/legacy_pre_checks.R` - Relaxed pre-validation for legacy BMF mode
+
+**Legacy BMF Harmonization (501CX-NONPROFIT-PX, 1989–2016):**
+- `R/run_legacy_pipeline.R` - Legacy orchestrator (mirrors `run_pipeline.R` with harmonization at Phase 1.5 and slim Phase 11 output)
+- `R/legacy_bmf_adapter.R` - `harmonize_legacy_bmf()`, `compute_legacy_output_columns()`, crosswalk loader
+- `data/crosswalks/XWALK-BMF-V2.0.csv` - Legacy → current schema mapping (canonical)
+- `data/crosswalks/legacy_column_inventory.csv` - Long-format inventory of all 47 columns observed across 73 scraped dictionaries
+- `data/crosswalks/legacy_dictionaries_index.csv` - Index of fetched dictionaries (incl. unavailable pages)
+- `data/crosswalks/legacy_dictionaries_raw/` - 73 per-dictionary parsed CSVs
+- `scripts/scrape_legacy_dictionaries.py` - Reproducible scraper for the NCCS catalog
 
 **Transforms by Category:**
 - **Identity**: `ein.R`, `organization_name.R`, `dba_name.R`, `ico_name.R`, `address.R`, `ruling_date.R`, `group_exemption_number.R`
