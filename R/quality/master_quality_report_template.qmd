@@ -1,0 +1,158 @@
+---
+title: "Master BMF Quality Report"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    theme: cosmo
+    embed-resources: true
+    page-layout: full
+params:
+  report_data_path: ""
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r setup}
+suppressPackageStartupMessages({
+  library(data.table)
+  library(jsonlite)
+  library(knitr)
+})
+
+if (!file.exists(params$report_data_path)) {
+  stop("Report data file not found: ", params$report_data_path)
+}
+report <- readRDS(params$report_data_path)
+fmt_int <- function(x) format(as.integer(x), big.mark = ",")
+fmt_pct <- function(x) sprintf("%.2f %%", x)
+```
+
+::: {.callout-note appearance="simple"}
+**Generated:** `r report$timestamp`
+**Quality gate:** `r if (isTRUE(report$passed)) "**PASSED**" else "**FAILED**"`
+**Total rows (unique EINs):** `r fmt_int(report$total_rows)`
+**Source files stacked:** `r report$n_input_files`
+**Vintages contributing rows:** `r report$n_vintages`
+:::
+
+# Summary
+
+The Master BMF is a single-row-per-EIN consolidation drawn from the
+most-recent vintage in which each EIN appears across both the
+current monthly BMF pipeline and the legacy 501CX-NONPROFIT-PX
+pipeline. See [chapter 11](https://urbaninstitute.github.io/nccs-data-bmf/11-master-bmf.html)
+for the full design.
+
+| Metric | Value |
+|--------|-------|
+| Total rows | `r fmt_int(report$total_rows)` |
+| Distinct EINs | `r fmt_int(report$distinct_eins)` |
+| Rows == distinct EINs (uniqueness gate) | `r if (isTRUE(report$ein_unique)) "✅ yes" else "❌ NO"` |
+| Input CSV files | `r report$n_input_files` |
+| Vintages with at least one surviving row | `r report$n_vintages` |
+
+# Rows by source pipeline
+
+```{r}
+if (!is.null(report$rows_by_source) && length(report$rows_by_source$bmf_source) > 0) {
+  src_dt <- data.table(
+    bmf_source = report$rows_by_source$bmf_source,
+    n_rows     = report$rows_by_source$n_rows
+  )
+  src_dt[, pct := round(100 * n_rows / sum(n_rows), 2)]
+  kable(src_dt, format = "html",
+        col.names = c("Source", "Rows", "Percent"),
+        format.args = list(big.mark = ","))
+}
+```
+
+# First / last year coverage
+
+```{r}
+yr <- report$year_range
+yr_dt <- data.table(
+  metric = c("Earliest first_year_in_bmf",
+             "Latest first_year_in_bmf",
+             "Earliest last_year_in_bmf",
+             "Latest last_year_in_bmf"),
+  value  = c(yr$min_first_year, yr$max_first_year,
+             yr$min_last_year,  yr$max_last_year)
+)
+kable(yr_dt, format = "html",
+      col.names = c("Metric", "Year"))
+```
+
+# Vintages observed per EIN
+
+How many distinct BMF vintages did each EIN appear in?
+
+```{r}
+vo <- report$vintages_observed
+vo_dt <- data.table(
+  metric = c("Minimum",
+             "Average",
+             "Maximum",
+             "EINs that appear in only one vintage"),
+  value  = c(fmt_int(vo$min_vintages),
+             sprintf("%.1f", as.numeric(vo$avg_vintages)),
+             fmt_int(vo$max_vintages),
+             fmt_int(vo$n_only_once))
+)
+kable(vo_dt, format = "html",
+      col.names = c("Metric", "Value"))
+```
+
+# Vintage histogram
+
+Number of surviving master rows contributed by each vintage. A
+vintage with many rows contributed many EINs whose latest sighting
+was in that month.
+
+```{r}
+hist_df <- report$vintage_histogram
+if (!is.null(hist_df) && nrow(hist_df) > 0) {
+  hist_dt <- as.data.table(hist_df)
+  setorder(hist_dt, -n_rows)
+  kable(hist_dt, format = "html",
+        col.names = c("Vintage (YYYY-MM)", "Source", "Rows contributed"),
+        format.args = list(big.mark = ","))
+}
+```
+
+# Column completeness
+
+Top 30 most-complete columns (highest non-null fraction):
+
+```{r}
+comp <- as.data.table(report$completeness)
+setorder(comp, -pct_non_null)
+kable(head(comp, 30), format = "html",
+      col.names = c("Column", "Non-null %"))
+```
+
+Bottom 30 least-complete columns:
+
+```{r}
+setorder(comp, pct_non_null)
+kable(head(comp, 30), format = "html",
+      col.names = c("Column", "Non-null %"))
+```
+
+# Notes
+
+- **All output columns are VARCHAR.** The master build forces every
+  column to string type so DuckDB's `UNION ALL BY NAME` can combine
+  the legacy slim per-vintage schema with the current full schema
+  without per-column type-mismatch errors. Cast in your downstream
+  tool: `as.numeric(asset_amount)` in R,
+  `pd.to_numeric(df['asset_amount'], errors='coerce')` in pandas, etc.
+  Lat/lon in the geocoded master output are explicitly cast to
+  DOUBLE.
+- **Legacy-only EINs have sparse columns.** EINs whose latest
+  appearance is in a pre-2014 legacy vintage carry only the legacy
+  slim schema; current-pipeline-only columns (e.g. NTEEv2 fields,
+  modern address quality flags) are NULL. The `bmf_source` column
+  flags the source of each surviving row.

@@ -144,6 +144,12 @@ quality_report_path <- file.path(
 )
 save_master_quality_report(quality_report, quality_report_path)
 
+quality_report_html <- file.path(
+  here::here("docs", "quality-reports"),
+  "bmf_master_quality_report.html"
+)
+render_master_quality_report(quality_report, quality_report_html)
+
 if (!quality_report$passed) {
   stop("Master BMF quality gate FAILED. See report above.")
 }
@@ -172,6 +178,10 @@ if (ENABLE_S3_UPLOAD) {
                paste0(MASTER_S3_PREFIX, basename(out_paths$dictionary)))
   upload_to_s3(quality_report_path,
                paste0(MASTER_S3_PREFIX, basename(quality_report_path)))
+  if (file.exists(quality_report_html)) {
+    upload_to_s3(quality_report_html,
+                 paste0(MASTER_S3_PREFIX, basename(quality_report_html)))
+  }
 }
 
 # ============================================================================

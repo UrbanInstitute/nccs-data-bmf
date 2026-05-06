@@ -119,3 +119,63 @@ save_master_quality_report <- function(report, path) {
                        dataframe = "rows", null = "null")
   log_info(sprintf("Master quality report saved: %s", path))
 }
+
+#' Render the master quality report to HTML
+#'
+#' Uses Quarto + R/quality/master_quality_report_template.qmd. The
+#' report list is staged to a temp RDS so the template can readRDS()
+#' it via the report_data_path parameter.
+#'
+#' @param report list returned by generate_master_quality_report()
+#' @param output_path target HTML path
+#' @return Invisibly: the output path on success, NULL on failure
+render_master_quality_report <- function(report, output_path) {
+  if (!requireNamespace("quarto", quietly = TRUE)) {
+    log_warn("'quarto' R package not installed — skipping HTML report")
+    return(invisible(NULL))
+  }
+
+  template_path <- here::here("R", "quality", "master_quality_report_template.qmd")
+  if (!file.exists(template_path)) {
+    log_warn(sprintf("Master template not found at %s — skipping HTML report",
+                     template_path))
+    return(invisible(NULL))
+  }
+
+  output_dir <- dirname(output_path)
+  if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+
+  temp_rds <- tempfile(fileext = ".rds")
+  saveRDS(report, temp_rds)
+  on.exit(unlink(temp_rds), add = TRUE)
+
+  output_file <- basename(output_path)
+
+  log_info("Rendering master quality report to HTML...")
+  tryCatch({
+    quarto::quarto_render(
+      input          = template_path,
+      output_format  = "html",
+      output_file    = output_file,
+      execute_params = list(report_data_path = temp_rds),
+      quiet          = TRUE
+    )
+    rendered_file <- file.path(dirname(template_path), output_file)
+    if (!file.exists(rendered_file)) {
+      rendered_file <- file.path(
+        dirname(template_path),
+        sub("\\.qmd$", ".html", basename(template_path))
+      )
+    }
+    if (file.exists(rendered_file) &&
+        normalizePath(rendered_file) != normalizePath(output_path, mustWork = FALSE)) {
+      file.copy(rendered_file, output_path, overwrite = TRUE)
+      unlink(rendered_file)
+    }
+    log_info(sprintf("Master quality report HTML rendered: %s", output_path))
+    invisible(output_path)
+  }, error = function(e) {
+    log_warn(sprintf("HTML render failed (non-fatal): %s", conditionMessage(e)))
+    invisible(NULL)
+  })
+}
