@@ -200,7 +200,7 @@ save_checkpoint(bmf, "03_classification")
 log_phase_start("ACTIVITY TRANSFORMATIONS")
 
 log_transform_start("Activity Code"); bmf <- transform_bmf_activity_code(bmf)
-log_transform_start("NTEE Code");     bmf <- transform_ntee_code(bmf)
+log_transform_start("NTEE Code");     bmf <- transform_ntee_code(bmf, legacy_mode = TRUE)
 
 save_checkpoint(bmf, "04_activity")
 

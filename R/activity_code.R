@@ -53,13 +53,17 @@ activity_code_lookup <- lookup_ls$activity_code[
   # Convert to character
   dt_safe[, activity_code := as.character(get(input_col))]
 
-  # Validation: check for unexpected lengths
-  max_len <- max(nchar(dt_safe$activity_code), na.rm = TRUE)
-  if (max_len > 9) {
-    warning(sprintf(
-      "Activity codes with > 9 characters found (max: %d); padding may be incorrect",
-      max_len
-    ))
+  # Validation: check for unexpected lengths. Skip when the column is
+  # entirely NA (common in legacy files with no ACTIVITY data) — max() on
+  # all-NA returns -Inf with a noisy warning that adds no signal.
+  if (any(!is.na(dt_safe$activity_code))) {
+    max_len <- max(nchar(dt_safe$activity_code), na.rm = TRUE)
+    if (max_len > 9) {
+      warning(sprintf(
+        "Activity codes with > 9 characters found (max: %d); padding may be incorrect",
+        max_len
+      ))
+    }
   }
 
   # Pad to 9 characters (3 codes x 3 chars each)

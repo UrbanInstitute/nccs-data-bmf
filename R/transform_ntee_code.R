@@ -177,7 +177,8 @@ transform_ntee_code <- function(
     input_ntee_col = "NTEE_CD",
     year = PROCESSING_YEAR,
     path = NULL,
-    write_scd = TRUE
+    write_scd = TRUE,
+    legacy_mode = FALSE
   ) {
 
   # ---------------------------------------------------------------------------
@@ -203,7 +204,7 @@ transform_ntee_code <- function(
   dt[, ntee_code_raw := toupper(trimws(ntee_code_raw))]
 
   # Validate raw code lengths
-  .ntee_raw_validation(dt)
+  .ntee_raw_validation(dt, legacy_mode = legacy_mode)
 
   # ---------------------------------------------------------------------------
   # Helper Columns for Transformation Logic
@@ -309,14 +310,24 @@ transform_ntee_code <- function(
 # Helper Functions
 # ============================================================================
 
-.ntee_raw_validation <- function(dt) {
+.ntee_raw_validation <- function(dt, legacy_mode = FALSE) {
   ntee_nchar_tbl <- table(nchar(dt[, ntee_code_raw]))
 
   if (any(as.integer(names(ntee_nchar_tbl)) > 4)) {
-    stop("NTEE codes with more than 4 characters detected. ",
-         "Distribution: ",
-         paste(names(ntee_nchar_tbl), ntee_nchar_tbl,
-               sep = "=", collapse = ", "))
+    msg <- paste0(
+      "NTEE codes with more than 4 characters detected. Distribution: ",
+      paste(names(ntee_nchar_tbl), ntee_nchar_tbl,
+            sep = "=", collapse = ", ")
+    )
+    if (legacy_mode) {
+      # Pre-2003 NCCS legacy files often use 5-char NTEE codes
+      # (letter + 4 digits) that predate NTEE-CC standardization.
+      # Downstream NTEEv2 logic resolves non-matching codes to "Z99",
+      # so we relax to a warning rather than aborting the pipeline.
+      warning(msg, call. = FALSE)
+    } else {
+      stop(msg)
+    }
   }
 
   message("NTEE Code Character Length Distribution:")
