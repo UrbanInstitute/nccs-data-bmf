@@ -225,6 +225,13 @@ build_master_bmf <- function(con,
   #   staging/legacy/YYYY_MM/bmf_legacy_YYYY_MM_processed.csv
   # We match the underscore form in the regex and convert to dash with
   # REPLACE so bmf_vintage_ym ends up as "YYYY-MM".
+  #
+  # all_varchar = true: forces every column to VARCHAR. Required because
+  # UNION ALL BY NAME refuses to combine columns where one side inferred
+  # VARCHAR (e.g. all-empty legacy column) and the other inferred BIGINT
+  # (populated current column). String-typed master output is fine for
+  # the EIN-lookup / geocoding use cases; consumers cast the columns
+  # they care about after reading parquet/CSV.
   parts <- c()
   if (has_current) {
     parts <- c(parts, sprintf("
@@ -233,7 +240,8 @@ build_master_bmf <- function(con,
              'current' AS bmf_source
         FROM read_csv_auto('%s/*/bmf_*_processed.csv',
                            union_by_name = true,
-                           filename      = true)
+                           filename      = true,
+                           all_varchar   = true)
     ", current_root))
   }
   if (has_legacy) {
@@ -243,7 +251,8 @@ build_master_bmf <- function(con,
              'legacy' AS bmf_source
         FROM read_csv_auto('%s/*/bmf_legacy_*_processed.csv',
                            union_by_name = true,
-                           filename      = true)
+                           filename      = true,
+                           all_varchar   = true)
     ", legacy_root))
   }
 

@@ -175,3 +175,18 @@ sourcing.
   before 2014 carry only the legacy slim schema; current-pipeline
   columns (e.g. NTEEv2 fields, modern address quality flags) are NULL.
   The `bmf_source` column makes this explicit.
+- **All columns are VARCHAR.** The master build reads every column
+  as a string (`all_varchar = true`) because DuckDB's
+  `UNION ALL BY NAME` refuses to combine columns where the legacy
+  side inferred VARCHAR (typically because the column was all-empty
+  in the slim schema) and the current side inferred BIGINT or
+  another numeric type. Consumers should cast columns they care
+  about after reading. Recommended casts:
+
+  | Column                                                | R                                       | Python                          |
+  |-------------------------------------------------------|-----------------------------------------|----------------------------------|
+  | `asset_amount`, `income_amount`, `revenue_amount`     | `as.numeric()`                          | `pd.to_numeric(..., errors='coerce')` |
+  | `tax_period_ymd`, `ruling_date`                       | `as.Date()`                             | `pd.to_datetime(..., errors='coerce')` |
+  | `first_year_in_bmf`, `last_year_in_bmf`               | `as.integer()`                          | `pd.to_numeric(..., downcast='integer')` |
+  | `bmf_vintages_observed`                               | `as.integer()`                          | same                             |
+  | All `*_is_missing` / `*_provided` flags               | `as.logical()`                          | `.astype(bool)`                  |
