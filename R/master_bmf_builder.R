@@ -117,56 +117,53 @@ duckdb_connect_for_master <- function(db_path = NULL,
 #' @param con DuckDB connection
 #' @param inputs data.table from discover_master_inputs()
 #' @return invisibly returns the row count of bmf_master
-build_master_bmf <- function(con, inputs) {
-  current_uris <- inputs[bmf_source == "current", s3_uri]
-  legacy_uris  <- inputs[bmf_source == "legacy",  s3_uri]
+build_master_bmf <- function(con,
+                              inputs,
+                              current_glob = "s3://nccsdata/processed/bmf/*/bmf_*_processed.csv",
+                              legacy_glob  = "s3://nccsdata/processed/bmf-legacy/*/bmf_legacy_*_processed.csv") {
+  has_current <- nrow(inputs[bmf_source == "current"]) > 0
+  has_legacy  <- nrow(inputs[bmf_source == "legacy"])  > 0
 
-  if (length(current_uris) == 0 && length(legacy_uris) == 0) {
+  if (!has_current && !has_legacy) {
     stop("No input files discovered for master build.")
   }
 
-  log_info(sprintf("Stacking %d current + %d legacy CSVs via DuckDB read_csv_auto...",
-                   length(current_uris), length(legacy_uris)))
+  log_info(sprintf(
+    "Stacking %d current + %d legacy CSVs via DuckDB read_csv_auto (S3 glob)...",
+    sum(inputs$bmf_source == "current"),
+    sum(inputs$bmf_source == "legacy")
+  ))
 
-  # Format file lists for DuckDB array literal syntax.
-  fmt_array <- function(uris) {
-    if (length(uris) == 0) return("[]")
-    paste0("[", paste0("'", uris, "'", collapse = ", "), "]")
-  }
-
-  current_array <- fmt_array(current_uris)
-  legacy_array  <- fmt_array(legacy_uris)
-
-  # Stage 1: read both sets with union_by_name so legacy slim schema and
-  # current full schema reconcile. filename=true gives us the source URI
-  # to derive vintage_ym from.
-  has_current <- length(current_uris) > 0
-  has_legacy  <- length(legacy_uris) > 0
-
+  # Stage 1: read both sets via S3 glob so DuckDB enumerates keys via
+  # ListObjects rather than us passing a 100+-element array literal
+  # (the array form triggered "rapi_prepare: Invalid connection" with
+  # large file lists). union_by_name reconciles the legacy slim schema
+  # against the current full schema; filename=true gives us the source
+  # URI to derive vintage_ym from.
   parts <- c()
   if (has_current) {
     parts <- c(parts, sprintf("
       SELECT *,
              regexp_extract(filename, 'bmf_(\\d{4}_\\d{2})_processed', 1) AS vintage_underscore,
              'current' AS bmf_source
-        FROM read_csv_auto(%s,
+        FROM read_csv_auto('%s',
                            union_by_name = true,
                            filename      = true,
                            sample_size   = -1,
                            all_varchar   = false)
-    ", current_array))
+    ", current_glob))
   }
   if (has_legacy) {
     parts <- c(parts, sprintf("
       SELECT *,
              regexp_extract(filename, 'bmf_legacy_(\\d{4}_\\d{2})_processed', 1) AS vintage_underscore,
              'legacy' AS bmf_source
-        FROM read_csv_auto(%s,
+        FROM read_csv_auto('%s',
                            union_by_name = true,
                            filename      = true,
                            sample_size   = -1,
                            all_varchar   = false)
-    ", legacy_array))
+    ", legacy_glob))
   }
 
   stack_sql <- paste0(
