@@ -73,3 +73,5 @@ GEOEXCLUDE,GEOEXCLUDE,,drop,geographic,0,,,,,,,Discovered in raw 2010-07 file (n
 GEOCODE,GEOCODE,,drop,geographic,0,,,,,,,Discovered in raw 2010-07 file (not in scraped dictionaries); NCCS-curated geocode value — current pipeline runs its own geocoding workflow
 GEOCDF,GEOCDF,,drop,geographic,0,,,,,,,Discovered in raw 2009-10 file (not in scraped dictionaries); NCCS geocoding code flag variant — current pipeline runs its own geocoding workflow
 ADDRESSCHANGED,ADDRESSCHANGED,,drop,nccs-flag,0,,,,,,,Discovered in raw 2009-10 file (not in scraped dictionaries); NCCS flag indicating address changed since prior BMF snapshot
+CBSA,CBSA,,drop,geographic,0,,,,,,,Discovered in raw 2003-07 file (not in scraped dictionaries); Core Based Statistical Area (Census/OMB) — geographic enrichment not propagated
+DIVCODE,DIVCODE,,drop,geographic,0,,,,,,,Discovered in raw 2003-07 file (not in scraped dictionaries); Metropolitan Division code (Census/OMB) — geographic enrichment not propagated
