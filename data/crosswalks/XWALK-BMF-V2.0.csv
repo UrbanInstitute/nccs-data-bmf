@@ -75,3 +75,5 @@ GEOCDF,GEOCDF,,drop,geographic,0,,,,,,,Discovered in raw 2009-10 file (not in sc
 ADDRESSCHANGED,ADDRESSCHANGED,,drop,nccs-flag,0,,,,,,,Discovered in raw 2009-10 file (not in scraped dictionaries); NCCS flag indicating address changed since prior BMF snapshot
 CBSA,CBSA,,drop,geographic,0,,,,,,,Discovered in raw 2003-07 file (not in scraped dictionaries); Core Based Statistical Area (Census/OMB) — geographic enrichment not propagated
 DIVCODE,DIVCODE,,drop,geographic,0,,,,,,,Discovered in raw 2003-07 file (not in scraped dictionaries); Metropolitan Division code (Census/OMB) — geographic enrichment not propagated
+ASSETS_OLD,ASSETS_OLD,,drop,nccs-curated,0,,,,,,,Discovered in raw 2003-11 file (not in scraped dictionaries); prior-snapshot ASSETS value (NCCS history) — current pipeline keeps only the latest snapshot's ASSETS
+INCOME_OLD,INCOME_OLD,,drop,nccs-curated,0,,,,,,,Discovered in raw 2003-11 file (not in scraped dictionaries); prior-snapshot INCOME value (NCCS history) — current pipeline keeps only the latest snapshot's INCOME
