@@ -40,6 +40,10 @@ ENABLE_S3_UPLOAD     <- TRUE
 DUCKDB_MEMORY_LIMIT  <- "100GB"   # c5.18xlarge has 144 GB; leave headroom
 DUCKDB_THREADS       <- NULL      # NULL = use all cores
 DUCKDB_DB_PATH       <- NULL      # NULL = in-memory; set a path for debugging
+# Spill directory for DuckDB. The stacked CSVs (~150M VARCHAR rows)
+# can exceed the in-memory limit; DuckDB offloads unused blocks here.
+# Needs an EBS volume with ~50-100 GB free.
+DUCKDB_TEMP_DIR      <- "data/master/duckdb-tmp"
 
 MASTER_OUTPUT_DIR    <- "data/master"
 MASTER_STAGING_DIR   <- "data/master/staging"
@@ -112,6 +116,12 @@ con <- DBI::dbConnect(.master_drv, dbdir = .master_dbdir)
 DBI::dbExecute(con, sprintf("SET memory_limit = '%s'", DUCKDB_MEMORY_LIMIT))
 if (!is.null(DUCKDB_THREADS)) {
   DBI::dbExecute(con, sprintf("SET threads = %d", as.integer(DUCKDB_THREADS)))
+}
+if (!is.null(DUCKDB_TEMP_DIR)) {
+  if (!dir.exists(DUCKDB_TEMP_DIR)) dir.create(DUCKDB_TEMP_DIR, recursive = TRUE)
+  DBI::dbExecute(con, sprintf("SET temp_directory = '%s'",
+                              normalizePath(DUCKDB_TEMP_DIR, mustWork = FALSE)))
+  log_info(sprintf("temp_directory = %s", DUCKDB_TEMP_DIR))
 }
 
 # ============================================================================
