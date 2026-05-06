@@ -68,3 +68,6 @@ ACTIV1,ACTIV1,,drop,nccs-curated,0,,,,,,,Discovered in raw 2002-01 file (not in 
 ACTIV2,ACTIV2,,drop,nccs-curated,0,,,,,,,Same as ACTIV1 — second of three split IRS activity codes; preemptively registered to avoid breaking other vintages
 ACTIV3,ACTIV3,,drop,nccs-curated,0,,,,,,,Same as ACTIV1 — third of three split IRS activity codes; preemptively registered to avoid breaking other vintages
 NTEE2006,NTEE2006,,drop,ntee-refinement,0,,,,,,,Discovered in raw 2007-01 file (not in scraped dictionaries); NCCS NTEE recoding tied to a 2006 reclassification — superseded by NTEECC
+GEOCD,GEOCD,,drop,geographic,0,,,,,,,Discovered in raw 2010-07 file (not in scraped dictionaries); NCCS-curated geocoding code — current pipeline runs its own geocoding workflow
+GEOEXCLUDE,GEOEXCLUDE,,drop,geographic,0,,,,,,,Discovered in raw 2010-07 file (not in scraped dictionaries); NCCS geocoding-exclusion flag — current pipeline runs its own geocoding workflow
+GEOCODE,GEOCODE,,drop,geographic,0,,,,,,,Discovered in raw 2010-07 file (not in scraped dictionaries); NCCS-curated geocode value — current pipeline runs its own geocoding workflow
