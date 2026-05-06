@@ -109,7 +109,12 @@ process_vintage() {
   t0=$(date +%s)
 
   if [[ "${SKIP_EXISTING:-0}" == "1" ]]; then
-    if aws s3 ls "s3://nccsdata/processed/bmf-legacy/${tag}/bmf_legacy_${tag}_processed.csv" \
+    # Use s3api head-object (returns rc=0 only on exact match) rather
+    # than `aws s3 ls`, which in CLI v2 returns rc=0 even when the
+    # specific key does not exist (it does a prefix listing internally).
+    if aws s3api head-object \
+         --bucket nccsdata \
+         --key "processed/bmf-legacy/${tag}/bmf_legacy_${tag}_processed.csv" \
          >/dev/null 2>&1; then
       printf "[%s] SKIP %s (already in S3)\n" "$started" "$ym"
       printf "%s\tskipped\t0\t%s\n" "$ym" "$started" >> "$SUMMARY"
