@@ -95,11 +95,28 @@ duckdb_connect_for_master <- function(db_path = NULL,
     DBI::dbExecute(con, sprintf("SET threads = %d", as.integer(threads)))
   }
 
-  # httpfs lets DuckDB read S3 URIs directly. Auto-detects credentials from
-  # the AWS SDK chain (IAM instance role > env vars > ~/.aws/credentials).
+  # httpfs lets DuckDB read individual S3 URIs. The aws extension
+  # plus load_aws_credentials() provides IAM credentials from the
+  # AWS SDK chain (instance role > env vars > ~/.aws/credentials),
+  # which httpfs needs for bucket-level operations like
+  # ListObjectsV2 (used by glob expansion). Single-object GetObject
+  # works without credentials on public-read buckets, but listing
+  # does not.
   DBI::dbExecute(con, "INSTALL httpfs")
   DBI::dbExecute(con, "LOAD httpfs")
   DBI::dbExecute(con, sprintf("SET s3_region = '%s'", s3_region))
+
+  tryCatch({
+    DBI::dbExecute(con, "INSTALL aws")
+    DBI::dbExecute(con, "LOAD aws")
+    DBI::dbExecute(con, "CALL load_aws_credentials()")
+    log_info("DuckDB AWS credentials loaded via aws extension")
+  }, error = function(e) {
+    log_warn(sprintf(
+      "DuckDB aws extension load failed (%s); S3 globs may 403 on ListObjectsV2.",
+      conditionMessage(e)
+    ))
+  })
 
   con
 }
