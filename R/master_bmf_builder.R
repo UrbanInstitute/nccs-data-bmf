@@ -232,15 +232,40 @@ build_master_bmf <- function(con,
   # (populated current column). String-typed master output is fine for
   # the EIN-lookup / geocoding use cases; consumers cast the columns
   # they care about after reading parquet/CSV.
-  # Divide-and-conquer dedup. Window functions PARTITION BY ein scale
-  # with input row count (~190M combined). Per-source dedup first
-  # reduces each window to <=130M rows, and the final merge over ~7M
-  # already-deduped rows is trivial. Total work: same big-O, but peak
-  # intermediate state and disk spill drop substantially.
+  # GROUP BY + JOIN dedup, per source. Replaces an earlier
+  # ROW_NUMBER() OVER PARTITION BY ein window function that materialized
+  # the full source data and ran out of disk on a 148 GB EBS volume.
+  #
+  # Phase A: GROUP BY ein → small aggregate (ein, max/min/count of
+  #          vintage_dash). Hash aggregate, fits in memory easily for
+  #          ~2M-5M unique EINs.
+  # Phase B: Re-read source CSVs and HASH JOIN against the aggregate
+  #          on (ein, vintage_dash = winning vintage). Streams; output
+  #          is exactly the rows that won.
+  #
+  # The two reads are cheap because the source files are local
+  # (post-aws-s3-sync) and small in aggregate (~10-15 GB).
   per_source_dedup_sql <- function(side, src_glob) {
     sprintf("
       CREATE OR REPLACE TABLE %s_dedup AS
-      WITH raw AS (
+      WITH agg AS (
+        SELECT ein,
+               MAX(vintage_dash) AS winning_vintage_ym,
+               MIN(vintage_dash) AS first_vintage_ym,
+               MAX(vintage_dash) AS last_vintage_ym,
+               COUNT(*)          AS n_vintages
+          FROM (
+            SELECT ein,
+                   REPLACE(regexp_extract(filename, '(\\d{4}_\\d{2})/[^/]+\\.csv$', 1), '_', '-') AS vintage_dash
+              FROM read_csv_auto('%s',
+                                 union_by_name = true,
+                                 filename      = true,
+                                 all_varchar   = true)
+             WHERE ein IS NOT NULL AND ein <> ''
+          )
+         GROUP BY ein
+      ),
+      raw AS (
         SELECT *,
                REPLACE(regexp_extract(filename, '(\\d{4}_\\d{2})/[^/]+\\.csv$', 1), '_', '-') AS vintage_dash
           FROM read_csv_auto('%s',
@@ -248,20 +273,17 @@ build_master_bmf <- function(con,
                              filename      = true,
                              all_varchar   = true)
          WHERE ein IS NOT NULL AND ein <> ''
-      ),
-      ranked AS (
-        SELECT *,
-               ROW_NUMBER() OVER (PARTITION BY ein ORDER BY vintage_dash DESC) AS rn,
-               MIN(vintage_dash) OVER (PARTITION BY ein) AS first_vintage_ym,
-               MAX(vintage_dash) OVER (PARTITION BY ein) AS last_vintage_ym,
-               COUNT(*) OVER (PARTITION BY ein)          AS n_vintages
-          FROM raw
       )
-      SELECT * EXCLUDE (rn, vintage_dash, filename),
+      SELECT raw.* EXCLUDE (filename, vintage_dash),
+             agg.first_vintage_ym,
+             agg.last_vintage_ym,
+             agg.n_vintages,
              '%s' AS bmf_source
-        FROM ranked
-       WHERE rn = 1
-    ", side, src_glob, side)
+        FROM raw
+        JOIN agg
+          ON raw.ein           = agg.ein
+         AND raw.vintage_dash  = agg.winning_vintage_ym
+    ", side, src_glob, src_glob, side)
   }
 
   if (has_current) {
