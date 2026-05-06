@@ -74,6 +74,23 @@ load_crosswalk_v2 <- function(path = here::here("data", "crosswalks", "XWALK-BMF
     log_error(sprintf("Crosswalk missing required columns: %s",
                       paste(missing, collapse = ", ")))
   }
+
+  # Sanity check: catch truncated reads from malformed CSV early. The
+  # crosswalk should have substantially more rows than the raw file
+  # line count — if fread stopped on an unquoted-comma row, this gap
+  # surfaces here as a clear error instead of cascading into a confusing
+  # "N legacy columns missing" message during harmonization.
+  expected_min_rows <- length(readLines(path)) - 5  # header + small buffer
+  if (nrow(xw) < expected_min_rows) {
+    log_error(sprintf(
+      paste0("Crosswalk parse looks truncated: fread loaded %d rows but ",
+             "the file has %d lines. Likely cause: an unquoted comma in ",
+             "a recently-added row's legacy_description or notes field. ",
+             "Wrap any field containing a comma in double quotes."),
+      nrow(xw), length(readLines(path))
+    ))
+  }
+
   data.table::setkey(xw, legacy_name_upper)
   xw
 }
