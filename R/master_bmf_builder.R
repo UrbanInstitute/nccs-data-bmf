@@ -232,75 +232,114 @@ build_master_bmf <- function(con,
   # (populated current column). String-typed master output is fine for
   # the EIN-lookup / geocoding use cases; consumers cast the columns
   # they care about after reading parquet/CSV.
-  parts <- c()
+  # Divide-and-conquer dedup. Window functions PARTITION BY ein scale
+  # with input row count (~190M combined). Per-source dedup first
+  # reduces each window to <=130M rows, and the final merge over ~7M
+  # already-deduped rows is trivial. Total work: same big-O, but peak
+  # intermediate state and disk spill drop substantially.
+  per_source_dedup_sql <- function(side, src_glob) {
+    sprintf("
+      CREATE OR REPLACE TABLE %s_dedup AS
+      WITH raw AS (
+        SELECT *,
+               REPLACE(regexp_extract(filename, '(\\d{4}_\\d{2})/[^/]+\\.csv$', 1), '_', '-') AS vintage_dash
+          FROM read_csv_auto('%s',
+                             union_by_name = true,
+                             filename      = true,
+                             all_varchar   = true)
+         WHERE ein IS NOT NULL AND ein <> ''
+      ),
+      ranked AS (
+        SELECT *,
+               ROW_NUMBER() OVER (PARTITION BY ein ORDER BY vintage_dash DESC) AS rn,
+               MIN(vintage_dash) OVER (PARTITION BY ein) AS first_vintage_ym,
+               MAX(vintage_dash) OVER (PARTITION BY ein) AS last_vintage_ym,
+               COUNT(*) OVER (PARTITION BY ein)          AS n_vintages
+          FROM raw
+      )
+      SELECT * EXCLUDE (rn, vintage_dash, filename),
+             '%s' AS bmf_source
+        FROM ranked
+       WHERE rn = 1
+    ", side, src_glob, side)
+  }
+
   if (has_current) {
-    parts <- c(parts, sprintf("
-      SELECT *,
-             REPLACE(regexp_extract(filename, '(\\d{4}_\\d{2})/[^/]+\\.csv$', 1), '_', '-') AS vintage_dash,
-             'current' AS bmf_source
-        FROM read_csv_auto('%s/*/bmf_*_processed.csv',
-                           union_by_name = true,
-                           filename      = true,
-                           all_varchar   = true)
-    ", current_root))
+    log_info("Step 1/3: Per-source dedup within current...")
+    t0 <- Sys.time()
+    DBI::dbExecute(con,
+      per_source_dedup_sql("current",
+                           sprintf("%s/*/bmf_*_processed.csv", current_root)))
+    log_info(sprintf("  current_dedup built (%.1f sec, %s rows)",
+                     as.numeric(Sys.time() - t0, units = "secs"),
+                     format(DBI::dbGetQuery(con, "SELECT COUNT(*) AS n FROM current_dedup")$n,
+                            big.mark = ",")))
   }
   if (has_legacy) {
-    parts <- c(parts, sprintf("
-      SELECT *,
-             REPLACE(regexp_extract(filename, '(\\d{4}_\\d{2})/[^/]+\\.csv$', 1), '_', '-') AS vintage_dash,
-             'legacy' AS bmf_source
-        FROM read_csv_auto('%s/*/bmf_legacy_*_processed.csv',
-                           union_by_name = true,
-                           filename      = true,
-                           all_varchar   = true)
-    ", legacy_root))
+    log_info("Step 2/3: Per-source dedup within legacy...")
+    t0 <- Sys.time()
+    DBI::dbExecute(con,
+      per_source_dedup_sql("legacy",
+                           sprintf("%s/*/bmf_legacy_*_processed.csv", legacy_root)))
+    log_info(sprintf("  legacy_dedup built (%.1f sec, %s rows)",
+                     as.numeric(Sys.time() - t0, units = "secs"),
+                     format(DBI::dbGetQuery(con, "SELECT COUNT(*) AS n FROM legacy_dedup")$n,
+                            big.mark = ",")))
   }
 
-  union_block <- paste(parts, collapse = "\nUNION ALL BY NAME\n")
+  # Step 3: final merge. Each side already has 1 row per ein, so the
+  # combined input is small (~7M rows). Both sides have generic
+  # first_vintage_ym / last_vintage_ym / n_vintages, so UNION ALL BY
+  # NAME stacks them cleanly without column-rename gymnastics.
+  log_info("Step 3/3: Final merge of per-source dedupes (current wins on ties)...")
+  t0 <- Sys.time()
 
-  # Combined CREATE TABLE: read CSVs, union, filter NULL EINs, window-rank,
-  # and select rn=1 in one statement so DuckDB's optimizer can pipeline
-  # through the CTE rather than materializing a ~30 GB stacked intermediate.
-  build_sql <- sprintf("
+  union_clauses <- c()
+  if (has_current) union_clauses <- c(union_clauses, "SELECT * FROM current_dedup")
+  if (has_legacy)  union_clauses <- c(union_clauses, "SELECT * FROM legacy_dedup")
+  combined_union <- paste(union_clauses, collapse = "\nUNION ALL BY NAME\n")
+
+  final_sql <- sprintf("
     CREATE OR REPLACE TABLE bmf_master AS
-    WITH stacked AS (
+    WITH combined AS (
       %s
     ),
-    filtered AS (
-      SELECT * FROM stacked WHERE ein IS NOT NULL AND ein <> ''
-    ),
-    ranked AS (
+    final_ranked AS (
       SELECT *,
-             vintage_dash AS bmf_vintage_ym,
              ROW_NUMBER() OVER (
                PARTITION BY ein
-               ORDER BY vintage_dash DESC, bmf_source ASC
+               ORDER BY last_vintage_ym DESC, bmf_source ASC
              ) AS rn,
-             MIN(vintage_dash) OVER (PARTITION BY ein) AS first_vintage_ym,
-             MAX(vintage_dash) OVER (PARTITION BY ein) AS last_vintage_ym,
-             COUNT(*) OVER (PARTITION BY ein)          AS bmf_vintages_observed
-        FROM filtered
+             MIN(first_vintage_ym) OVER (PARTITION BY ein) AS combined_first_vintage_ym,
+             MAX(last_vintage_ym)  OVER (PARTITION BY ein) AS combined_last_vintage_ym,
+             SUM(n_vintages)       OVER (PARTITION BY ein) AS bmf_vintages_observed
+        FROM combined
     )
-    SELECT * EXCLUDE (rn, vintage_dash, filename),
-           CAST(SUBSTR(first_vintage_ym, 1, 4) AS INTEGER) AS first_year_in_bmf,
-           CAST(SUBSTR(last_vintage_ym,  1, 4) AS INTEGER) AS last_year_in_bmf
-      FROM ranked
+    SELECT * EXCLUDE (rn, first_vintage_ym, last_vintage_ym, n_vintages),
+           combined_first_vintage_ym AS first_vintage_ym,
+           combined_last_vintage_ym  AS last_vintage_ym,
+           combined_last_vintage_ym  AS bmf_vintage_ym,
+           CAST(SUBSTR(combined_first_vintage_ym, 1, 4) AS INTEGER) AS first_year_in_bmf,
+           CAST(SUBSTR(combined_last_vintage_ym,  1, 4) AS INTEGER) AS last_year_in_bmf
+      FROM final_ranked
      WHERE rn = 1
-  ", union_block)
+  ", combined_union)
 
-  log_info("Building bmf_master in a single combined query (stack + filter + dedup)...")
-  t0 <- Sys.time()
   tryCatch(
-    DBI::dbExecute(con, build_sql),
+    DBI::dbExecute(con, final_sql),
     error = function(e) {
-      message("---- build_sql that failed ----")
-      message(build_sql)
-      message("---- end build_sql ----")
+      message("---- final_sql that failed ----")
+      message(final_sql)
+      message("---- end final_sql ----")
       stop(e)
     }
   )
-  log_info(sprintf("Build complete (%.1f sec)",
+  log_info(sprintf("  final merge done (%.1f sec)",
                    as.numeric(Sys.time() - t0, units = "secs")))
+
+  # Drop per-source intermediates to free disk.
+  if (has_current) DBI::dbExecute(con, "DROP TABLE current_dedup")
+  if (has_legacy)  DBI::dbExecute(con, "DROP TABLE legacy_dedup")
 
   master_n <- DBI::dbGetQuery(con, "SELECT COUNT(*) AS n FROM bmf_master")$n
   log_info(sprintf("Master BMF: %s unique EINs",
