@@ -48,6 +48,16 @@ SKIP_VINTAGES="${SKIP_VINTAGES-2017-09,2017-12,2018-12}"
 ORDER="oldest-first"
 if [[ "${1:-}" == "--newest-first" ]]; then ORDER="newest-first"; fi
 
+# SKIP_EXISTING requires the standalone aws CLI for s3api head-object.
+# Without it the check would silently rc=127 ("command not found") and
+# every vintage would re-run unnecessarily.
+if [[ "${SKIP_EXISTING:-0}" == "1" ]] && ! command -v aws >/dev/null 2>&1; then
+  echo "ERROR: SKIP_EXISTING=1 requires the AWS CLI but 'aws' is not on PATH." >&2
+  echo "       Install with: bash scripts/setup_ec2.sh   (idempotent)"  >&2
+  echo "       Or skip the existence check by unsetting SKIP_EXISTING." >&2
+  exit 2
+fi
+
 mkdir -p logs/legacy
 SUMMARY="logs/legacy/run_summary.tsv"
 [[ -f "$SUMMARY" ]] || printf "vintage\tstatus\tseconds\tstarted_at\n" > "$SUMMARY"
