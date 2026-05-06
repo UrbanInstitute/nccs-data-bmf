@@ -103,20 +103,31 @@ Built from two sources:
 
 ## Drops
 
-41 legacy columns are dropped. Categories:
+59 legacy columns are dropped (out of 78 total crosswalk rows; 19 are
+renames). Categories:
 
 - **NCCS NTEE refinements** (`NTEE1`, `MAJGRPB`, `ntmaj5/10/12`,
-  `NTEEconf`, `LEVEL1-4`, etc.) — current pipeline derives these from
-  `NTEE_CD`.
+  `NTEEconf`, `LEVEL1-4`, `NTEEDRAFT`, `NTEE2006`, `NTEE2007A`,
+  `NTEEFINAL`, `NTEEOLDB`, etc.) — current pipeline derives these
+  from `NTEE_CD`.
 - **NCCS analytic flags** (`Filer`, `cFiler`, `ZFiler`, `cZFiler`,
-  `cFinSrc`, `outnccs`, `OUTREAS`, `RandNum`) — Core file derivations,
-  not raw fields.
-- **NCCS curated F990 derivations** (`cAssets`, `cTaxPer`) — redundant
-  with the raw BMF aliases we already keep (`ASSETS`, `TAXPER`).
+  `cFinSrc`, `outnccs`, `OUTREAS`, `RandNum`, `ADDRESSCHANGED`) —
+  Core file derivations and per-snapshot diff metadata, not raw fields.
+- **NCCS curated F990 derivations** (`cAssets`, `cTaxPer`,
+  `ASSETS_OLD`, `INCOME_OLD`) — redundant with the raw BMF aliases
+  we already keep (`ASSETS`, `TAXPER`) or prior-snapshot history we
+  don't propagate.
 - **Geographic enrichments** (`FIPS`, `MSA_NECH`, `PMSA`, `MSA`,
-  `LATITUDE`, `LONGITUDE`, `fipsold`, `*Old1` historical values).
+  `LATITUDE`, `LONGITUDE`, `fipsold`, `*Old1` historical values,
+  `CBSA`, `DIVCODE`, `GEOCD`, `GEOCDF`, `GEOCODE`, `GEOEXCLUDE`) —
+  current pipeline runs its own geocoding via `R/run_geocoding.R`.
+- **NCCS-curated activity splits** (`ACTIV1`, `ACTIV2`, `ACTIV3`) —
+  per-vintage 3-way splits of the IRS 9-char ACTIVITY field; the
+  current pipeline expects the unsplit form.
 - **Single-year columns** (`ZIP` 1989-only, `ORGTYPCD`, `v_errorCd`).
-- **Other** (`NAICS` — derived from NTEE in current pipeline).
+- **Other** (`NAICS` — derived from NTEE in current pipeline;
+  `IRS990N`, `EPOST`, `FISYR_IMAGE` — NCCS-curated 990-N and image
+  metadata).
 
 # Current-Schema Columns With No Legacy Source
 

@@ -23,18 +23,30 @@ raw/bmf/          intermediate/bmf/       processed/bmf/         geocoding/bmf/
 |--------|-------|--------|-------------|
 | `raw/bmf/` | Source | CSV | Monthly IRS BMF extracts, ingested by Lambda |
 | `intermediate/bmf/YYYY_MM/` | After transform | Parquet | All columns (raw + transformed) for auditing |
-| `processed/bmf/YYYY_MM/` | Final output | CSV | Transformed columns only (~63 columns) |
+| `processed/bmf/YYYY_MM/` | Final output | CSV | Transformed columns only (~77 columns) |
 | `geocoding/bmf/YYYY_MM/` | Enrichment | Parquet + CSV | Geocoded BMF with latitude/longitude |
+| `legacy/bmf/` | Source (historical) | CSV | NCCS-curated 501CX-NONPROFIT-PX BMF, 1989-2022 |
+| `intermediate/bmf-legacy/YYYY_MM/` | After transform | Parquet | Harmonized legacy BMF, full schema |
+| `processed/bmf-legacy/YYYY_MM/` | Final output | CSV | Harmonized legacy BMF, slim per-vintage schema |
+| `master/bmf/` | Consolidated | Parquet + CSV | One row per EIN across all current+legacy vintages |
 
 ## Which Dataset Should I Use?
 
-- **`processed/bmf/`** -- For most analysis. Contains ~63 cleaned and transformed columns
-  with human-readable code definitions. CSV format.
-- **`geocoding/bmf/.../merged/`** -- If you need geographic coordinates (latitude, longitude,
-  match quality). Builds on processed data.
-- **`intermediate/bmf/`** -- Only if you need raw IRS column values alongside transformed
-  columns, e.g., for auditing transformations. Parquet format.
-- **`raw/bmf/`** -- Original IRS extracts. Use only if you need completely unprocessed data.
+- **`processed/bmf/`** -- For most analysis of recent BMF. Contains ~77 cleaned and
+  transformed columns with human-readable code definitions. CSV format.
+- **`master/bmf/`** -- For "every nonprofit ever observed" workloads (historical
+  geocoding, longitudinal coverage, EIN registry). One row per EIN, drawn from the
+  most-recent vintage in which the EIN appears across both current and legacy
+  pipelines. Includes `first_year_in_bmf` / `last_year_in_bmf` markers.
+- **`processed/bmf-legacy/`** -- For historical analysis on a specific NCCS legacy
+  vintage (1989-2022). Slim per-vintage schema -- only columns whose underlying
+  input was populated in that file.
+- **`geocoding/bmf/.../merged/`** -- If you need geographic coordinates (latitude,
+  longitude, match quality). Builds on processed data.
+- **`intermediate/bmf/`** -- Only if you need raw IRS column values alongside
+  transformed columns, e.g., for auditing transformations. Parquet format.
+- **`raw/bmf/`** -- Original IRS extracts. Use only if you need completely
+  unprocessed data.
 
 ## Folder Details
 
@@ -85,6 +97,52 @@ workflow (`R/run_geocoding.R`) that sends addresses to the Urban Institute geoco
   - `bmf_YYYY_MM_geocoding_data_dictionary.csv` -- Column metadata
 - **Example:** `geocoding/bmf/2026_03/merged/bmf_2026_03_geocoded.parquet`
 - **Input:** `processed/bmf/YYYY_MM/bmf_YYYY_MM_processed.csv`
+
+### `legacy/bmf/`
+
+NCCS-curated historical BMF snapshots covering 1989-2022. NCCS-curated column
+schema (different from the current IRS BMF) -- the legacy pipeline harmonizes
+these to the current schema before running the standard transforms.
+
+- **File pattern:** `BMF-YYYY-MM-501CX-NONPROFIT-PX.csv`
+- **Example:** `legacy/bmf/BMF-2010-07-501CX-NONPROFIT-PX.csv`
+- **Format:** CSV with NCCS-curated columns
+
+### `intermediate/bmf-legacy/YYYY_MM/` and `processed/bmf-legacy/YYYY_MM/`
+
+Outputs of the legacy BMF pipeline (`R/run_legacy_pipeline.R`). Same structure
+as the current `intermediate/bmf/` and `processed/bmf/` prefixes, with one
+key difference: `processed/bmf-legacy/` uses a slim per-vintage schema that
+includes only columns whose underlying input was populated in that specific
+legacy file. The `intermediate/bmf-legacy/` parquet keeps the full schema
+for audit.
+
+- **Files per vintage:**
+  - `bmf_legacy_YYYY_MM_intermediate.parquet`
+  - `bmf_legacy_YYYY_MM_processed.csv`
+  - `bmf_legacy_YYYY_MM_data_dictionary.csv`
+  - `bmf_legacy_YYYY_MM_quality_report.json`
+- **Example:** `processed/bmf-legacy/2010_07/bmf_legacy_2010_07_processed.csv`
+- **Input:** `legacy/bmf/BMF-YYYY-MM-501CX-NONPROFIT-PX.csv`
+
+### `master/bmf/`
+
+Master BMF: one row per EIN across all current and legacy vintages. Each row
+carries the most-recent vintage's contents plus first/last vintage markers
+(`first_vintage_ym`, `last_vintage_ym`, `first_year_in_bmf`,
+`last_year_in_bmf`, `bmf_vintages_observed`, `bmf_source`). Built by
+`R/run_master_pipeline.R` via DuckDB stack + dedup over the
+`processed/bmf/` and `processed/bmf-legacy/` CSVs. Current pipeline wins on
+`vintage_ym` ties.
+
+- **Files (single living artifact, overwritten on each rebuild):**
+  - `bmf_master.parquet` -- Full schema, zstd-compressed
+  - `bmf_master.csv` -- Same rows as CSV
+  - `bmf_master_data_dictionary.csv` -- Column metadata
+  - `bmf_master_quality_report.json` -- EIN-uniqueness gate, source coverage,
+    vintage histogram, completeness
+- **Example:** `master/bmf/bmf_master.parquet`
+- **Inputs:** `processed/bmf/*/...` and `processed/bmf-legacy/*/...`
 
 ## Documentation
 

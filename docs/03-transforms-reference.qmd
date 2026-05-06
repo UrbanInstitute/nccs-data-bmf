@@ -498,15 +498,27 @@ Complex NTEE code transformation with multiple lookups.
 
 ```r
 transform_ntee_code(
-  dt,
-  ntee_code_lookup,
-  ntee_major_group_lookup,
-  activity_code_lookup,
-  input_ntee_col = "NTEE_CD",
-  year,
-  write_scd = FALSE
+  bmf,
+  ntee_code_lookup           = lookup_ls$ntee_code,
+  ntee_major_group_lookup    = lookup_ls$ntee_code_major_group,
+  ntee_common_code_lookup    = lookup_ls$ntee_common_code,
+  nteev2_subsector_lookup    = lookup_ls$nteev2_subsector,
+  ntee_legacy_5char_lookup   = lookup_ls$ntee_legacy_5char,
+  input_ntee_col             = "NTEE_CD",
+  year                       = PROCESSING_YEAR,
+  path                       = NULL,
+  write_scd                  = TRUE,
+  legacy_mode                = FALSE
 )
 ```
+
+`legacy_mode = TRUE` (set automatically by `run_legacy_pipeline.R`)
+relaxes the >4-char NTEE length validator from a hard stop to a
+warning, and applies the vendored
+`data/lookup/ntee_legacy_5char_lookup.csv` crosswalk so pre-2003
+5-character NCCS NTEE codes (e.g. `A0120`) resolve to canonical
+NTEEv2 form (`ART-A20-AA`) instead of falling through to `Z99`. See
+chapter 9 for details.
 
 **Output Columns:**
 
@@ -565,6 +577,12 @@ transform_tax_period(dt, input_col = "TAX_PERIOD")
 **Sentinel Value:** Missing dates set to 1900-01-01
 
 **Design Note**: Both the original YYYYMM string and a parsed Date object are retained to serve different use cases. The string format preserves the source data exactly as received from the IRS for auditability and is useful for year-month grouping operations. The Date column enables date arithmetic, filtering by date ranges, and integration with time-series analysis tools that expect proper date types.
+
+**Validation behaviour**: rows with non-6-character `TAX_PERIOD`
+values emit a warning rather than aborting the pipeline; downstream
+`lubridate::ymd()` returns NA for unparseable values, `tax_period_is_missing`
+flags them, and the sentinel-date fill takes over. Mirrors the pattern in
+`transform_ruling_date`.
 
 ---
 

@@ -310,10 +310,12 @@ bmf <- load_checkpoint("03_classification")
 R/
 ├── run_pipeline.R               # CURRENT-BMF ORCHESTRATOR
 ├── run_legacy_pipeline.R        # LEGACY 501CX-NONPROFIT-PX ORCHESTRATOR
+├── run_master_pipeline.R        # MASTER BMF (one row per EIN) ORCHESTRATOR
 ├── config.R                     # S3 configuration and lookups
 ├── checkpoints.R                # Save/load pipeline checkpoints
 ├── input_validation.R           # Validation functions
 ├── legacy_bmf_adapter.R         # Legacy schema → current schema harmonization
+├── master_bmf_builder.R         # DuckDB stack + dedup for master BMF
 │
 ├── utils/
 │   ├── logging.R                # log_info(), log_phase_start()
@@ -323,6 +325,7 @@ R/
 │   ├── pre_checks.R             # validate_raw_bmf_structure()
 │   ├── legacy_pre_checks.R      # validate_legacy_bmf_structure()
 │   ├── post_checks.R            # generate_quality_report()
+│   ├── master_post_checks.R     # Master BMF quality report
 │   ├── geocoding_checks.R       # Geocoding quality validation
 │   └── quality_report_template.qmd  # HTML/PDF report template
 │

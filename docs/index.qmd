@@ -162,29 +162,34 @@ nccs-data-bmf/
 ├── R/
 │   ├── run_pipeline.R             # Current-BMF pipeline orchestrator
 │   ├── run_legacy_pipeline.R      # Legacy 501CX-NONPROFIT-PX orchestrator
+│   ├── run_master_pipeline.R     # Master BMF (one row per EIN) orchestrator
 │   ├── run_geocoding.R            # Geocoding workflow orchestrator
 │   ├── config.R                   # S3 configuration and lookups
 │   ├── checkpoints.R              # Save/load intermediate states
 │   ├── input_validation.R         # Shared validation functions
 │   ├── legacy_bmf_adapter.R       # Legacy schema → current schema harmonization
+│   ├── master_bmf_builder.R      # DuckDB stack + dedup for master BMF
 │   ├── geocoding_export.R         # Prepare geocoder batches
 │   ├── geocoding_merge.R          # Merge geocoded results
 │   ├── utils/                     # Logging and utilities
-│   ├── quality/                   # Pre/post quality checks + geocoding checks
+│   ├── quality/                   # Pre/post quality checks + geocoding checks + master checks
 │   └── [transform files]          # 21 transformation modules (24 functions)
 ├── scripts/
 │   ├── setup_ec2.sh               # One-shot EC2 environment bootstrap
 │   ├── run_all_legacy.sh          # Batch driver for every legacy vintage
+│   ├── run_master.sh              # Driver for the master BMF build
+│   ├── check_ntee_legacy_coverage.R  # Diagnostic for 5-char NTEE crosswalk
 │   └── scrape_legacy_dictionaries.py  # NCCS legacy dictionary scraper
 ├── data/
 │   ├── raw/                       # Downloaded BMF files
-│   ├── lookup/                    # Reference/lookup tables
+│   ├── lookup/                    # Reference/lookup tables (incl. ntee_legacy_5char_lookup.csv)
 │   ├── crosswalks/                # Legacy → current schema crosswalk
 │   ├── dictionaries/              # Column descriptions for data dictionary
 │   ├── s3-readme/                 # S3 bucket README (uploaded to bucket root)
 │   ├── checkpoints/               # Intermediate saves
 │   ├── intermediate/              # Intermediate parquet outputs
 │   ├── processed/                 # Final output files
+│   ├── master/                    # Master BMF outputs (parquet, CSV, dictionary)
 │   ├── geocoding/                 # Geocoding workflow data
 │   └── quality/                   # Quality reports
 └── docs/                          # This guidebook

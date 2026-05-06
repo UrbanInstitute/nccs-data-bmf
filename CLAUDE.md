@@ -170,12 +170,24 @@ S3 (raw/bmf/YYYY-MM-BMF.csv) → Download → Transform → Validated BMF (parqu
 
 **Legacy BMF Harmonization (501CX-NONPROFIT-PX, 1989–2022):**
 - `R/run_legacy_pipeline.R` - Legacy orchestrator (mirrors `run_pipeline.R` with harmonization at Phase 1.5 and slim Phase 11 output)
-- `R/legacy_bmf_adapter.R` - `harmonize_legacy_bmf()`, `compute_legacy_output_columns()`, crosswalk loader
-- `data/crosswalks/XWALK-BMF-V2.0.csv` - Legacy → current schema mapping (canonical)
+- `R/legacy_bmf_adapter.R` - `harmonize_legacy_bmf()`, `compute_legacy_output_columns()`, crosswalk loader (incl. truncated-parse sanity check)
+- `data/crosswalks/XWALK-BMF-V2.0.csv` - Legacy → current schema mapping (canonical; 78 rows)
 - `data/crosswalks/legacy_column_inventory.csv` - Long-format inventory of all 47 columns observed across 73 scraped dictionaries
 - `data/crosswalks/legacy_dictionaries_index.csv` - Index of fetched dictionaries (incl. unavailable pages)
 - `data/crosswalks/legacy_dictionaries_raw/` - 73 per-dictionary parsed CSVs
+- `data/lookup/ntee_legacy_5char_lookup.csv` - Vendored NCCS pre-2003 5-char NTEE → NTEEv2 crosswalk (1,597 rows)
 - `scripts/scrape_legacy_dictionaries.py` - Reproducible scraper for the NCCS catalog
+- `scripts/check_ntee_legacy_coverage.R` - Diagnostic for legacy 5-char NTEE crosswalk coverage
+
+**Master BMF (one row per EIN, all vintages combined):**
+- `R/run_master_pipeline.R` - DuckDB-based orchestrator
+- `R/master_bmf_builder.R` - Discovery, stack via `union_by_name`, dedup with window function (current wins on vintage_ym ties)
+- `R/quality/master_post_checks.R` - Master-specific quality report (EIN-uniqueness gate, source coverage, vintage histogram, completeness)
+
+**EC2 batch scripts:**
+- `scripts/setup_ec2.sh` - One-shot bootstrap (R, system libs, AWS CLI, Quarto, R packages)
+- `scripts/run_all_legacy.sh` - Serial/parallel driver for every legacy vintage (`JOBS=N`, `SKIP_VINTAGES`, `SKIP_EXISTING`)
+- `scripts/run_master.sh` - Driver for the master BMF build
 
 **Transforms by Category:**
 - **Identity**: `ein.R`, `organization_name.R`, `dba_name.R`, `ico_name.R`, `address.R`, `ruling_date.R`, `group_exemption_number.R`
