@@ -97,14 +97,22 @@ log_info(sprintf("memory_limit = %s, threads = %s, db = %s",
                  DUCKDB_MEMORY_LIMIT,
                  ifelse(is.null(DUCKDB_THREADS), "all", as.character(DUCKDB_THREADS)),
                  ifelse(is.null(DUCKDB_DB_PATH), "in-memory", DUCKDB_DB_PATH)))
-con <- duckdb_connect_for_master(
-  db_path      = DUCKDB_DB_PATH,
-  memory_limit = DUCKDB_MEMORY_LIMIT,
-  threads      = DUCKDB_THREADS
-)
-on.exit({
-  try(DBI::dbDisconnect(con, shutdown = TRUE), silent = TRUE)
-}, add = TRUE)
+
+# Inline the connection setup at top-level. Wrapping it in
+# duckdb_connect_for_master() and returning con caused the connection
+# to invalidate across the function boundary on duckdb 0.10.1 with
+# error "rapi_prepare: Invalid connection". Keeping con scoped here
+# keeps both the connection and the driver alive at the same level.
+if (!requireNamespace("duckdb", quietly = TRUE)) {
+  stop("Package 'duckdb' is required. install.packages('duckdb').")
+}
+.master_dbdir <- if (is.null(DUCKDB_DB_PATH)) ":memory:" else DUCKDB_DB_PATH
+.master_drv   <- duckdb::duckdb()  # retain driver in this scope
+con <- DBI::dbConnect(.master_drv, dbdir = .master_dbdir)
+DBI::dbExecute(con, sprintf("SET memory_limit = '%s'", DUCKDB_MEMORY_LIMIT))
+if (!is.null(DUCKDB_THREADS)) {
+  DBI::dbExecute(con, sprintf("SET threads = %d", as.integer(DUCKDB_THREADS)))
+}
 
 # ============================================================================
 # PHASE 3: BUILD
@@ -169,3 +177,6 @@ log_info(sprintf("Source files stacked: %d (current=%d, legacy=%d)",
                  sum(inputs$bmf_source == "legacy")))
 log_info(sprintf("Quality gate: %s",
                  ifelse(quality_report$passed, "PASSED", "FAILED")))
+
+# Cleanup
+try(DBI::dbDisconnect(con, shutdown = TRUE), silent = TRUE)
