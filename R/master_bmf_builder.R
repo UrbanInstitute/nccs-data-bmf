@@ -103,45 +103,69 @@ duckdb_connect_for_master <- function(db_path = NULL,
 
 #' Download all discovered master inputs to a local staging directory
 #'
-#' Reads the s3_uri column of `inputs` and saves each object via
-#' `aws.s3::save_object()` to `dest_dir/{bmf_source}/{vintage}.csv`.
-#' Existing files are skipped unless `overwrite = TRUE`.
+#' Uses the AWS CLI's `aws s3 sync` per source prefix (10-way concurrent
+#' transfers, built-in incremental sync), which is dramatically faster
+#' than per-file `aws.s3::save_object()` calls. Requires the `aws` CLI
+#' on PATH (installed by `scripts/setup_ec2.sh`).
 #'
-#' @param inputs data.table from discover_master_inputs()
-#' @param dest_dir local directory (default: "data/master/staging")
-#' @param overwrite re-download files that already exist locally
-#' @return data.table of inputs with new column `local_path`
+#' Output layout (mirrors the S3 directory structure):
+#'   <dest_dir>/current/<YYYY_MM>/bmf_<YYYY_MM>_processed.csv
+#'   <dest_dir>/legacy/<YYYY_MM>/bmf_legacy_<YYYY_MM>_processed.csv
+#'
+#' Re-run is incremental — sync skips files whose size and mtime match
+#' the S3 object. Use `overwrite = TRUE` to force a full re-download
+#' (passes `--delete` and clobbers local copies).
+#'
+#' @param inputs data.table from discover_master_inputs() — used only
+#'   for the bmf_source vector
+#' @param dest_dir local staging directory (default: "data/master/staging")
+#' @param overwrite force fresh download (default: FALSE)
+#' @return invisibly returns dest_dir
 download_master_inputs <- function(inputs,
                                     dest_dir  = "data/master/staging",
                                     overwrite = FALSE) {
+  if (!nzchar(Sys.which("aws"))) {
+    stop("AWS CLI not found on PATH. Install via scripts/setup_ec2.sh.")
+  }
   if (!dir.exists(dest_dir)) dir.create(dest_dir, recursive = TRUE)
-  for (src in unique(inputs$bmf_source)) {
-    sub <- file.path(dest_dir, src)
-    if (!dir.exists(sub)) dir.create(sub, recursive = TRUE)
-  }
 
-  inputs <- data.table::copy(inputs)
-  inputs[, local_path := file.path(dest_dir, bmf_source,
-                                    paste0(vintage_ym, ".csv"))]
-
-  bucket <- BMF_S3_BUCKET
-  total <- nrow(inputs)
-  for (i in seq_len(total)) {
-    row <- inputs[i]
-    s3_key <- sub(sprintf("^s3://%s/", bucket), "", row$s3_uri)
-    if (file.exists(row$local_path) && !overwrite) {
-      next
-    }
-    aws.s3::save_object(
-      object = s3_key,
-      bucket = bucket,
-      file   = row$local_path
+  prefix_map <- list(
+    current = list(
+      s3_src = sprintf("s3://%s/%s",
+                       BMF_S3_BUCKET, BMF_S3_PROCESSED_PREFIX),
+      include = "bmf_*_processed.csv"
+    ),
+    legacy = list(
+      s3_src = sprintf("s3://%s/%s",
+                       BMF_S3_BUCKET, BMF_S3_LEGACY_PROCESSED_PREFIX),
+      include = "bmf_legacy_*_processed.csv"
     )
-    if (i %% 10 == 0 || i == total) {
-      log_info(sprintf("  downloaded %d/%d inputs", i, total))
+  )
+
+  for (src in unique(inputs$bmf_source)) {
+    cfg <- prefix_map[[src]]
+    if (is.null(cfg)) next
+    local_dst <- file.path(dest_dir, src)
+    if (!dir.exists(local_dst)) dir.create(local_dst, recursive = TRUE)
+
+    args <- c("s3", "sync", cfg$s3_src, local_dst,
+              "--exclude", "*",
+              "--include", paste0("*/", cfg$include))
+    if (overwrite) args <- c(args, "--delete")
+
+    log_info(sprintf("aws s3 sync -> %s (%s)",
+                     local_dst, cfg$s3_src))
+    t0 <- Sys.time()
+    rc <- system2("aws", args)
+    if (rc != 0) {
+      stop(sprintf("aws s3 sync failed (rc=%d) for %s", rc, src))
     }
+    log_info(sprintf("  done %s sync in %.1f sec",
+                     src,
+                     as.numeric(Sys.time() - t0, units = "secs")))
   }
-  inputs
+
+  invisible(dest_dir)
 }
 
 #' Build the Master BMF table inside DuckDB
@@ -167,9 +191,9 @@ build_master_bmf <- function(con,
     stop("No input files discovered for master build.")
   }
 
-  current_glob <- normalizePath(file.path(staging_dir, "current"),
+  current_root <- normalizePath(file.path(staging_dir, "current"),
                                 mustWork = FALSE)
-  legacy_glob  <- normalizePath(file.path(staging_dir, "legacy"),
+  legacy_root  <- normalizePath(file.path(staging_dir, "legacy"),
                                 mustWork = FALSE)
 
   log_info(sprintf(
@@ -179,33 +203,36 @@ build_master_bmf <- function(con,
     staging_dir
   ))
 
-  # Read CSVs from local staging directory. The vintage_ym is encoded
-  # in the filename ("YYYY-MM.csv") rather than the original S3 key,
-  # which simplifies the regex and avoids any path-separator issues.
+  # Read CSVs from local staging directory. aws s3 sync preserves the
+  # S3 key structure, so files are at:
+  #   staging/current/YYYY_MM/bmf_YYYY_MM_processed.csv
+  #   staging/legacy/YYYY_MM/bmf_legacy_YYYY_MM_processed.csv
+  # We match the underscore form in the regex and convert to dash with
+  # REPLACE so bmf_vintage_ym ends up as "YYYY-MM".
   parts <- c()
   if (has_current) {
     parts <- c(parts, sprintf("
       SELECT *,
-             regexp_extract(filename, '(\\d{4}-\\d{2})\\.csv$', 1) AS vintage_dash,
+             REPLACE(regexp_extract(filename, '(\\d{4}_\\d{2})/[^/]+\\.csv$', 1), '_', '-') AS vintage_dash,
              'current' AS bmf_source
-        FROM read_csv_auto('%s/*.csv',
+        FROM read_csv_auto('%s/*/bmf_*_processed.csv',
                            union_by_name = true,
                            filename      = true,
                            sample_size   = -1,
                            all_varchar   = false)
-    ", current_glob))
+    ", current_root))
   }
   if (has_legacy) {
     parts <- c(parts, sprintf("
       SELECT *,
-             regexp_extract(filename, '(\\d{4}-\\d{2})\\.csv$', 1) AS vintage_dash,
+             REPLACE(regexp_extract(filename, '(\\d{4}_\\d{2})/[^/]+\\.csv$', 1), '_', '-') AS vintage_dash,
              'legacy' AS bmf_source
-        FROM read_csv_auto('%s/*.csv',
+        FROM read_csv_auto('%s/*/bmf_legacy_*_processed.csv',
                            union_by_name = true,
                            filename      = true,
                            sample_size   = -1,
                            all_varchar   = false)
-    ", legacy_glob))
+    ", legacy_root))
   }
 
   stack_sql <- paste0(
