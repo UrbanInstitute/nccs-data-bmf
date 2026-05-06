@@ -63,3 +63,6 @@ EPOST,EPOST,,drop,nccs-flag,0,,,,,,,Discovered in raw 2013-07 file (not in scrap
 FISYR_IMAGE,FISYR_IMAGE,,drop,nccs-curated,0,,,,,,,Discovered in raw 2013-07 file (not in scraped dictionaries); NCCS fiscal year of 990 image (post-2006)
 IRS990N,IRS990n,,drop,nccs-flag,0,,,,,,,Discovered in raw 2013-07 file (not in scraped dictionaries); 990-N filer indicator (0/1)
 NTEEDRAFT,NTEEDRAFT,,drop,ntee-refinement,0,,,,,,,Discovered in raw 1995-08 file (not in scraped dictionaries); NCCS draft NTEE classification — superseded by final NTEECC
+ACTIV1,ACTIV1,,drop,nccs-curated,0,,,,,,,Discovered in raw 2002-01 file (not in scraped dictionaries); first of three split IRS activity codes — current pipeline expects single 9-char ACTIVITY column and derives no usable signal from the split form
+ACTIV2,ACTIV2,,drop,nccs-curated,0,,,,,,,Same as ACTIV1 — second of three split IRS activity codes; preemptively registered to avoid breaking other vintages
+ACTIV3,ACTIV3,,drop,nccs-curated,0,,,,,,,Same as ACTIV1 — third of three split IRS activity codes; preemptively registered to avoid breaking other vintages
