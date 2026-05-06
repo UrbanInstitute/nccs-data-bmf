@@ -196,8 +196,12 @@ download_master_inputs <- function(inputs,
 build_master_bmf <- function(con,
                               inputs,
                               staging_dir = "data/master/staging") {
-  has_current <- nrow(inputs[bmf_source == "current"]) > 0
-  has_legacy  <- nrow(inputs[bmf_source == "legacy"])  > 0
+  if (!"bmf_source" %in% names(inputs)) {
+    stop("inputs is missing required column 'bmf_source'. ",
+         "Run discover_master_inputs() to construct inputs correctly.")
+  }
+  has_current <- any(inputs$bmf_source == "current")
+  has_legacy  <- any(inputs$bmf_source == "legacy")
 
   if (!has_current && !has_legacy) {
     stop("No input files discovered for master build.")
