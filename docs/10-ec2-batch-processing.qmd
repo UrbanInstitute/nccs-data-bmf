@@ -111,7 +111,14 @@ bash scripts/run_all_legacy.sh                       # serial, oldest first
 bash scripts/run_all_legacy.sh --newest-first        # serial, newest first
 JOBS=8 bash scripts/run_all_legacy.sh                # 8 vintages in parallel
 SKIP_EXISTING=1 JOBS=8 bash scripts/run_all_legacy.sh  # parallel + resume
+SKIP_VINTAGES="2017-09,2017-12,2018-12" \
+  bash scripts/run_all_legacy.sh                     # exclude specific months
 ```
+
+`SKIP_VINTAGES` defaults to `"2017-09,2017-12,2018-12"` — three
+upstream NCCS files with sequence-ID EINs and non-standard TAXPER
+encodings that are structurally incompatible with the pipeline. See
+chapter 9 for details.
 
 `SKIP_EXISTING=1` is the way to **resume after a failure**: re-running
 the full batch will re-do work, but with this flag the driver checks

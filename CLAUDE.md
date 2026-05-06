@@ -51,7 +51,7 @@ source("R/run_geocoding.R")
 ```
 
 ### Run the Legacy BMF Pipeline
-For NCCS legacy 501CX-NONPROFIT-PX BMF files (1989–2016 vintages). These
+For NCCS legacy 501CX-NONPROFIT-PX BMF files (1989–2022 vintages). These
 files use NCCS-curated column names that differ from the current IRS BMF
 schema; the legacy pipeline harmonizes them and runs the same transforms.
 
@@ -168,7 +168,7 @@ S3 (raw/bmf/YYYY-MM-BMF.csv) → Download → Transform → Validated BMF (parqu
 - `R/quality/post_checks.R` - Post-transformation quality reporting
 - `R/quality/legacy_pre_checks.R` - Relaxed pre-validation for legacy BMF mode
 
-**Legacy BMF Harmonization (501CX-NONPROFIT-PX, 1989–2016):**
+**Legacy BMF Harmonization (501CX-NONPROFIT-PX, 1989–2022):**
 - `R/run_legacy_pipeline.R` - Legacy orchestrator (mirrors `run_pipeline.R` with harmonization at Phase 1.5 and slim Phase 11 output)
 - `R/legacy_bmf_adapter.R` - `harmonize_legacy_bmf()`, `compute_legacy_output_columns()`, crosswalk loader
 - `data/crosswalks/XWALK-BMF-V2.0.csv` - Legacy → current schema mapping (canonical)
