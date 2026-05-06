@@ -81,6 +81,28 @@ was actually populated in the legacy file. The intermediate parquet
 keeps the full schema for audit. See `docs/09-legacy-harmonization.qmd`
 for the full design.
 
+### Build the Master BMF
+The Master BMF is a single-row-per-EIN consolidation of every nonprofit
+ever observed across both pipelines (current monthly + legacy). Each
+row carries the most-recent vintage's contents plus `first_vintage_ym`,
+`last_vintage_ym`, `first_year_in_bmf`, `last_year_in_bmf`,
+`bmf_vintages_observed`, and `bmf_source`. Built via DuckDB
+`union_by_name` over the processed CSVs of both pipelines; current
+wins on vintage_ym ties.
+
+```r
+source("R/run_master_pipeline.R")
+```
+
+Or on EC2:
+
+```bash
+bash scripts/run_master.sh
+```
+
+Outputs land in `data/master/` and upload to `s3://nccsdata/master/bmf/`.
+See `docs/11-master-bmf.qmd` for the full design.
+
 ### Batch-process all legacy vintages on EC2
 For running the legacy pipeline across every vintage in
 `s3://nccsdata/legacy/bmf/`, use the EC2 batch scripts:

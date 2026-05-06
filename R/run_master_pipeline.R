@@ -1,0 +1,152 @@
+# ============================================================================
+# run_master_pipeline.R
+#
+# Build the Master BMF: one row per EIN, drawn from the most-recent vintage
+# in which that EIN appears across both the current monthly BMF pipeline
+# and the legacy 501CX-NONPROFIT-PX pipeline.
+#
+# Outputs:
+#   data/master/bmf_master.parquet          (full schema, zstd-compressed)
+#   data/master/bmf_master.csv              (same rows, CSV form)
+#   data/master/bmf_master_data_dictionary.csv
+#   data/quality/bmf_master_quality_report.json
+#
+# S3 (if ENABLE_S3_UPLOAD):
+#   s3://nccsdata/master/bmf/bmf_master.parquet
+#   s3://nccsdata/master/bmf/bmf_master.csv
+#   s3://nccsdata/master/bmf/bmf_master_data_dictionary.csv
+#   s3://nccsdata/master/bmf/bmf_master_quality_report.json
+#
+# Usage (in R):
+#   source("R/run_master_pipeline.R")
+# ============================================================================
+
+# ============================================================================
+# Pipeline Configuration
+#
+# Defaults are tuned for AWS c5.18xlarge (72 vCPU / 144 GB RAM). On any
+# smaller host, override DUCKDB_MEMORY_LIMIT before sourcing this file.
+# Suggested starting points (target ~70% of system RAM):
+#   c5.18xlarge  (144 GB)  -> "100GB"   (default below)
+#   m6i.4xlarge  ( 64 GB)  ->  "45GB"
+#   m6i.2xlarge  ( 32 GB)  ->  "22GB"
+#   m6i.xlarge   ( 16 GB)  ->  "10GB"
+#   laptop       (  8 GB)  ->   "5GB"
+# Undersizing makes DuckDB spill to disk (slower) but will not OOM.
+# See docs/11-master-bmf.qmd for the full sizing guide.
+# ============================================================================
+
+ENABLE_S3_UPLOAD     <- TRUE
+DUCKDB_MEMORY_LIMIT  <- "100GB"   # c5.18xlarge has 144 GB; leave headroom
+DUCKDB_THREADS       <- NULL      # NULL = use all cores
+DUCKDB_DB_PATH       <- NULL      # NULL = in-memory; set a path for debugging
+
+MASTER_OUTPUT_DIR    <- "data/master"
+MASTER_QUALITY_DIR   <- "data/quality"
+MASTER_S3_PREFIX     <- "master/bmf/"
+
+# ============================================================================
+# Library Loading
+# ============================================================================
+
+library(data.table)
+
+# ============================================================================
+# Source Helper Scripts
+# ============================================================================
+
+source(here::here("R", "config.R"))
+source(here::here("R", "utils", "logging.R"))
+source(here::here("R", "quality", "post_checks.R"))            # generate_data_dictionary()
+source(here::here("R", "master_bmf_builder.R"))
+source(here::here("R", "quality", "master_post_checks.R"))
+
+# ============================================================================
+# PHASE 1: DISCOVERY
+# ============================================================================
+
+log_phase_start("DISCOVERY")
+inputs <- discover_master_inputs()
+if (nrow(inputs) == 0) stop("No input files discovered.")
+
+# ============================================================================
+# PHASE 2: DUCKDB CONNECT
+# ============================================================================
+
+log_phase_start("DUCKDB CONNECT")
+log_info(sprintf("memory_limit = %s, threads = %s, db = %s",
+                 DUCKDB_MEMORY_LIMIT,
+                 ifelse(is.null(DUCKDB_THREADS), "all", as.character(DUCKDB_THREADS)),
+                 ifelse(is.null(DUCKDB_DB_PATH), "in-memory", DUCKDB_DB_PATH)))
+con <- duckdb_connect_for_master(
+  db_path      = DUCKDB_DB_PATH,
+  memory_limit = DUCKDB_MEMORY_LIMIT,
+  threads      = DUCKDB_THREADS
+)
+on.exit({
+  try(DBI::dbDisconnect(con, shutdown = TRUE), silent = TRUE)
+}, add = TRUE)
+
+# ============================================================================
+# PHASE 3: BUILD
+# ============================================================================
+
+log_phase_start("BUILD")
+build_master_bmf(con, inputs)
+
+# ============================================================================
+# PHASE 4: QUALITY CHECKS
+# ============================================================================
+
+log_phase_start("QUALITY CHECKS")
+quality_report <- generate_master_quality_report(con, inputs)
+print_master_quality_report(quality_report)
+
+quality_report_path <- file.path(
+  MASTER_QUALITY_DIR, "bmf_master_quality_report.json"
+)
+save_master_quality_report(quality_report, quality_report_path)
+
+if (!quality_report$passed) {
+  stop("Master BMF quality gate FAILED. See report above.")
+}
+
+# ============================================================================
+# PHASE 5: WRITE OUTPUTS
+# ============================================================================
+
+log_phase_start("WRITE OUTPUTS")
+out_paths <- write_master_outputs(con, out_dir = MASTER_OUTPUT_DIR)
+for (nm in names(out_paths)) {
+  log_info(sprintf("  %-11s -> %s", nm, out_paths[[nm]]))
+}
+
+# ============================================================================
+# PHASE 6: S3 UPLOAD
+# ============================================================================
+
+if (ENABLE_S3_UPLOAD) {
+  log_phase_start("S3 UPLOAD")
+  upload_to_s3(out_paths$parquet,
+               paste0(MASTER_S3_PREFIX, basename(out_paths$parquet)))
+  upload_to_s3(out_paths$csv,
+               paste0(MASTER_S3_PREFIX, basename(out_paths$csv)))
+  upload_to_s3(out_paths$dictionary,
+               paste0(MASTER_S3_PREFIX, basename(out_paths$dictionary)))
+  upload_to_s3(quality_report_path,
+               paste0(MASTER_S3_PREFIX, basename(quality_report_path)))
+}
+
+# ============================================================================
+# PIPELINE COMPLETE
+# ============================================================================
+
+log_phase_start("PIPELINE COMPLETE")
+log_info(sprintf("Master BMF rows (unique EINs): %s",
+                 format(quality_report$total_rows, big.mark = ",")))
+log_info(sprintf("Source files stacked: %d (current=%d, legacy=%d)",
+                 quality_report$n_input_files,
+                 sum(inputs$bmf_source == "current"),
+                 sum(inputs$bmf_source == "legacy")))
+log_info(sprintf("Quality gate: %s",
+                 ifelse(quality_report$passed, "PASSED", "FAILED")))

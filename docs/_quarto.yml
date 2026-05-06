@@ -24,6 +24,7 @@ book:
     - 08-lookup-tables.qmd
     - 09-legacy-harmonization.qmd
     - 10-ec2-batch-processing.qmd
+    - 11-master-bmf.qmd
 
 format:
   html:

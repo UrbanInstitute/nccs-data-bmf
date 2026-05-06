@@ -63,7 +63,8 @@ fi
 log "Installing R packages"
 Rscript --vanilla -e '
   pkgs <- c("data.table","arrow","aws.s3","openxlsx","here",
-            "purrr","stringr","lubridate","jsonlite","quarto")
+            "purrr","stringr","lubridate","jsonlite","quarto",
+            "duckdb","DBI")
   to_install <- setdiff(pkgs, rownames(installed.packages()))
   if (length(to_install) > 0) {
     install.packages(to_install, repos = "https://cloud.r-project.org",

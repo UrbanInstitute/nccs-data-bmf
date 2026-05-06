@@ -99,3 +99,10 @@ geo_match_type,Geocoder match type (A=address match) distinguishing rooftop from
 geo_distance,Distance in meters between input address and matched location (0 = exact)
 geo_is_geocoded,TRUE if latitude and longitude are non-NA
 geo_precision,Geocoding precision tier derived from geo_addr_type (high/medium/low)
+bmf_source,Pipeline that produced the surviving record (current=monthly IRS BMF / legacy=501CX-NONPROFIT-PX)
+bmf_vintage_ym,Year-month (YYYY-MM) of the vintage from which the surviving record was drawn (= last_vintage_ym for this EIN)
+first_vintage_ym,Earliest BMF vintage (YYYY-MM) in which this EIN was observed across all stacked sources
+last_vintage_ym,Latest BMF vintage (YYYY-MM) in which this EIN was observed; matches the vintage providing the row contents
+first_year_in_bmf,Calendar year (YYYY) of first_vintage_ym; convenience integer for filtering
+last_year_in_bmf,Calendar year (YYYY) of last_vintage_ym; convenience integer for filtering
+bmf_vintages_observed,Count of BMF vintages in which this EIN appeared (1 = appears only in the surviving vintage)
