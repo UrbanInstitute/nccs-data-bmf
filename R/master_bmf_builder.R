@@ -75,18 +75,15 @@ discover_master_inputs <- function(bucket = BMF_S3_BUCKET) {
 #' @param s3_region AWS region for httpfs reads
 duckdb_connect_for_master <- function(db_path = NULL,
                                        memory_limit = "12GB",
-                                       threads = NULL,
-                                       s3_region = "us-east-1") {
+                                       threads = NULL) {
   if (!requireNamespace("duckdb", quietly = TRUE)) {
     stop("Package 'duckdb' is required. install.packages('duckdb').")
   }
 
-  # Use the canonical inline pattern: dbConnect(duckdb::duckdb(), ...).
-  # Assigning the driver to a local `drv` and returning only the
-  # connection lets R GC the driver after the function exits, which
-  # invalidates the in-memory database mid-pipeline ("rapi_prepare:
-  # Invalid connection"). Inline keeps the driver's lifetime bound to
-  # the connection.
+  # Inline pattern: dbConnect(duckdb::duckdb(), ...). Required because
+  # assigning the driver to a local variable and returning only the
+  # connection lets R GC finalize the driver, which invalidates the
+  # in-memory database mid-pipeline.
   dbdir_arg <- if (is.null(db_path)) ":memory:" else db_path
   con <- DBI::dbConnect(duckdb::duckdb(), dbdir = dbdir_arg)
 
@@ -95,30 +92,56 @@ duckdb_connect_for_master <- function(db_path = NULL,
     DBI::dbExecute(con, sprintf("SET threads = %d", as.integer(threads)))
   }
 
-  # httpfs lets DuckDB read individual S3 URIs. The aws extension
-  # plus load_aws_credentials() provides IAM credentials from the
-  # AWS SDK chain (instance role > env vars > ~/.aws/credentials),
-  # which httpfs needs for bucket-level operations like
-  # ListObjectsV2 (used by glob expansion). Single-object GetObject
-  # works without credentials on public-read buckets, but listing
-  # does not.
-  DBI::dbExecute(con, "INSTALL httpfs")
-  DBI::dbExecute(con, "LOAD httpfs")
-  DBI::dbExecute(con, sprintf("SET s3_region = '%s'", s3_region))
-
-  tryCatch({
-    DBI::dbExecute(con, "INSTALL aws")
-    DBI::dbExecute(con, "LOAD aws")
-    DBI::dbExecute(con, "CALL load_aws_credentials()")
-    log_info("DuckDB AWS credentials loaded via aws extension")
-  }, error = function(e) {
-    log_warn(sprintf(
-      "DuckDB aws extension load failed (%s); S3 globs may 403 on ListObjectsV2.",
-      conditionMessage(e)
-    ))
-  })
+  # No httpfs/aws extensions needed: the master build reads CSVs from
+  # a local staging directory populated by download_master_inputs(),
+  # which uses the R aws.s3 package (already proven-working in this
+  # project). DuckDB-side S3 auth (httpfs creds, ListObjectsV2 perms)
+  # is bypassed entirely.
 
   con
+}
+
+#' Download all discovered master inputs to a local staging directory
+#'
+#' Reads the s3_uri column of `inputs` and saves each object via
+#' `aws.s3::save_object()` to `dest_dir/{bmf_source}/{vintage}.csv`.
+#' Existing files are skipped unless `overwrite = TRUE`.
+#'
+#' @param inputs data.table from discover_master_inputs()
+#' @param dest_dir local directory (default: "data/master/staging")
+#' @param overwrite re-download files that already exist locally
+#' @return data.table of inputs with new column `local_path`
+download_master_inputs <- function(inputs,
+                                    dest_dir  = "data/master/staging",
+                                    overwrite = FALSE) {
+  if (!dir.exists(dest_dir)) dir.create(dest_dir, recursive = TRUE)
+  for (src in unique(inputs$bmf_source)) {
+    sub <- file.path(dest_dir, src)
+    if (!dir.exists(sub)) dir.create(sub, recursive = TRUE)
+  }
+
+  inputs <- data.table::copy(inputs)
+  inputs[, local_path := file.path(dest_dir, bmf_source,
+                                    paste0(vintage_ym, ".csv"))]
+
+  bucket <- BMF_S3_BUCKET
+  total <- nrow(inputs)
+  for (i in seq_len(total)) {
+    row <- inputs[i]
+    s3_key <- sub(sprintf("^s3://%s/", bucket), "", row$s3_uri)
+    if (file.exists(row$local_path) && !overwrite) {
+      next
+    }
+    aws.s3::save_object(
+      object = s3_key,
+      bucket = bucket,
+      file   = row$local_path
+    )
+    if (i %% 10 == 0 || i == total) {
+      log_info(sprintf("  downloaded %d/%d inputs", i, total))
+    }
+  }
+  inputs
 }
 
 #' Build the Master BMF table inside DuckDB
@@ -136,8 +159,7 @@ duckdb_connect_for_master <- function(db_path = NULL,
 #' @return invisibly returns the row count of bmf_master
 build_master_bmf <- function(con,
                               inputs,
-                              current_glob = "s3://nccsdata/processed/bmf/*/bmf_*_processed.csv",
-                              legacy_glob  = "s3://nccsdata/processed/bmf-legacy/*/bmf_legacy_*_processed.csv") {
+                              staging_dir = "data/master/staging") {
   has_current <- nrow(inputs[bmf_source == "current"]) > 0
   has_legacy  <- nrow(inputs[bmf_source == "legacy"])  > 0
 
@@ -145,25 +167,28 @@ build_master_bmf <- function(con,
     stop("No input files discovered for master build.")
   }
 
+  current_glob <- normalizePath(file.path(staging_dir, "current"),
+                                mustWork = FALSE)
+  legacy_glob  <- normalizePath(file.path(staging_dir, "legacy"),
+                                mustWork = FALSE)
+
   log_info(sprintf(
-    "Stacking %d current + %d legacy CSVs via DuckDB read_csv_auto (S3 glob)...",
+    "Stacking %d current + %d legacy CSVs from local staging (%s)...",
     sum(inputs$bmf_source == "current"),
-    sum(inputs$bmf_source == "legacy")
+    sum(inputs$bmf_source == "legacy"),
+    staging_dir
   ))
 
-  # Stage 1: read both sets via S3 glob so DuckDB enumerates keys via
-  # ListObjects rather than us passing a 100+-element array literal
-  # (the array form triggered "rapi_prepare: Invalid connection" with
-  # large file lists). union_by_name reconciles the legacy slim schema
-  # against the current full schema; filename=true gives us the source
-  # URI to derive vintage_ym from.
+  # Read CSVs from local staging directory. The vintage_ym is encoded
+  # in the filename ("YYYY-MM.csv") rather than the original S3 key,
+  # which simplifies the regex and avoids any path-separator issues.
   parts <- c()
   if (has_current) {
     parts <- c(parts, sprintf("
       SELECT *,
-             regexp_extract(filename, 'bmf_(\\d{4}_\\d{2})_processed', 1) AS vintage_underscore,
+             regexp_extract(filename, '(\\d{4}-\\d{2})\\.csv$', 1) AS vintage_dash,
              'current' AS bmf_source
-        FROM read_csv_auto('%s',
+        FROM read_csv_auto('%s/*.csv',
                            union_by_name = true,
                            filename      = true,
                            sample_size   = -1,
@@ -173,9 +198,9 @@ build_master_bmf <- function(con,
   if (has_legacy) {
     parts <- c(parts, sprintf("
       SELECT *,
-             regexp_extract(filename, 'bmf_legacy_(\\d{4}_\\d{2})_processed', 1) AS vintage_underscore,
+             regexp_extract(filename, '(\\d{4}-\\d{2})\\.csv$', 1) AS vintage_dash,
              'legacy' AS bmf_source
-        FROM read_csv_auto('%s',
+        FROM read_csv_auto('%s/*.csv',
                            union_by_name = true,
                            filename      = true,
                            sample_size   = -1,
@@ -210,23 +235,19 @@ build_master_bmf <- function(con,
   t0 <- Sys.time()
   DBI::dbExecute(con, "
     CREATE OR REPLACE TABLE bmf_master AS
-    WITH normalized AS (
+    WITH ranked AS (
       SELECT *,
-             REPLACE(vintage_underscore, '_', '-') AS bmf_vintage_ym
-        FROM stacked
-    ),
-    ranked AS (
-      SELECT *,
+             vintage_dash AS bmf_vintage_ym,
              ROW_NUMBER() OVER (
                PARTITION BY ein
-               ORDER BY bmf_vintage_ym DESC, bmf_source ASC
+               ORDER BY vintage_dash DESC, bmf_source ASC
              ) AS rn,
-             MIN(bmf_vintage_ym) OVER (PARTITION BY ein) AS first_vintage_ym,
-             MAX(bmf_vintage_ym) OVER (PARTITION BY ein) AS last_vintage_ym,
-             COUNT(*) OVER (PARTITION BY ein)            AS bmf_vintages_observed
-        FROM normalized
+             MIN(vintage_dash) OVER (PARTITION BY ein) AS first_vintage_ym,
+             MAX(vintage_dash) OVER (PARTITION BY ein) AS last_vintage_ym,
+             COUNT(*) OVER (PARTITION BY ein)          AS bmf_vintages_observed
+        FROM stacked
     )
-    SELECT * EXCLUDE (rn, vintage_underscore),
+    SELECT * EXCLUDE (rn, vintage_dash, filename),
            CAST(SUBSTR(first_vintage_ym, 1, 4) AS INTEGER) AS first_year_in_bmf,
            CAST(SUBSTR(last_vintage_ym,  1, 4) AS INTEGER) AS last_year_in_bmf
       FROM ranked

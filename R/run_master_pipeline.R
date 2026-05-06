@@ -42,8 +42,10 @@ DUCKDB_THREADS       <- NULL      # NULL = use all cores
 DUCKDB_DB_PATH       <- NULL      # NULL = in-memory; set a path for debugging
 
 MASTER_OUTPUT_DIR    <- "data/master"
+MASTER_STAGING_DIR   <- "data/master/staging"
 MASTER_QUALITY_DIR   <- "data/quality"
 MASTER_S3_PREFIX     <- "master/bmf/"
+MASTER_OVERWRITE_DOWNLOADS <- FALSE  # set TRUE to re-download all inputs
 
 # ============================================================================
 # Library Loading
@@ -70,6 +72,19 @@ inputs <- discover_master_inputs()
 if (nrow(inputs) == 0) stop("No input files discovered.")
 
 # ============================================================================
+# PHASE 1.5: DOWNLOAD INPUTS TO LOCAL STAGING
+# ============================================================================
+
+log_phase_start("DOWNLOAD INPUTS")
+log_info(sprintf("Staging dir: %s (overwrite=%s)",
+                 MASTER_STAGING_DIR, MASTER_OVERWRITE_DOWNLOADS))
+inputs <- download_master_inputs(
+  inputs,
+  dest_dir  = MASTER_STAGING_DIR,
+  overwrite = MASTER_OVERWRITE_DOWNLOADS
+)
+
+# ============================================================================
 # PHASE 2: DUCKDB CONNECT
 # ============================================================================
 
@@ -92,7 +107,7 @@ on.exit({
 # ============================================================================
 
 log_phase_start("BUILD")
-build_master_bmf(con, inputs)
+build_master_bmf(con, inputs, staging_dir = MASTER_STAGING_DIR)
 
 # ============================================================================
 # PHASE 4: QUALITY CHECKS
