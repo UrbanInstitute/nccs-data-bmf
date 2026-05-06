@@ -52,15 +52,20 @@ transform_tax_period <- function(dt, input_col = "TAX_PERIOD") {
   # Convert to string and preserve original
   dt_safe[, tax_period_ym_str := as.character(get(input_col))]
 
-  # Validate format: must be 6 characters (YYYYMM)
+  # Validate format: must be 6 characters (YYYYMM). Warn rather than
+  # stop on individual outliers — the downstream `lubridate::ymd()`
+  # call returns NA for unparseable values, which `tax_period_is_missing`
+  # flags and the sentinel-date fill replaces. Mirrors the behaviour of
+  # transform_ruling_date. A 100 %-bad column would still surface in
+  # the quality report (tax_period_is_missing = TRUE for every row).
   invalid_length <- dt_safe[
     !is.na(tax_period_ym_str) & nchar(tax_period_ym_str) != TAX_PERIOD_LENGTH,
     .N
   ]
 
   if (invalid_length > 0) {
-    stop(sprintf(
-      "Column '%s' contains %d values with invalid length. Expected %d characters (YYYYMM format).",
+    warning(sprintf(
+      "Column '%s' contains %d value(s) with non-standard length (expected %d characters / YYYYMM); flagged as missing and filled with sentinel date.",
       input_col, invalid_length, TAX_PERIOD_LENGTH
     ))
   }
