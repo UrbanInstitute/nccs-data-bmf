@@ -81,12 +81,14 @@ duckdb_connect_for_master <- function(db_path = NULL,
     stop("Package 'duckdb' is required. install.packages('duckdb').")
   }
 
-  drv <- duckdb::duckdb()
-  con <- if (is.null(db_path)) {
-    DBI::dbConnect(drv)
-  } else {
-    DBI::dbConnect(drv, dbdir = db_path)
-  }
+  # Use the canonical inline pattern: dbConnect(duckdb::duckdb(), ...).
+  # Assigning the driver to a local `drv` and returning only the
+  # connection lets R GC the driver after the function exits, which
+  # invalidates the in-memory database mid-pipeline ("rapi_prepare:
+  # Invalid connection"). Inline keeps the driver's lifetime bound to
+  # the connection.
+  dbdir_arg <- if (is.null(db_path)) ":memory:" else db_path
+  con <- DBI::dbConnect(duckdb::duckdb(), dbdir = dbdir_arg)
 
   DBI::dbExecute(con, sprintf("SET memory_limit = '%s'", memory_limit))
   if (!is.null(threads)) {
