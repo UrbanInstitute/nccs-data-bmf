@@ -45,7 +45,11 @@ MASTER_OUTPUT_DIR    <- "data/master"
 MASTER_STAGING_DIR   <- "data/master/staging"
 MASTER_QUALITY_DIR   <- "data/quality"
 MASTER_S3_PREFIX     <- "master/bmf/"
-MASTER_OVERWRITE_DOWNLOADS <- FALSE  # set TRUE to re-download all inputs
+# `aws s3 sync` is always incremental — files matching size+mtime are
+# skipped. To force a fresh download, delete MASTER_STAGING_DIR before
+# running. MIRROR_DELETE adds --delete to remove local files no longer
+# present in S3 (use if you want strict mirror semantics).
+MASTER_MIRROR_DELETE <- FALSE
 
 # ============================================================================
 # Library Loading
@@ -76,12 +80,12 @@ if (nrow(inputs) == 0) stop("No input files discovered.")
 # ============================================================================
 
 log_phase_start("DOWNLOAD INPUTS")
-log_info(sprintf("Staging dir: %s (overwrite=%s)",
-                 MASTER_STAGING_DIR, MASTER_OVERWRITE_DOWNLOADS))
-inputs <- download_master_inputs(
+log_info(sprintf("Staging dir: %s (mirror_delete=%s)",
+                 MASTER_STAGING_DIR, MASTER_MIRROR_DELETE))
+download_master_inputs(
   inputs,
-  dest_dir  = MASTER_STAGING_DIR,
-  overwrite = MASTER_OVERWRITE_DOWNLOADS
+  dest_dir      = MASTER_STAGING_DIR,
+  mirror_delete = MASTER_MIRROR_DELETE
 )
 
 # ============================================================================

@@ -112,18 +112,23 @@ duckdb_connect_for_master <- function(db_path = NULL,
 #'   <dest_dir>/current/<YYYY_MM>/bmf_<YYYY_MM>_processed.csv
 #'   <dest_dir>/legacy/<YYYY_MM>/bmf_legacy_<YYYY_MM>_processed.csv
 #'
-#' Re-run is incremental — sync skips files whose size and mtime match
-#' the S3 object. Use `overwrite = TRUE` to force a full re-download
-#' (passes `--delete` and clobbers local copies).
+#' `aws s3 sync` is inherently incremental — files whose local size +
+#' mtime already match the S3 object are skipped. A second run with
+#' the same source will be near-instant (metadata calls only).
+#'
+#' To force a fresh download of every file, delete the staging
+#' directory before running, e.g.:
+#'   unlink("data/master/staging", recursive = TRUE)
 #'
 #' @param inputs data.table from discover_master_inputs() — used only
 #'   for the bmf_source vector
 #' @param dest_dir local staging directory (default: "data/master/staging")
-#' @param overwrite force fresh download (default: FALSE)
+#' @param mirror_delete if TRUE, also delete local files not present
+#'   in S3 (passes --delete to aws s3 sync). Default FALSE.
 #' @return invisibly returns dest_dir
 download_master_inputs <- function(inputs,
-                                    dest_dir  = "data/master/staging",
-                                    overwrite = FALSE) {
+                                    dest_dir      = "data/master/staging",
+                                    mirror_delete = FALSE) {
   if (!nzchar(Sys.which("aws"))) {
     stop("AWS CLI not found on PATH. Install via scripts/setup_ec2.sh.")
   }
@@ -150,7 +155,7 @@ download_master_inputs <- function(inputs,
 
     # Use system() with single-quoted globs so neither R's wrapper nor
     # /bin/sh expand the '*' against the current working directory.
-    delete_flag <- if (overwrite) " --delete" else ""
+    delete_flag <- if (mirror_delete) " --delete" else ""
     cmd <- sprintf(
       "aws s3 sync %s %s --exclude '*' --include '*/%s'%s",
       shQuote(cfg$s3_src),
