@@ -133,6 +133,39 @@ Several legacy aliases only appear in some years
 `SEC_NAME` is 2002-07+). Files from earlier years will have additional
 columns that are NA-filled.
 
+# Pre-2003 5-character NTEE Codes
+
+Legacy BMF files from roughly 1995–2003 contain ~5 % of NTEE codes in
+NCCS's pre-NTEE-CC 5-character form (`letter` + 4 digits, e.g.
+`A0120`, `S0241`, `B1170`). The structure is:
+
+- Position 1: NTEE major-group letter (A–Z)
+- Positions 2-3: NTEEv2 organization-type encoding (`01`=AA,
+  `02`=MT, `03`=PA, `05`=RP, `11`=MS, `12`=MM, `19`=NS, default RG)
+- Positions 4-5: decile-subdecile
+
+Modern NTEE-CC is at most 4 chars, so the validator in
+`R/transform_ntee_code.R` would normally hard-stop on these. In
+**legacy mode** (`legacy_mode = TRUE`, set automatically by
+`run_legacy_pipeline.R`):
+
+1. The 5-char codes pass length validation with a warning rather than
+   an error.
+2. The vendored crosswalk
+   `data/lookup/ntee_legacy_5char_lookup.csv` (1,597 rows; 942 of
+   length 5) maps codes like `A0120` → `ART-A20-AA`. Matched rows
+   override `nteev2_subsector`, `nteev2_code`, and `nteev2_org_type`
+   directly.
+3. Unmatched 5-char codes (~5 % long-tail) fall back to formulaic
+   derivation: `nteev2_code = paste0(major_group, substr(raw, 4, 5))`
+   (e.g. `A1120` → `A20`). Subsector and org_type are still resolved
+   correctly by the standard fcase logic on `.first` / `.char23`.
+
+The crosswalk is vendored from
+[Nonprofit-Open-Data-Collective/mission-taxonomies](https://github.com/Nonprofit-Open-Data-Collective/mission-taxonomies/blob/main/NTEEV2/ntee-crosswalk-bmf.csv).
+`scripts/check_ntee_legacy_coverage.R` reports per-vintage match
+percentages against any locally-saved Phase 4 checkpoints.
+
 # Phase 11 Output Schema
 
 `compute_legacy_output_columns(populated_raw_columns)` in

@@ -174,6 +174,7 @@ transform_ntee_code <- function(
     ntee_major_group_lookup = lookup_ls$ntee_code_major_group,
     ntee_common_code_lookup = lookup_ls$ntee_common_code,
     nteev2_subsector_lookup = lookup_ls$nteev2_subsector,
+    ntee_legacy_5char_lookup = lookup_ls$ntee_legacy_5char,
     input_ntee_col = "NTEE_CD",
     year = PROCESSING_YEAR,
     path = NULL,
@@ -282,6 +283,13 @@ transform_ntee_code <- function(
   # ---------------------------------------------------------------------------
   dt <- .nteev2_code_transform(dt)
 
+  # In legacy mode, override NTEEv2 columns for pre-2003 5-char codes
+  # using the vendored NCCS crosswalk. The fallback (rows not in the
+  # crosswalk) derives nteev2_code formulaically from positions 4-5.
+  if (legacy_mode && !is.null(ntee_legacy_5char_lookup)) {
+    dt <- .apply_legacy_5char_crosswalk(dt, ntee_legacy_5char_lookup)
+  }
+
   # NTEEV2 subsector definition lookup
   dt[nteev2_subsector_lookup,
      nteev2_subsector_definition := i.nteev2_subsector_definition,
@@ -377,6 +385,66 @@ transform_ntee_code <- function(
   dt[, nteev2 := paste(nteev2_subsector, nteev2_code, nteev2_org_type, sep = "-")]
 
   return(dt)
+}
+
+# .apply_legacy_5char_crosswalk
+#
+# Pre-2003 NCCS legacy BMF files use 5-character NTEE codes that don't
+# parse under the modern NTEE-CC scheme. The vendored crosswalk
+# (data/lookup/ntee_legacy_5char_lookup.csv) maps ~94 % of these to
+# canonical NTEEv2 strings like "ART-A20-AA". For matched rows, override
+# the three NTEEv2 component columns. For unmatched 5-char rows, derive
+# nteev2_code formulaically: major-group letter + raw positions 4-5
+# (e.g. "S0241" -> "S41"); subsector and org_type already resolve
+# correctly via the standard fcase logic on .first / .char23.
+.apply_legacy_5char_crosswalk <- function(dt, crosswalk) {
+  # Precompute the split crosswalk: NTEE -> (subsector, code, org_type).
+  xw_5 <- crosswalk[nchar(NTEE) == 5]
+  parts <- data.table::tstrsplit(xw_5$NTEE2, "-", fixed = TRUE)
+  xw_split <- data.table::data.table(
+    NTEE             = xw_5$NTEE,
+    xw_subsector     = parts[[1]],
+    xw_code          = parts[[2]],
+    xw_org_type      = parts[[3]]
+  )
+
+  # Match flag column (NA for non-matched, TRUE for matched 5-char rows).
+  # Update-join only writes to dt rows whose key is in xw_split.
+  dt[xw_split,
+     on = c(ntee_code_raw = "NTEE"),
+     `:=`(
+       nteev2_subsector = i.xw_subsector,
+       nteev2_code      = i.xw_code,
+       nteev2_org_type  = i.xw_org_type,
+       .xw_matched      = TRUE
+     )]
+
+  # Stage 2: unmatched 5-char rows — formulaic derivation of nteev2_code.
+  # Subsector and org_type were already set correctly by the standard
+  # fcase logic on .first / .char23. Only nteev2_code defaulted to "Z99".
+  dt[.len == 5 & is.na(.xw_matched),
+     nteev2_code := paste0(.first, substr(ntee_code_raw, 4, 5))]
+
+  matched_n   <- dt[.len == 5 & !is.na(.xw_matched), .N]
+  unmatched_n <- dt[.len == 5 &  is.na(.xw_matched), .N]
+  total_5 <- matched_n + unmatched_n
+  if (total_5 > 0) {
+    message(sprintf(
+      "Legacy 5-char NTEE crosswalk: %s matched / %s formulaic-fallback (%.1f%% coverage)",
+      format(matched_n, big.mark = ","),
+      format(unmatched_n, big.mark = ","),
+      100 * matched_n / total_5
+    ))
+  }
+
+  # Recompute composite nteev2 for any rows whose components changed.
+  dt[.len == 5,
+     nteev2 := paste(nteev2_subsector, nteev2_code, nteev2_org_type, sep = "-")]
+
+  # Drop scratch column.
+  dt[, .xw_matched := NULL]
+
+  invisible(dt)
 }
 
 .ntee_output_validation <- function(scd) {

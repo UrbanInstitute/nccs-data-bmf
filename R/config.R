@@ -553,6 +553,17 @@ lookup_ls <- openxlsx::getSheetNames(lookup_path) |>
     data.table::setDT(df)
   })
 
+# NCCS legacy 5-char NTEE crosswalk (vendored from
+# Nonprofit-Open-Data-Collective/mission-taxonomies). Maps pre-2003
+# 5-char NCCS codes (e.g. "A0120") to canonical NTEEv2 form
+# (e.g. "ART-A20-AA"). Used by transform_ntee_code() in legacy_mode.
+ntee_legacy_5char_path <- "data/lookup/ntee_legacy_5char_lookup.csv"
+if (file.exists(ntee_legacy_5char_path)) {
+  lookup_ls$ntee_legacy_5char <- data.table::fread(ntee_legacy_5char_path)
+  lookup_ls$ntee_legacy_5char[, NTEE := toupper(trimws(NTEE))]
+  data.table::setkey(lookup_ls$ntee_legacy_5char, NTEE)
+}
+
 # ============================================================================
 # Validation Constants
 # ============================================================================
