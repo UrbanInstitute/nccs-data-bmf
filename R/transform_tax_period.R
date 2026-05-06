@@ -68,7 +68,8 @@ transform_tax_period <- function(dt, input_col = "TAX_PERIOD") {
 
   # Parse tax period: YYYYMM -> YYYY-MM-01
   dt_safe[, tax_period_ymd := lubridate::ymd(
-    paste0(tax_period_ym_str, "01")
+    paste0(tax_period_ym_str, "01"),
+    quiet = TRUE
   )]
 
   # Flag missing values

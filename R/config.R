@@ -36,15 +36,20 @@ LEGACY_BMF_FILENAME_REGEX <- "BMF-\\d{4}-\\d{2}-501CX-NONPROFIT-PX\\.csv$"
 list_available_bmf_files <- function(bucket = BMF_S3_BUCKET,
                                       prefix = BMF_S3_PREFIX) {
 
-  available_files <- aws.s3::get_bucket_df(bucket = bucket, prefix = prefix)
-  bmf_files <- available_files[grepl("\\d{4}-\\d{2}-BMF\\.csv$", available_files$Key), ]
+  # Use get_bucket() rather than get_bucket_df(): the latter fails with
+  # "subscript out of bounds" when any object lacks Owner$ID metadata.
+  objs <- aws.s3::get_bucket(bucket = bucket, prefix = prefix, max = Inf)
+  keys <- vapply(objs,
+                 function(o) if (!is.null(o$Key)) o$Key else NA_character_,
+                 character(1))
+  bmf_keys <- keys[grepl("\\d{4}-\\d{2}-BMF\\.csv$", keys)]
 
-  if (nrow(bmf_files) == 0) {
+  if (length(bmf_keys) == 0) {
     message("No BMF files found in s3://", bucket, "/", prefix)
     return(character(0))
   }
 
-  year_months <- stringr::str_extract(bmf_files$Key, "\\d{4}-\\d{2}")
+  year_months <- stringr::str_extract(bmf_keys, "\\d{4}-\\d{2}")
   return(sort(year_months, decreasing = TRUE))
 }
 
@@ -154,15 +159,20 @@ download_bmf_from_s3 <- function(bucket = BMF_S3_BUCKET,
 list_available_legacy_bmf_files <- function(bucket = BMF_S3_BUCKET,
                                              prefix = BMF_S3_LEGACY_PREFIX) {
 
-  available_files <- aws.s3::get_bucket_df(bucket = bucket, prefix = prefix)
-  legacy_files <- available_files[grepl(LEGACY_BMF_FILENAME_REGEX, available_files$Key), ]
+  # Use get_bucket() rather than get_bucket_df(): the latter fails with
+  # "subscript out of bounds" when any object lacks Owner$ID metadata.
+  objs <- aws.s3::get_bucket(bucket = bucket, prefix = prefix, max = Inf)
+  keys <- vapply(objs,
+                 function(o) if (!is.null(o$Key)) o$Key else NA_character_,
+                 character(1))
+  legacy_keys <- keys[grepl(LEGACY_BMF_FILENAME_REGEX, keys)]
 
-  if (nrow(legacy_files) == 0) {
+  if (length(legacy_keys) == 0) {
     message("No legacy BMF files found in s3://", bucket, "/", prefix)
     return(character(0))
   }
 
-  year_months <- stringr::str_extract(legacy_files$Key, "\\d{4}-\\d{2}")
+  year_months <- stringr::str_extract(legacy_keys, "\\d{4}-\\d{2}")
   return(sort(year_months, decreasing = TRUE))
 }
 
