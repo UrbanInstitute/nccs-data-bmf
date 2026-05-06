@@ -148,17 +148,24 @@ download_master_inputs <- function(inputs,
     local_dst <- file.path(dest_dir, src)
     if (!dir.exists(local_dst)) dir.create(local_dst, recursive = TRUE)
 
-    args <- c("s3", "sync", cfg$s3_src, local_dst,
-              "--exclude", "*",
-              "--include", paste0("*/", cfg$include))
-    if (overwrite) args <- c(args, "--delete")
+    # Use system() with single-quoted globs so neither R's wrapper nor
+    # /bin/sh expand the '*' against the current working directory.
+    delete_flag <- if (overwrite) " --delete" else ""
+    cmd <- sprintf(
+      "aws s3 sync %s %s --exclude '*' --include '*/%s'%s",
+      shQuote(cfg$s3_src),
+      shQuote(local_dst),
+      cfg$include,
+      delete_flag
+    )
 
     log_info(sprintf("aws s3 sync -> %s (%s)",
                      local_dst, cfg$s3_src))
     t0 <- Sys.time()
-    rc <- system2("aws", args)
+    rc <- system(cmd)
     if (rc != 0) {
-      stop(sprintf("aws s3 sync failed (rc=%d) for %s", rc, src))
+      stop(sprintf("aws s3 sync failed (rc=%d) for %s\nCommand: %s",
+                   rc, src, cmd))
     }
     log_info(sprintf("  done %s sync in %.1f sec",
                      src,
