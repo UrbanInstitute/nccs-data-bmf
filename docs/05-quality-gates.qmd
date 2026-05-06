@@ -201,8 +201,10 @@ BMF_OUTPUT_COLUMNS <- c(
   "org_name_raw", "org_name_join", "org_name_display", "org_legal_suffix",
   "org_parent_name", "dba_name", "dba_name_raw",
   "in_care_of_name_raw", "in_care_of_name_clean", "in_care_of_name_provided",
-  # ... ~76 columns total covering identity, address, classification,
+  # ... ~77 columns total covering identity, address, classification,
   # codes, dates, financial, activity, filing, and NTEE fields
+  # (NTEE block includes nteev2_subsector_definition, the human-readable
+  # label joined from the nteev2_subsector lookup)
 )
 ```
 

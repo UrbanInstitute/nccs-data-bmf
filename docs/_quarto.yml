@@ -23,6 +23,7 @@ book:
     - 07-developer-guide.qmd
     - 08-lookup-tables.qmd
     - 09-legacy-harmonization.qmd
+    - 10-ec2-batch-processing.qmd
 
 format:
   html:

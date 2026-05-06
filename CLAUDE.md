@@ -81,6 +81,24 @@ was actually populated in the legacy file. The intermediate parquet
 keeps the full schema for audit. See `docs/09-legacy-harmonization.qmd`
 for the full design.
 
+### Batch-process all legacy vintages on EC2
+For running the legacy pipeline across every vintage in
+`s3://nccsdata/legacy/bmf/`, use the EC2 batch scripts:
+
+```bash
+# One-shot environment bootstrap (Ubuntu 22.04)
+bash scripts/setup_ec2.sh
+
+# Run every legacy vintage serially (one Rscript subprocess per vintage)
+bash scripts/run_all_legacy.sh                  # oldest first
+bash scripts/run_all_legacy.sh --newest-first
+SKIP_EXISTING=1 bash scripts/run_all_legacy.sh  # resume after a failure
+```
+
+Per-vintage logs land in `logs/legacy/`; a roll-up status TSV is at
+`logs/legacy/run_summary.tsv`. See `docs/10-ec2-batch-processing.qmd`
+for the full EC2 setup walkthrough.
+
 ### Build Documentation
 ```bash
 # Generate HTML guidebook from Quarto

@@ -1,0 +1,167 @@
+# EC2 Batch Processing {#sec-ec2-batch}
+
+This chapter describes how to run the legacy BMF harmonization pipeline
+across **all** vintages in `s3://nccsdata/legacy/bmf/` on an EC2 instance.
+
+The local pipeline is fine for processing a single vintage, but running
+the full historical archive (1989–2016, currently 70+ vintages) on a
+laptop is impractical: each vintage takes several minutes and consumes
+4–8 GB of RAM during transforms.
+
+Two scripts in `scripts/` automate the workflow:
+
+| Script                       | Purpose                                                                 |
+|------------------------------|-------------------------------------------------------------------------|
+| `scripts/setup_ec2.sh`       | One-shot bootstrap of a fresh Ubuntu 22.04 EC2 box                      |
+| `scripts/run_all_legacy.sh`  | Iterate every legacy vintage in S3 serially, one Rscript subprocess each |
+
+## Recommended EC2 configuration
+
+| Setting       | Recommended                                                              |
+|---------------|--------------------------------------------------------------------------|
+| AMI           | Ubuntu 22.04 LTS (or Amazon Linux 2023 with adapted package commands)    |
+| Instance type | `m6i.xlarge` (16 GB RAM) minimum; `m6i.2xlarge` (32 GB) for headroom     |
+| EBS volume    | 100 GB gp3 minimum (raw CSVs + 7 checkpoints + outputs per vintage ≈ 1–2 GB) |
+| IAM role      | Read/write on `arn:aws:s3:::nccsdata` and `arn:aws:s3:::nccsdata/*`      |
+| Region        | Same as the `nccsdata` bucket (avoids cross-region transfer costs)       |
+
+Attaching an **IAM role to the instance** is the cleanest way to grant
+S3 access — both `aws.s3` (R) and the AWS CLI pick it up automatically
+via the instance metadata service, with no keys to manage.
+
+## Step 1 — Spin up the instance
+
+Launch the instance with the configuration above. SSH in:
+
+```bash
+ssh -i your-key.pem ubuntu@<ec2-public-dns>
+```
+
+## Step 2 — Clone the repository
+
+```bash
+git clone https://github.com/UrbanInstitute/nccs-data-bmf.git
+cd nccs-data-bmf
+```
+
+## Step 3 — Bootstrap the environment
+
+```bash
+bash scripts/setup_ec2.sh
+```
+
+This installs:
+
+- System libraries needed by R packages (curl/ssl/xml2/font stack, cmake)
+- R and R development headers
+- AWS CLI v2 (if not already present)
+- Quarto CLI (for quality-report HTML rendering; default v1.6.40 — override
+  with `QUARTO_VERSION=1.7.0 bash scripts/setup_ec2.sh`)
+- The 10 R packages required by the pipeline
+
+The script ends by verifying that all R packages load, that AWS
+credentials are detected, and that the bucket prefix is readable. If
+the AWS check fails, configure credentials (see next step).
+
+## Step 4 — Configure AWS credentials (only if no IAM role)
+
+If you attached an IAM role in step 1, skip this. Otherwise pick one:
+
+```bash
+# Option A — persistent, interactive
+aws configure
+
+# Option B — environment variables (current shell only)
+export AWS_ACCESS_KEY_ID="..."
+export AWS_SECRET_ACCESS_KEY="..."
+export AWS_DEFAULT_REGION="us-east-1"
+```
+
+Verify:
+
+```bash
+aws sts get-caller-identity
+aws s3 ls s3://nccsdata/legacy/bmf/ | head
+```
+
+## Step 5 — Run the batch
+
+The batch driver runs every available legacy vintage, **one fresh
+Rscript subprocess per vintage**. Running each vintage in its own
+process — rather than looping inside a single R session — guarantees
+that memory and file connections are released between runs. (Stacking
+runs in one session has previously crashed machines and leaked
+connections.)
+
+```bash
+# Inside a tmux session so the batch survives SSH disconnects:
+tmux new -s legacy-batch
+bash scripts/run_all_legacy.sh 2>&1 | tee logs/legacy/_master.log
+# detach: Ctrl-b d        reattach later: tmux attach -t legacy-batch
+```
+
+Per-vintage stdout and stderr go to `logs/legacy/bmf_legacy_YYYY_MM.log`.
+A roll-up `logs/legacy/run_summary.tsv` records vintage, status, runtime
+in seconds, and start time.
+
+### Options
+
+```bash
+bash scripts/run_all_legacy.sh                   # oldest first (default)
+bash scripts/run_all_legacy.sh --newest-first    # newest first
+
+SKIP_EXISTING=1 bash scripts/run_all_legacy.sh   # resume — skip vintages
+                                                  # whose processed CSV is
+                                                  # already in S3
+```
+
+`SKIP_EXISTING=1` is the way to **resume after a failure**: re-running
+the full batch will re-do work, but with this flag the driver checks
+S3 for `s3://nccsdata/processed/bmf-legacy/YYYY_MM/bmf_legacy_YYYY_MM_processed.csv`
+and skips vintages already uploaded.
+
+## Step 6 — Verify outputs
+
+Each successful vintage produces, locally and in S3:
+
+| Local path                                                       | S3 path                                                       |
+|------------------------------------------------------------------|---------------------------------------------------------------|
+| `data/intermediate/bmf_legacy_YYYY_MM_intermediate.parquet`      | `s3://nccsdata/intermediate/bmf-legacy/YYYY_MM/…parquet`      |
+| `data/processed/bmf_legacy_YYYY_MM_processed.csv`                | `s3://nccsdata/processed/bmf-legacy/YYYY_MM/…csv`             |
+| `data/processed/bmf_legacy_YYYY_MM_data_dictionary.csv`          | `s3://nccsdata/processed/bmf-legacy/YYYY_MM/…dictionary.csv`  |
+| `data/quality/bmf_legacy_YYYY_MM_quality_report.json`            | both intermediate and processed prefixes                      |
+| `docs/quality-reports/bmf_legacy_YYYY_MM_quality_report.html`    | (not uploaded — local only)                                   |
+
+After the batch completes, summarize results:
+
+```bash
+column -t -s $'\t' logs/legacy/run_summary.tsv | sort -k2
+```
+
+## Why per-vintage subprocesses
+
+Earlier runs of the legacy pipeline that loaded multiple vintages into
+the same R session caused two recurring problems:
+
+1. **Memory exhaustion** — the ~1.4M-row legacy data.tables and their
+   intermediate copies were not released between runs, so each
+   subsequent vintage started with less free RAM. With 70+ vintages
+   this eventually OOMed the host.
+2. **Leaked file connections** — `aws.s3::put_object(multipart = TRUE)`
+   does not always close its read connection on success, leaving
+   orphaned `file()` handles that R's GC eventually warns about
+   (`closing unused connection N`).
+
+`scripts/run_all_legacy.sh` sidesteps both by exec'ing a fresh
+`Rscript --vanilla` per vintage. When the subprocess exits, the OS
+reclaims everything.
+
+## Cost notes
+
+A single legacy vintage takes ~3–6 minutes on `m6i.xlarge`. The
+full historical archive (~70 vintages) finishes in roughly 4–7 hours,
+which on an `m6i.xlarge` (≈ \$0.20/hour on-demand in us-east-1 as of
+this writing) is a few dollars of compute plus the egress for S3
+uploads (intra-region, so free if the bucket is in the same region as
+the instance). Stop or terminate the instance after the batch
+completes.

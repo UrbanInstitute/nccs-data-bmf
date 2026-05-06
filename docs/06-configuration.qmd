@@ -98,6 +98,9 @@ ENABLE_S3_UPLOAD <- TRUE
 | `BMF_S3_INTERMEDIATE_PREFIX` | character | `"intermediate/bmf/"` | S3 prefix for intermediate outputs (all columns) |
 | `BMF_S3_PROCESSED_PREFIX` | character | `"processed/bmf/"` | S3 prefix for processed outputs (transformed only) |
 | `BMF_S3_GEOCODING_PREFIX` | character | `"geocoding/bmf/"` | S3 prefix for geocoded outputs |
+| `BMF_S3_LEGACY_PREFIX` | character | `"legacy/bmf/"` | S3 prefix for raw legacy 501CX-NONPROFIT-PX files |
+| `BMF_S3_LEGACY_INTERMEDIATE_PREFIX` | character | `"intermediate/bmf-legacy/"` | S3 prefix for legacy intermediate outputs |
+| `BMF_S3_LEGACY_PROCESSED_PREFIX` | character | `"processed/bmf-legacy/"` | S3 prefix for legacy processed outputs |
 | `GEOCODER_BATCH_SIZE` | integer | `900000` | Max rows per geocoder batch (under 1M limit) |
 | `ENABLE_S3_UPLOAD` | logical | `TRUE` | Upload processed files to S3 after pipeline completes |
 
