@@ -71,3 +71,5 @@ NTEE2006,NTEE2006,,drop,ntee-refinement,0,,,,,,,Discovered in raw 2007-01 file (
 GEOCD,GEOCD,,drop,geographic,0,,,,,,,Discovered in raw 2010-07 file (not in scraped dictionaries); NCCS-curated geocoding code — current pipeline runs its own geocoding workflow
 GEOEXCLUDE,GEOEXCLUDE,,drop,geographic,0,,,,,,,Discovered in raw 2010-07 file (not in scraped dictionaries); NCCS geocoding-exclusion flag — current pipeline runs its own geocoding workflow
 GEOCODE,GEOCODE,,drop,geographic,0,,,,,,,Discovered in raw 2010-07 file (not in scraped dictionaries); NCCS-curated geocode value — current pipeline runs its own geocoding workflow
+GEOCDF,GEOCDF,,drop,geographic,0,,,,,,,Discovered in raw 2009-10 file (not in scraped dictionaries); NCCS geocoding code flag variant — current pipeline runs its own geocoding workflow
+ADDRESSCHANGED,ADDRESSCHANGED,,drop,nccs-flag,0,,,,,,,Discovered in raw 2009-10 file (not in scraped dictionaries); NCCS flag indicating address changed since prior BMF snapshot
