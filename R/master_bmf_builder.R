@@ -256,42 +256,20 @@ build_master_bmf <- function(con,
     ", legacy_root))
   }
 
-  stack_sql <- paste0(
-    "CREATE OR REPLACE TABLE stacked AS\n",
-    paste(parts, collapse = "\nUNION ALL BY NAME\n")
-  )
+  union_block <- paste(parts, collapse = "\nUNION ALL BY NAME\n")
 
-  t0 <- Sys.time()
-  tryCatch(
-    DBI::dbExecute(con, stack_sql),
-    error = function(e) {
-      message("---- stack_sql that failed ----")
-      message(stack_sql)
-      message("---- end stack_sql ----")
-      stop(e)
-    }
-  )
-  log_info(sprintf("Stacked rows: %s (%.1f sec)",
-                   format(DBI::dbGetQuery(con, "SELECT COUNT(*) AS n FROM stacked")$n,
-                          big.mark = ","),
-                   as.numeric(Sys.time() - t0, units = "secs")))
-
-  # Drop rows missing EIN before deduping.
-  before_n <- DBI::dbGetQuery(con, "SELECT COUNT(*) AS n FROM stacked")$n
-  DBI::dbExecute(con, "DELETE FROM stacked WHERE ein IS NULL OR ein = ''")
-  after_n  <- DBI::dbGetQuery(con, "SELECT COUNT(*) AS n FROM stacked")$n
-  if (before_n != after_n) {
-    log_warn(sprintf("Dropped %s rows with missing EIN before dedup",
-                     format(before_n - after_n, big.mark = ",")))
-  }
-
-  # Stage 2: rank by vintage desc, current-wins-tie. Compute first/last/count.
-  # 'current' < 'legacy' alphabetically, so ASC puts current first on ties.
-  log_info("Deduping to one row per EIN with first/last vintage markers...")
-  t0 <- Sys.time()
-  DBI::dbExecute(con, "
+  # Combined CREATE TABLE: read CSVs, union, filter NULL EINs, window-rank,
+  # and select rn=1 in one statement so DuckDB's optimizer can pipeline
+  # through the CTE rather than materializing a ~30 GB stacked intermediate.
+  build_sql <- sprintf("
     CREATE OR REPLACE TABLE bmf_master AS
-    WITH ranked AS (
+    WITH stacked AS (
+      %s
+    ),
+    filtered AS (
+      SELECT * FROM stacked WHERE ein IS NOT NULL AND ein <> ''
+    ),
+    ranked AS (
       SELECT *,
              vintage_dash AS bmf_vintage_ym,
              ROW_NUMBER() OVER (
@@ -301,19 +279,28 @@ build_master_bmf <- function(con,
              MIN(vintage_dash) OVER (PARTITION BY ein) AS first_vintage_ym,
              MAX(vintage_dash) OVER (PARTITION BY ein) AS last_vintage_ym,
              COUNT(*) OVER (PARTITION BY ein)          AS bmf_vintages_observed
-        FROM stacked
+        FROM filtered
     )
     SELECT * EXCLUDE (rn, vintage_dash, filename),
            CAST(SUBSTR(first_vintage_ym, 1, 4) AS INTEGER) AS first_year_in_bmf,
            CAST(SUBSTR(last_vintage_ym,  1, 4) AS INTEGER) AS last_year_in_bmf
       FROM ranked
      WHERE rn = 1
-  ")
-  log_info(sprintf("Dedup complete (%.1f sec)",
-                   as.numeric(Sys.time() - t0, units = "secs")))
+  ", union_block)
 
-  # Drop the staging table to free memory before subsequent queries.
-  DBI::dbExecute(con, "DROP TABLE stacked")
+  log_info("Building bmf_master in a single combined query (stack + filter + dedup)...")
+  t0 <- Sys.time()
+  tryCatch(
+    DBI::dbExecute(con, build_sql),
+    error = function(e) {
+      message("---- build_sql that failed ----")
+      message(build_sql)
+      message("---- end build_sql ----")
+      stop(e)
+    }
+  )
+  log_info(sprintf("Build complete (%.1f sec)",
+                   as.numeric(Sys.time() - t0, units = "secs")))
 
   master_n <- DBI::dbGetQuery(con, "SELECT COUNT(*) AS n FROM bmf_master")$n
   log_info(sprintf("Master BMF: %s unique EINs",
