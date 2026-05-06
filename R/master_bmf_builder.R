@@ -233,9 +233,7 @@ build_master_bmf <- function(con,
              'current' AS bmf_source
         FROM read_csv_auto('%s/*/bmf_*_processed.csv',
                            union_by_name = true,
-                           filename      = true,
-                           sample_size   = -1,
-                           all_varchar   = false)
+                           filename      = true)
     ", current_root))
   }
   if (has_legacy) {
@@ -245,9 +243,7 @@ build_master_bmf <- function(con,
              'legacy' AS bmf_source
         FROM read_csv_auto('%s/*/bmf_legacy_*_processed.csv',
                            union_by_name = true,
-                           filename      = true,
-                           sample_size   = -1,
-                           all_varchar   = false)
+                           filename      = true)
     ", legacy_root))
   }
 
@@ -257,7 +253,15 @@ build_master_bmf <- function(con,
   )
 
   t0 <- Sys.time()
-  DBI::dbExecute(con, stack_sql)
+  tryCatch(
+    DBI::dbExecute(con, stack_sql),
+    error = function(e) {
+      message("---- stack_sql that failed ----")
+      message(stack_sql)
+      message("---- end stack_sql ----")
+      stop(e)
+    }
+  )
   log_info(sprintf("Stacked rows: %s (%.1f sec)",
                    format(DBI::dbGetQuery(con, "SELECT COUNT(*) AS n FROM stacked")$n,
                           big.mark = ","),
