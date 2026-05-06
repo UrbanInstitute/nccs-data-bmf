@@ -100,18 +100,37 @@ strategy.
 
 ## Geocoding integration
 
-The Master BMF augments, rather than replaces, the per-month geocoding
-workflow:
+`R/run_master_geocoding.R` provides export/merge modes that mirror the
+per-month geocoding workflow but operate on `bmf_master.parquet`:
 
-- **One-time historical pass**: feed the entire Master BMF address
-  set to the Urban Institute geocoder. Each EIN's most-recent address
-  gets geocoded once, producing a public reference dataset.
-- **Incremental**: the existing per-month geocoding workflow continues
-  to handle new EINs (those with `first_vintage_ym = `the latest
-  month) that did not exist in the prior Master.
+```r
+# Step 1: write geocoder batches (dedups on org_addr_full first;
+# typical ~30-40 % reduction in geocoder rows because many EINs
+# share addresses).
+MASTER_GEOCODING_MODE <- "export"
+source("R/run_master_geocoding.R")
 
-A future pass can join geocoded coordinates back to the Master BMF
-on `ein` to publish a single geocoded artifact.
+# ... upload each batch CSV to the Urban Institute geocoder,
+#     download geocoded outputs to data/geocoding/master/output/ ...
+
+# Step 2: merge geocoded lat/lon back onto the master, propagating
+# to all EINs that share each unique address.
+MASTER_GEOCODING_MODE <- "merge"
+source("R/run_master_geocoding.R")
+```
+
+Outputs: `data/geocoding/master/merged/bmf_master_geocoded.{parquet,csv}`
+plus a JSON quality report. Uploads to
+`s3://nccsdata/geocoding/bmf-master/merged/` if `ENABLE_S3_UPLOAD`.
+
+The geocoded master keeps the all-VARCHAR convention for the BMF
+columns, but `geo_lat` and `geo_lon` are explicitly cast to DOUBLE
+since they are the highest-value columns of the geocoded output.
+
+Cadence is **ad-hoc**: rebuild the master, then re-export and merge.
+The dedup step uses a manifest (`bmf_master_geocoder_addr_lookup.parquet`)
+written by the export step and consumed by the merge step, so don't
+delete the input directory between steps.
 
 ## Running it
 

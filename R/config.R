@@ -8,6 +8,7 @@ BMF_S3_LEGACY_PREFIX <- "legacy/bmf/"
 BMF_S3_INTERMEDIATE_PREFIX <- "intermediate/bmf/"
 BMF_S3_PROCESSED_PREFIX <- "processed/bmf/"
 BMF_S3_GEOCODING_PREFIX <- "geocoding/bmf/"
+BMF_S3_MASTER_GEOCODING_PREFIX <- "geocoding/bmf-master/"
 BMF_S3_LEGACY_INTERMEDIATE_PREFIX <- "intermediate/bmf-legacy/"
 BMF_S3_LEGACY_PROCESSED_PREFIX <- "processed/bmf-legacy/"
 GEOCODER_BATCH_SIZE <- 900000
