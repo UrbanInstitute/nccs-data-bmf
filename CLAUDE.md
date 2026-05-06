@@ -56,13 +56,26 @@ files use NCCS-curated column names that differ from the current IRS BMF
 schema; the legacy pipeline harmonizes them and runs the same transforms.
 
 ```r
-# Drop a legacy CSV in data/raw/legacy/ then:
+# Download a specific vintage from S3 (s3://nccsdata/legacy/bmf/):
+LEGACY_BMF_YEAR  <- 2013
+LEGACY_BMF_MONTH <- 7
+source("R/run_legacy_pipeline.R")
+
+# Or download the most recent legacy file from S3:
+source("R/run_legacy_pipeline.R")
+
+# Or process a local file (skips S3 download):
 LEGACY_BMF_FILE <- "data/raw/legacy/BMF-2013-07-501CX-NONPROFIT-PX.csv"
 source("R/run_legacy_pipeline.R")
+
+# To list available legacy BMF files in S3:
+source("R/config.R")
+list_available_legacy_bmf_files()
 ```
 
-Legacy outputs use a `bmf_legacy_YYYY_MM_*` prefix and default to local
-storage only (`ENABLE_S3_UPLOAD <- FALSE`). The Phase 11 processed CSV
+Legacy outputs use a `bmf_legacy_YYYY_MM_*` prefix and upload to
+`s3://nccsdata/{intermediate,processed}/bmf-legacy/YYYY_MM/` (separate
+from the monthly current-BMF outputs at `bmf/YYYY_MM/`). The Phase 11 processed CSV
 contains a slim per-file schema — only columns whose underlying input
 was actually populated in the legacy file. The intermediate parquet
 keeps the full schema for audit. See `docs/09-legacy-harmonization.qmd`

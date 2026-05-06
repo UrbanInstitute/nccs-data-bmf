@@ -4,10 +4,16 @@
 
 BMF_S3_BUCKET <- "nccsdata"
 BMF_S3_PREFIX <- "raw/bmf/"
+BMF_S3_LEGACY_PREFIX <- "legacy/bmf/"
 BMF_S3_INTERMEDIATE_PREFIX <- "intermediate/bmf/"
 BMF_S3_PROCESSED_PREFIX <- "processed/bmf/"
 BMF_S3_GEOCODING_PREFIX <- "geocoding/bmf/"
+BMF_S3_LEGACY_INTERMEDIATE_PREFIX <- "intermediate/bmf-legacy/"
+BMF_S3_LEGACY_PROCESSED_PREFIX <- "processed/bmf-legacy/"
 GEOCODER_BATCH_SIZE <- 900000
+
+# Filename pattern for legacy NCCS 501CX-NONPROFIT-PX BMF files
+LEGACY_BMF_FILENAME_REGEX <- "BMF-\\d{4}-\\d{2}-501CX-NONPROFIT-PX\\.csv$"
 
 # ============================================================================
 # S3 Download Functions
@@ -133,6 +139,105 @@ download_bmf_from_s3 <- function(bucket = BMF_S3_BUCKET,
   return(bmf_raw)
 }
 
+#' List available legacy BMF files in S3
+#'
+#' @description
+#' Lists year-month values for legacy NCCS 501CX-NONPROFIT-PX BMF files
+#' available at s3://<bucket>/<prefix>.
+#'
+#' @param bucket S3 bucket name (default: "nccsdata")
+#' @param prefix S3 prefix (default: "legacy/bmf/")
+#'
+#' @return Character vector of available year-month values (sorted descending)
+#'
+#' @export
+list_available_legacy_bmf_files <- function(bucket = BMF_S3_BUCKET,
+                                             prefix = BMF_S3_LEGACY_PREFIX) {
+
+  available_files <- aws.s3::get_bucket_df(bucket = bucket, prefix = prefix)
+  legacy_files <- available_files[grepl(LEGACY_BMF_FILENAME_REGEX, available_files$Key), ]
+
+  if (nrow(legacy_files) == 0) {
+    message("No legacy BMF files found in s3://", bucket, "/", prefix)
+    return(character(0))
+  }
+
+  year_months <- stringr::str_extract(legacy_files$Key, "\\d{4}-\\d{2}")
+  return(sort(year_months, decreasing = TRUE))
+}
+
+#' Download a legacy BMF file from S3
+#'
+#' @description
+#' Downloads a legacy NCCS 501CX-NONPROFIT-PX BMF CSV from S3 and saves it
+#' to a local directory (default: data/raw/legacy/). Returns the local path
+#' so that run_legacy_pipeline.R can read it via fread().
+#'
+#' If year and month are not specified, downloads the most recent legacy file.
+#'
+#' @param bucket S3 bucket name (default: "nccsdata")
+#' @param prefix S3 prefix (default: "legacy/bmf/")
+#' @param year Optional year (YYYY). If NULL, uses most recent file.
+#' @param month Optional month (MM). If NULL, uses most recent file.
+#' @param dest_dir Local directory to save the file (default: "data/raw/legacy")
+#'
+#' @return Local path to the downloaded file
+#'
+#' @export
+download_legacy_bmf_from_s3 <- function(bucket = BMF_S3_BUCKET,
+                                         prefix = BMF_S3_LEGACY_PREFIX,
+                                         year = NULL,
+                                         month = NULL,
+                                         dest_dir = here::here("data", "raw", "legacy")) {
+
+  available_files <- aws.s3::get_bucket(bucket = bucket, prefix = prefix) |>
+    data.table::rbindlist(fill = TRUE)
+
+  legacy_files <- available_files[grepl(LEGACY_BMF_FILENAME_REGEX, available_files$Key), ]
+
+  if (nrow(legacy_files) == 0) {
+    stop("No legacy BMF files found in s3://", bucket, "/", prefix)
+  }
+
+  legacy_files$year_month <- stringr::str_extract(legacy_files$Key, "\\d{4}-\\d{2}")
+  legacy_files <- legacy_files[order(legacy_files$year_month, decreasing = TRUE), ]
+
+  if (!is.null(year) && !is.null(month)) {
+    target_ym <- sprintf("%04d-%02d", as.integer(year), as.integer(month))
+    target_key <- sprintf("%sBMF-%s-501CX-NONPROFIT-PX.csv", prefix, target_ym)
+
+    if (!target_key %in% legacy_files$Key) {
+      available_ym <- paste(legacy_files$year_month, collapse = ", ")
+      stop(sprintf(
+        "Legacy BMF file for %s not found in S3.\nAvailable: %s",
+        target_ym, available_ym
+      ))
+    }
+
+    s3_key <- target_key
+    message(sprintf("Downloading specified legacy BMF file: %s", basename(s3_key)))
+  } else {
+    s3_key <- legacy_files$Key[1]
+    message(sprintf("Using most recent legacy BMF file: %s", basename(s3_key)))
+  }
+
+  if (!dir.exists(dest_dir)) {
+    dir.create(dest_dir, recursive = TRUE)
+  }
+  local_path <- file.path(dest_dir, basename(s3_key))
+
+  message(sprintf("Downloading from s3://%s/%s -> %s", bucket, s3_key, local_path))
+
+  aws.s3::save_object(
+    object = s3_key,
+    bucket = bucket,
+    file = local_path
+  )
+
+  message(sprintf("Saved legacy BMF to %s", local_path))
+  return(local_path)
+}
+
 # ============================================================================
 # S3 Upload Functions
 # ============================================================================
@@ -201,14 +306,16 @@ upload_bmf_results <- function(parquet_path,
                                 quality_report_path,
                                 year,
                                 month,
-                                bucket = BMF_S3_BUCKET) {
+                                bucket = BMF_S3_BUCKET,
+                                prefix = BMF_S3_INTERMEDIATE_PREFIX) {
 
-  # Construct S3 directory path: intermediate/bmf/YYYY_MM/
-  s3_dir <- sprintf("%s%s_%s/", BMF_S3_INTERMEDIATE_PREFIX, year, month)
+  # Construct S3 directory path: <prefix>YYYY_MM/
+  s3_dir <- sprintf("%s%s_%s/", prefix, year, month)
 
-  # Construct S3 keys for each file
-  parquet_s3_key <- sprintf("%sbmf_%s_%s_intermediate.parquet", s3_dir, year, month)
-  quality_s3_key <- sprintf("%sbmf_%s_%s_quality_report.json", s3_dir, year, month)
+  # Derive S3 keys from local file basenames so callers control naming
+  # (e.g., bmf_YYYY_MM_* for current vs bmf_legacy_YYYY_MM_* for legacy).
+  parquet_s3_key <- paste0(s3_dir, basename(parquet_path))
+  quality_s3_key <- paste0(s3_dir, basename(quality_report_path))
 
   message(sprintf("Uploading BMF results to s3://%s/%s", bucket, s3_dir))
 
@@ -254,15 +361,16 @@ upload_processed_bmf <- function(csv_path,
                                   dictionary_path,
                                   year,
                                   month,
-                                  bucket = BMF_S3_BUCKET) {
+                                  bucket = BMF_S3_BUCKET,
+                                  prefix = BMF_S3_PROCESSED_PREFIX) {
 
-  # Construct S3 directory path: processed/bmf/YYYY_MM/
-  s3_dir <- sprintf("%s%s_%s/", BMF_S3_PROCESSED_PREFIX, year, month)
+  # Construct S3 directory path: <prefix>YYYY_MM/
+  s3_dir <- sprintf("%s%s_%s/", prefix, year, month)
 
-  # Construct S3 keys for each file
-  csv_s3_key <- sprintf("%sbmf_%s_%s_processed.csv", s3_dir, year, month)
-  quality_s3_key <- sprintf("%sbmf_%s_%s_quality_report.json", s3_dir, year, month)
-  dictionary_s3_key <- sprintf("%sbmf_%s_%s_data_dictionary.csv", s3_dir, year, month)
+  # Derive S3 keys from local file basenames (keeps current vs legacy naming).
+  csv_s3_key <- paste0(s3_dir, basename(csv_path))
+  quality_s3_key <- paste0(s3_dir, basename(quality_report_path))
+  dictionary_s3_key <- paste0(s3_dir, basename(dictionary_path))
 
   message(sprintf("Uploading processed BMF to s3://%s/%s", bucket, s3_dir))
 

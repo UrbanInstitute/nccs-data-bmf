@@ -170,6 +170,7 @@ COLUMN_CATEGORIES <- list(
       nteev2 = list(type = "character"),
       nteev2_code = list(type = "code"),
       nteev2_subsector = list(type = "code"),
+      nteev2_subsector_definition = list(type = "character"),
       nteev2_org_type = list(type = "code")
     )
   )
@@ -223,7 +224,7 @@ BMF_OUTPUT_COLUMNS <- c(
   "ntee_code_raw", "ntee_code_clean", "ntee_code_definition", "ntee_code_major_group",
   "ntee_common_code", "ntee_common_code_definition",
   # NTEEV2 fields
-  "nteev2", "nteev2_code", "nteev2_subsector", "nteev2_org_type"
+  "nteev2", "nteev2_code", "nteev2_subsector", "nteev2_subsector_definition", "nteev2_org_type"
 ) 
 
 # Critical fields that must have no NULLs in valid records
@@ -329,6 +330,7 @@ SOURCE_COLUMN_MAP <- list(
   nteev2 = "NTEE_CD",
   nteev2_code = "NTEE_CD",
   nteev2_subsector = "NTEE_CD",
+  nteev2_subsector_definition = "NTEE_CD",
   nteev2_org_type = "NTEE_CD"
 )
 
@@ -430,6 +432,7 @@ COLUMN_DESCRIPTIONS <- list(
   nteev2 = "Full NTEEv2 code in SUBSECTOR-CODE-TYPE format",
   nteev2_code = "NTEEv2 code portion (3 characters)",
   nteev2_subsector = "NTEEv2 subsector code (e.g., UNI, HOS, ART, ENV)",
+  nteev2_subsector_definition = "Human-readable name of the NTEEv2 subsector (e.g., 'Human Services', 'Public, Societal Benefit')",
   nteev2_org_type = "NTEEv2 organization type (RG=Regular, AA=Alliance, etc.)"
 )
 

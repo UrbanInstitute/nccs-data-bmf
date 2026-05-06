@@ -23,13 +23,13 @@ at all and are excluded from the slim output.
 
 | Phase | Modern | Legacy |
 |---|---|---|
-| 1 Extraction | Download from S3 | Read from `data/raw/legacy/<file>.csv` (set `LEGACY_BMF_FILE` before sourcing) |
+| 1 Extraction | Download from `s3://nccsdata/raw/bmf/` | Download from `s3://nccsdata/legacy/bmf/` (set `LEGACY_BMF_YEAR`/`LEGACY_BMF_MONTH`) or read from a local path (`LEGACY_BMF_FILE`) |
 | 1.5 Harmonization | n/a | `harmonize_legacy_bmf()` — uppercase, drop, rename, NA-fill |
 | 2 Pre-validation | Requires all 31 `BMF_REQUIRED_COLUMNS` | Requires only 7 `BMF_LEGACY_MIN_COLUMNS` populated |
 | 3–9 Transforms | unchanged | unchanged (same code path; NA inputs propagate) |
 | 10 Intermediate parquet | full schema | full schema (audit/debug) |
 | 11 Processed CSV | full schema | slim schema (only populated cols) |
-| S3 upload | enabled by default | disabled by default |
+| S3 upload | `intermediate/bmf/YYYY_MM/`, `processed/bmf/YYYY_MM/` | `intermediate/bmf-legacy/YYYY_MM/`, `processed/bmf-legacy/YYYY_MM/` |
 
 # Harmonization Steps
 
@@ -169,9 +169,16 @@ For a legacy file `BMF-YYYY-MM-501CX-NONPROFIT-PX.csv`:
 
 # Adding New Legacy Files
 
-1. Drop the CSV in `data/raw/legacy/`.
+1. Upload the CSV to `s3://nccsdata/legacy/bmf/` (preferred) or drop
+   it in `data/raw/legacy/`.
 2. Run:
    ```r
+   # From S3:
+   LEGACY_BMF_YEAR  <- 2013
+   LEGACY_BMF_MONTH <- 7
+   source("R/run_legacy_pipeline.R")
+
+   # Or from a local path:
    LEGACY_BMF_FILE <- "data/raw/legacy/<filename>.csv"
    source("R/run_legacy_pipeline.R")
    ```

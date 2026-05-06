@@ -9,6 +9,15 @@
 #   - Phase 11: slim processed output to columns backed by populated input
 #
 # Usage:
+#   # Process a specific vintage from S3 (s3://nccsdata/legacy/bmf/):
+#   LEGACY_BMF_YEAR  <- 2013
+#   LEGACY_BMF_MONTH <- 7
+#   source("R/run_legacy_pipeline.R")
+#
+#   # Or download the most recent legacy file from S3:
+#   source("R/run_legacy_pipeline.R")
+#
+#   # Or process a local file:
 #   LEGACY_BMF_FILE <- "data/raw/legacy/BMF-2013-07-501CX-NONPROFIT-PX.csv"
 #   source("R/run_legacy_pipeline.R")
 # ============================================================================
@@ -20,11 +29,16 @@
 ENABLE_CHECKPOINTS <- TRUE
 CHECKPOINT_DIR <- "data/checkpoints"
 STRICT_QUALITY_GATES <- TRUE
-ENABLE_S3_UPLOAD <- FALSE  # Legacy outputs default to local-only
+ENABLE_S3_UPLOAD <- TRUE  # Uploads to s3://nccsdata/{intermediate,processed}/bmf-legacy/YYYY_MM/
 
-if (!exists("LEGACY_BMF_FILE") || is.null(LEGACY_BMF_FILE)) {
-  stop("Set LEGACY_BMF_FILE before sourcing run_legacy_pipeline.R, e.g. LEGACY_BMF_FILE <- 'data/raw/legacy/BMF-2013-07-501CX-NONPROFIT-PX.csv'")
-}
+# Legacy source configuration - set before sourcing to override defaults.
+#   LEGACY_BMF_FILE  : explicit local path (skips S3 download)
+#   LEGACY_BMF_YEAR  : year (YYYY) to download from s3://nccsdata/legacy/bmf/
+#   LEGACY_BMF_MONTH : month (MM) to download from s3://nccsdata/legacy/bmf/
+# If none are set, the most recent legacy file in S3 is used.
+if (!exists("LEGACY_BMF_FILE"))  LEGACY_BMF_FILE  <- NULL
+if (!exists("LEGACY_BMF_YEAR"))  LEGACY_BMF_YEAR  <- NULL
+if (!exists("LEGACY_BMF_MONTH")) LEGACY_BMF_MONTH <- NULL
 
 PROCESSING_YEAR <- NULL
 PROCESSING_MONTH <- NULL
@@ -82,8 +96,20 @@ source(here::here("R", "checkpoints.R"))
 
 log_phase_start("EXTRACTION (legacy)")
 
-if (!file.exists(LEGACY_BMF_FILE)) {
-  log_error(sprintf("Legacy BMF file not found: %s", LEGACY_BMF_FILE))
+# Resolve the source file: prefer an explicit local path, else download from S3.
+if (!is.null(LEGACY_BMF_FILE)) {
+  if (!file.exists(LEGACY_BMF_FILE)) {
+    log_error(sprintf("Legacy BMF file not found: %s", LEGACY_BMF_FILE))
+  }
+  log_info(sprintf("Using local legacy BMF file: %s", LEGACY_BMF_FILE))
+} else {
+  log_info("Downloading legacy BMF from S3")
+  LEGACY_BMF_FILE <- download_legacy_bmf_from_s3(
+    bucket = BMF_S3_BUCKET,
+    prefix = BMF_S3_LEGACY_PREFIX,
+    year = LEGACY_BMF_YEAR,
+    month = LEGACY_BMF_MONTH
+  )
 }
 
 # Parse YYYY-MM from filename: BMF-YYYY-MM-501CX-NONPROFIT-PX.csv
@@ -251,6 +277,19 @@ intermediate_path <- sprintf("data/intermediate/bmf_legacy_%s_%s_intermediate.pa
 arrow::write_parquet(bmf, intermediate_path)
 log_info(sprintf("Intermediate BMF saved: %s", intermediate_path))
 
+if (ENABLE_S3_UPLOAD) {
+  log_info("Uploading legacy intermediate BMF and quality report to S3")
+  quality_report_path <- sprintf("data/quality/bmf_legacy_%s_%s_quality_report.json",
+                                 PROCESSING_YEAR, PROCESSING_MONTH)
+  upload_intermediate_results <- upload_bmf_results(
+    parquet_path = intermediate_path,
+    quality_report_path = quality_report_path,
+    year = PROCESSING_YEAR,
+    month = PROCESSING_MONTH,
+    prefix = BMF_S3_LEGACY_INTERMEDIATE_PREFIX
+  )
+}
+
 # ============================================================================
 # PHASE 11: PROCESSED OUTPUT (slim — only columns backed by populated input)
 # ============================================================================
@@ -297,6 +336,20 @@ dictionary_path <- sprintf("data/processed/bmf_legacy_%s_%s_data_dictionary.csv"
 data.table::fwrite(data_dictionary, dictionary_path)
 log_info(sprintf("Data dictionary saved: %s (%d columns)",
                  dictionary_path, nrow(data_dictionary)))
+
+if (ENABLE_S3_UPLOAD) {
+  log_info("Uploading legacy processed BMF, quality report, and data dictionary to S3")
+  quality_report_path <- sprintf("data/quality/bmf_legacy_%s_%s_quality_report.json",
+                                 PROCESSING_YEAR, PROCESSING_MONTH)
+  upload_processed_results <- upload_processed_bmf(
+    csv_path = processed_path,
+    quality_report_path = quality_report_path,
+    dictionary_path = dictionary_path,
+    year = PROCESSING_YEAR,
+    month = PROCESSING_MONTH,
+    prefix = BMF_S3_LEGACY_PROCESSED_PREFIX
+  )
+}
 
 # ============================================================================
 # PIPELINE COMPLETE
