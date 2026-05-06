@@ -107,13 +107,36 @@ in seconds, and start time.
 ### Options
 
 ```bash
-bash scripts/run_all_legacy.sh                   # oldest first (default)
-bash scripts/run_all_legacy.sh --newest-first    # newest first
-
-SKIP_EXISTING=1 bash scripts/run_all_legacy.sh   # resume — skip vintages
-                                                  # whose processed CSV is
-                                                  # already in S3
+bash scripts/run_all_legacy.sh                       # serial, oldest first
+bash scripts/run_all_legacy.sh --newest-first        # serial, newest first
+JOBS=8 bash scripts/run_all_legacy.sh                # 8 vintages in parallel
+SKIP_EXISTING=1 JOBS=8 bash scripts/run_all_legacy.sh  # parallel + resume
 ```
+
+`SKIP_EXISTING=1` is the way to **resume after a failure**: re-running
+the full batch will re-do work, but with this flag the driver checks
+S3 for the processed CSV per vintage and skips ones already uploaded.
+
+#### Choosing JOBS
+
+The pipeline is largely single-threaded R (data.table's internal
+threading uses ~4 cores during fread/keyed joins, but the rest of
+each vintage runs single-threaded). Each subprocess peaks at
+~6–8 GB RAM. On a serial run, a single vintage takes ~5 minutes; the
+full archive of ~70 vintages serial takes ~6 hours.
+
+Run multiple vintages concurrently with `JOBS=N`. Size N to keep total
+RAM under ~70 % of the host:
+
+| Host                  | Suggested JOBS | Approx full-archive runtime |
+|-----------------------|----------------|------------------------------|
+| 16 GB RAM laptop      | 1 (serial)     | ~6 hours                     |
+| `m6i.2xlarge` (32 GB) | 3              | ~2 hours                     |
+| `m6i.4xlarge` (64 GB) | 6              | ~1 hour                      |
+| `c5.18xlarge` (144 GB)| 8–12           | ~30–45 min                   |
+
+Above ~12 concurrent jobs you'll likely hit S3 throughput as the
+bottleneck rather than CPU or RAM.
 
 `SKIP_EXISTING=1` is the way to **resume after a failure**: re-running
 the full batch will re-do work, but with this flag the driver checks

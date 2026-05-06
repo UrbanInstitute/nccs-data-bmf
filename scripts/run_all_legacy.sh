@@ -2,15 +2,27 @@
 # ============================================================================
 # run_all_legacy.sh
 #
-# Run the legacy BMF harmonization pipeline serially over every vintage
-# present in s3://nccsdata/legacy/bmf/. Each vintage runs in a fresh Rscript
+# Run the legacy BMF harmonization pipeline over every vintage present in
+# s3://nccsdata/legacy/bmf/. Each vintage runs in a fresh Rscript
 # subprocess so memory and file connections are released between runs.
 #
+# Defaults to JOBS=1 (serial) for safety on small-RAM hosts. On a beefy
+# instance like c5.18xlarge, set JOBS=8 (or higher) to run multiple
+# vintages concurrently — each subprocess peaks at ~6-8 GB RAM, so size
+# JOBS to keep total RAM under ~70 % of the host.
+#
 # Usage:
-#   bash scripts/run_all_legacy.sh                # all vintages, oldest first
-#   bash scripts/run_all_legacy.sh --newest-first # newest vintages first
-#   SKIP_EXISTING=1 bash scripts/run_all_legacy.sh
-#       # skip a vintage if its processed CSV already exists in S3
+#   bash scripts/run_all_legacy.sh                  # serial, oldest first
+#   bash scripts/run_all_legacy.sh --newest-first   # serial, newest first
+#   JOBS=8 bash scripts/run_all_legacy.sh           # 8 concurrent vintages
+#   SKIP_EXISTING=1 JOBS=8 bash scripts/run_all_legacy.sh
+#       # skip vintages whose processed CSV is already in S3
+#
+# Recommended JOBS settings:
+#   16 GB RAM laptop      -> JOBS=1   (the default; do not parallelize)
+#   m6i.2xlarge (32 GB)   -> JOBS=3
+#   m6i.4xlarge (64 GB)   -> JOBS=6
+#   c5.18xlarge (144 GB)  -> JOBS=8 to JOBS=12
 #
 # Logs:   logs/legacy/bmf_legacy_<YYYY>_<MM>.log  (one per vintage)
 # Status: logs/legacy/run_summary.tsv             (vintage, status, seconds)
@@ -19,6 +31,7 @@ set -u -o pipefail
 
 cd "$(dirname "$0")/.."
 
+JOBS="${JOBS:-1}"
 ORDER="oldest-first"
 if [[ "${1:-}" == "--newest-first" ]]; then ORDER="newest-first"; fi
 
@@ -43,15 +56,22 @@ if [[ "$ORDER" == "oldest-first" ]]; then
   mapfile -t VINTAGES < <(printf '%s\n' "${VINTAGES[@]}" | tac)
 fi
 
-echo "Found ${#VINTAGES[@]} vintages. Order: $ORDER"
+echo "Found ${#VINTAGES[@]} vintages. Order: $ORDER. JOBS=$JOBS."
 echo
 
-for ym in "${VINTAGES[@]}"; do
-  year="${ym%-*}"
-  month="${ym#*-}"
-  tag="${year}_${month}"
-  log="logs/legacy/bmf_legacy_${tag}.log"
+# ----------------------------------------------------------------------------
+# Per-vintage worker. Used by both the serial loop and the parallel xargs
+# path. Captures result row in run_summary.tsv on its own.
+# ----------------------------------------------------------------------------
+process_vintage() {
+  local ym="$1"
+  local year="${ym%-*}"
+  local month="${ym#*-}"
+  local tag="${year}_${month}"
+  local log="logs/legacy/bmf_legacy_${tag}.log"
+  local started
   started=$(date -Iseconds)
+  local t0
   t0=$(date +%s)
 
   if [[ "${SKIP_EXISTING:-0}" == "1" ]]; then
@@ -59,7 +79,7 @@ for ym in "${VINTAGES[@]}"; do
          >/dev/null 2>&1; then
       printf "[%s] SKIP %s (already in S3)\n" "$started" "$ym"
       printf "%s\tskipped\t0\t%s\n" "$ym" "$started" >> "$SUMMARY"
-      continue
+      return 0
     fi
   fi
 
@@ -70,18 +90,34 @@ for ym in "${VINTAGES[@]}"; do
     LEGACY_BMF_MONTH <- ${month}
     source('R/run_legacy_pipeline.R')
   " > "$log" 2>&1
-  rc=$?
+  local rc=$?
 
-  elapsed=$(( $(date +%s) - t0 ))
+  local elapsed=$(( $(date +%s) - t0 ))
   if [[ $rc -eq 0 ]]; then
-    status="ok"
-    printf "     -> ok (%ds), log: %s\n" "$elapsed" "$log"
+    printf "     -> ok %s (%ds), log: %s\n" "$ym" "$elapsed" "$log"
+    printf "%s\tok\t%d\t%s\n" "$ym" "$elapsed" "$started" >> "$SUMMARY"
   else
-    status="failed_rc${rc}"
-    printf "     -> FAILED rc=%d (%ds), log: %s\n" "$rc" "$elapsed" "$log" >&2
+    printf "     -> FAILED %s rc=%d (%ds), log: %s\n" "$ym" "$rc" "$elapsed" "$log" >&2
+    printf "%s\tfailed_rc%d\t%d\t%s\n" "$ym" "$rc" "$elapsed" "$started" >> "$SUMMARY"
   fi
-  printf "%s\t%s\t%d\t%s\n" "$ym" "$status" "$elapsed" "$started" >> "$SUMMARY"
-done
+  return $rc
+}
+
+export -f process_vintage
+export SUMMARY
+
+# ----------------------------------------------------------------------------
+# Dispatch: serial loop if JOBS=1, otherwise parallel via xargs -P.
+# xargs preserves exit non-zero if any subprocess fails.
+# ----------------------------------------------------------------------------
+if [[ "$JOBS" -le 1 ]]; then
+  for ym in "${VINTAGES[@]}"; do
+    process_vintage "$ym" || true
+  done
+else
+  printf '%s\n' "${VINTAGES[@]}" \
+    | xargs -n 1 -P "$JOBS" -I {} bash -c 'process_vintage "$@"' _ {}
+fi
 
 echo
 echo "Done. Summary: $SUMMARY"
