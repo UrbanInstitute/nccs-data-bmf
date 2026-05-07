@@ -1,5 +1,12 @@
 name: Publish Quarto Book
 
+# Note on run time:
+#   Typical run: ~3-6 min (R package cache hit).
+#   Cold cache:  ~45 min — when the r-lib setup-r-dependencies cache is
+#   missing (caches expire after 7 days of inactivity, or whenever
+#   `cache-version` below is bumped), R packages compile from source.
+#   The next run after a cold one is back to ~3-6 min.
+
 on:
   push:
     branches:
