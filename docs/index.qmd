@@ -148,6 +148,9 @@ Checkpoints are saved to `data/checkpoints/` after each transformation phase.
 | [Configuration](06-configuration.qmd) | Config files, lookup tables, dependencies |
 | [Developer Guide](07-developer-guide.qmd) | Code patterns, contributing, testing |
 | [Lookup Tables](08-lookup-tables.qmd) | Complete lookup table definitions and values |
+| [Legacy Harmonization](09-legacy-harmonization.qmd) | 501CX-NONPROFIT-PX (1989–2022) harmonization to current schema |
+| [EC2 Batch Processing](10-ec2-batch-processing.qmd) | EC2 setup and batch drivers for legacy + master pipelines |
+| [Master BMF](11-master-bmf.qmd) | One-row-per-EIN consolidation across all vintages |
 
 ## IRS BMF Source
 
@@ -163,15 +166,17 @@ nccs-data-bmf/
 │   ├── run_pipeline.R             # Current-BMF pipeline orchestrator
 │   ├── run_legacy_pipeline.R      # Legacy 501CX-NONPROFIT-PX orchestrator
 │   ├── run_master_pipeline.R     # Master BMF (one row per EIN) orchestrator
-│   ├── run_geocoding.R            # Geocoding workflow orchestrator
+│   ├── run_geocoding.R            # Per-month geocoding orchestrator
+│   ├── run_master_geocoding.R     # Master BMF geocoding orchestrator
 │   ├── config.R                   # S3 configuration and lookups
 │   ├── checkpoints.R              # Save/load intermediate states
 │   ├── input_validation.R         # Shared validation functions
 │   ├── legacy_bmf_adapter.R       # Legacy schema → current schema harmonization
 │   ├── master_bmf_builder.R      # DuckDB stack + dedup for master BMF
+│   ├── master_geocoding.R         # Master BMF address dedup + export/merge
 │   ├── geocoding_export.R         # Prepare geocoder batches
 │   ├── geocoding_merge.R          # Merge geocoded results
-│   ├── utils/                     # Logging and utilities
+│   ├── utils/                     # Logging, transform helpers, quality-reports index renderer
 │   ├── quality/                   # Pre/post quality checks + geocoding checks + master checks
 │   └── [transform files]          # 21 transformation modules (24 functions)
 ├── scripts/

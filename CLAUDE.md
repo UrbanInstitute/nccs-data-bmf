@@ -156,11 +156,14 @@ S3 (raw/bmf/YYYY-MM-BMF.csv) → Download → Transform → Validated BMF (parqu
 - `R/input_validation.R` - Shared validation functions
 - `R/utils/logging.R` - Structured logging utilities
 - `R/utils/transform_utils.R` - Reusable transformation helpers
+- `R/utils/render_quality_report_index.R` - Regenerates `docs/quality-reports/index.html` from files on disk; called by every pipeline after rendering its HTML quality report
 
 **Geocoding Workflow:**
-- `R/run_geocoding.R` - Geocoding orchestrator (export/merge modes)
+- `R/run_geocoding.R` - Per-month geocoding orchestrator (export/merge modes)
 - `R/geocoding_export.R` - Prepare address batches for Urban geocoder
 - `R/geocoding_merge.R` - Merge geocoded results back into processed BMF
+- `R/run_master_geocoding.R` - Master BMF geocoding orchestrator (export/merge modes)
+- `R/master_geocoding.R` - Address dedup + batch export and merge for the Master BMF
 - `R/quality/geocoding_checks.R` - Geocoding quality validation
 
 **Quality Gates:**

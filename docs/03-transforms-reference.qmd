@@ -593,15 +593,14 @@ flags them, and the sentinel-date fill takes over. Mirrors the pattern in
 The accounting period indicates the month in which the organization's fiscal year ends (1-12, where 12 = December). Most nonprofits use a calendar year (December year-end), but organizations may choose a different fiscal year-end that aligns with their program cycles or funding patterns. This determines when annual Form 990 filings are due (the 15th day of the 5th month after fiscal year-end).
 
 ```r
-transform_accounting_period(dt, input_col = "ACCT_PD", lookup = lookup_ls$accounting_period)
+transform_accounting_period(dt, input_col = "ACCT_PD")
 ```
 
 **Output Columns:**
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `accounting_period_code` | integer | Fiscal year end month (1-12) |
-| `accounting_period_definition` | character | Month name |
+| `accounting_period` | integer | Fiscal year end month (1-12) |
 
 ---
 
