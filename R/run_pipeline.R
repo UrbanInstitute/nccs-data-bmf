@@ -294,6 +294,9 @@ quality_html_path <- file.path(quality_html_dir, sprintf("bmf_%s_%s_quality_repo
 render_quality_report(quality_report, quality_html_path, format = "html")
 log_info(sprintf("Quality report HTML rendered: %s", quality_html_path))
 
+source(here::here("R", "utils", "render_quality_report_index.R"))
+render_quality_report_index(quality_html_dir)
+
 # ============================================================================
 # PHASE 10: INTERMEDIATE OUTPUT (ALL COLUMNS)
 # ============================================================================

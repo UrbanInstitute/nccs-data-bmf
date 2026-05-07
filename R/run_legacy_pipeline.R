@@ -264,6 +264,9 @@ tryCatch({
   log_warn(sprintf("HTML quality report render failed (non-fatal): %s", conditionMessage(e)))
 })
 
+source(here::here("R", "utils", "render_quality_report_index.R"))
+render_quality_report_index(quality_html_dir)
+
 # ============================================================================
 # PHASE 10: INTERMEDIATE OUTPUT (FULL schema, all cols)
 # ============================================================================

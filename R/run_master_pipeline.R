@@ -150,6 +150,9 @@ quality_report_html <- file.path(
 )
 render_master_quality_report(quality_report, quality_report_html)
 
+source(here::here("R", "utils", "render_quality_report_index.R"))
+render_quality_report_index(dirname(quality_report_html))
+
 if (!quality_report$passed) {
   stop("Master BMF quality gate FAILED. See report above.")
 }

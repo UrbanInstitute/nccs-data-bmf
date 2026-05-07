@@ -7,7 +7,7 @@
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      max-width: 800px;
+      max-width: 900px;
       margin: 0 auto;
       padding: 2rem;
       line-height: 1.6;
@@ -18,6 +18,10 @@
       border-bottom: 2px solid #1a73e8;
       padding-bottom: 0.5rem;
     }
+    h2 {
+      color: #1a73e8;
+      margin-top: 2rem;
+    }
     .description {
       background: #f8f9fa;
       padding: 1rem;
@@ -27,10 +31,13 @@
     .report-list {
       list-style: none;
       padding: 0;
+      columns: 2;
+      column-gap: 2rem;
     }
     .report-list li {
-      padding: 0.75rem 0;
+      padding: 0.4rem 0;
       border-bottom: 1px solid #eee;
+      break-inside: avoid;
     }
     .report-list a {
       color: #1a73e8;
@@ -47,7 +54,10 @@
     .note {
       color: #666;
       font-style: italic;
-      margin-top: 1rem;
+    }
+    .meta {
+      color: #888;
+      font-size: 0.9rem;
     }
   </style>
 </head>
@@ -55,60 +65,134 @@
   <h1>BMF Quality Reports</h1>
 
   <div class="description">
-    <p>Monthly quality reports for the IRS Business Master File (BMF) data processing pipeline. Each report contains completeness metrics, validation results, and summary statistics for the processed BMF data.</p>
+    <p>Quality reports for the IRS Business Master File (BMF) data processing pipelines. Each report contains completeness metrics, validation results, and summary statistics for the processed data.</p>
+    <p class="meta">Index generated 2026-05-07 09:31 EDT &middot; 111 total reports</p>
   </div>
 
-  <h2>Available Reports</h2>
-  <p class="note">Reports are added after each pipeline run. Check back for the latest reports.</p>
+  <h2>Master BMF</h2>
+  <ul class="report-list">
+      <li><a href="bmf_master_quality_report.html">Master BMF Quality Report</a></li>
+  </ul>
 
-  <ul class="report-list" id="report-list">
-    <li><em>No reports available yet. Run the pipeline to generate reports.</em></li>
+  <h2>Current Monthly BMF (34)</h2>
+  <ul class="report-list">
+      <li><a href="bmf_2026_05_quality_report.html">2026-05 BMF Quality Report</a></li>
+      <li><a href="bmf_2026_03_quality_report.html">2026-03 BMF Quality Report</a></li>
+      <li><a href="bmf_2026_01_quality_report.html">2026-01 BMF Quality Report</a></li>
+      <li><a href="bmf_2025_12_quality_report.html">2025-12 BMF Quality Report</a></li>
+      <li><a href="bmf_2025_11_quality_report.html">2025-11 BMF Quality Report</a></li>
+      <li><a href="bmf_2025_10_quality_report.html">2025-10 BMF Quality Report</a></li>
+      <li><a href="bmf_2025_09_quality_report.html">2025-09 BMF Quality Report</a></li>
+      <li><a href="bmf_2025_08_quality_report.html">2025-08 BMF Quality Report</a></li>
+      <li><a href="bmf_2025_07_quality_report.html">2025-07 BMF Quality Report</a></li>
+      <li><a href="bmf_2025_06_quality_report.html">2025-06 BMF Quality Report</a></li>
+      <li><a href="bmf_2025_05_quality_report.html">2025-05 BMF Quality Report</a></li>
+      <li><a href="bmf_2025_04_quality_report.html">2025-04 BMF Quality Report</a></li>
+      <li><a href="bmf_2025_03_quality_report.html">2025-03 BMF Quality Report</a></li>
+      <li><a href="bmf_2025_02_quality_report.html">2025-02 BMF Quality Report</a></li>
+      <li><a href="bmf_2025_01_quality_report.html">2025-01 BMF Quality Report</a></li>
+      <li><a href="bmf_2024_12_quality_report.html">2024-12 BMF Quality Report</a></li>
+      <li><a href="bmf_2024_11_quality_report.html">2024-11 BMF Quality Report</a></li>
+      <li><a href="bmf_2024_10_quality_report.html">2024-10 BMF Quality Report</a></li>
+      <li><a href="bmf_2024_09_quality_report.html">2024-09 BMF Quality Report</a></li>
+      <li><a href="bmf_2024_08_quality_report.html">2024-08 BMF Quality Report</a></li>
+      <li><a href="bmf_2024_07_quality_report.html">2024-07 BMF Quality Report</a></li>
+      <li><a href="bmf_2024_06_quality_report.html">2024-06 BMF Quality Report</a></li>
+      <li><a href="bmf_2024_05_quality_report.html">2024-05 BMF Quality Report</a></li>
+      <li><a href="bmf_2024_04_quality_report.html">2024-04 BMF Quality Report</a></li>
+      <li><a href="bmf_2024_03_quality_report.html">2024-03 BMF Quality Report</a></li>
+      <li><a href="bmf_2024_02_quality_report.html">2024-02 BMF Quality Report</a></li>
+      <li><a href="bmf_2024_01_quality_report.html">2024-01 BMF Quality Report</a></li>
+      <li><a href="bmf_2023_12_quality_report.html">2023-12 BMF Quality Report</a></li>
+      <li><a href="bmf_2023_11_quality_report.html">2023-11 BMF Quality Report</a></li>
+      <li><a href="bmf_2023_10_quality_report.html">2023-10 BMF Quality Report</a></li>
+      <li><a href="bmf_2023_09_quality_report.html">2023-09 BMF Quality Report</a></li>
+      <li><a href="bmf_2023_08_quality_report.html">2023-08 BMF Quality Report</a></li>
+      <li><a href="bmf_2023_07_quality_report.html">2023-07 BMF Quality Report</a></li>
+      <li><a href="bmf_2023_06_quality_report.html">2023-06 BMF Quality Report</a></li>
+  </ul>
+
+  <h2>Legacy BMF (501CX-NONPROFIT-PX) (76)</h2>
+  <ul class="report-list">
+      <li><a href="bmf_legacy_2022_08_quality_report.html">2022-08 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2022_01_quality_report.html">2022-01 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2020_04_quality_report.html">2020-04 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2019_08_quality_report.html">2019-08 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2018_12_quality_report.html">2018-12 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2016_08_quality_report.html">2016-08 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2016_04_quality_report.html">2016-04 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2016_02_quality_report.html">2016-02 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2015_12_quality_report.html">2015-12 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2015_11_quality_report.html">2015-11 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2015_09_quality_report.html">2015-09 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2015_07_quality_report.html">2015-07 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2015_05_quality_report.html">2015-05 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2015_04_quality_report.html">2015-04 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2015_02_quality_report.html">2015-02 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2014_11_quality_report.html">2014-11 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2014_06_quality_report.html">2014-06 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2014_04_quality_report.html">2014-04 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2014_02_quality_report.html">2014-02 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2013_10_quality_report.html">2013-10 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2013_09_quality_report.html">2013-09 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2013_08_quality_report.html">2013-08 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2013_07_quality_report.html">2013-07 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2013_06_quality_report.html">2013-06 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2013_05_quality_report.html">2013-05 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2013_04_quality_report.html">2013-04 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2013_02_quality_report.html">2013-02 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2012_12_quality_report.html">2012-12 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2012_11_quality_report.html">2012-11 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2012_10_quality_report.html">2012-10 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2012_08_quality_report.html">2012-08 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2012_07_quality_report.html">2012-07 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2012_06_quality_report.html">2012-06 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2012_03_quality_report.html">2012-03 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2012_02_quality_report.html">2012-02 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2011_12_quality_report.html">2011-12 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2011_11_quality_report.html">2011-11 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2011_10_quality_report.html">2011-10 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2011_08_quality_report.html">2011-08 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2011_07_quality_report.html">2011-07 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2011_06_quality_report.html">2011-06 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2010_11_quality_report.html">2010-11 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2010_08_quality_report.html">2010-08 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2010_07_quality_report.html">2010-07 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2010_04_quality_report.html">2010-04 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2010_01_quality_report.html">2010-01 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2009_10_quality_report.html">2009-10 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2009_07_quality_report.html">2009-07 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2009_04_quality_report.html">2009-04 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2009_01_quality_report.html">2009-01 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2008_12_quality_report.html">2008-12 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2008_10_quality_report.html">2008-10 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2008_06_quality_report.html">2008-06 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2008_04_quality_report.html">2008-04 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2008_01_quality_report.html">2008-01 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2007_04_quality_report.html">2007-04 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2007_01_quality_report.html">2007-01 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2006_11_quality_report.html">2006-11 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2006_05_quality_report.html">2006-05 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2006_01_quality_report.html">2006-01 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2005_07_quality_report.html">2005-07 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2004_12_quality_report.html">2004-12 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2004_04_quality_report.html">2004-04 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2003_11_quality_report.html">2003-11 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2003_07_quality_report.html">2003-07 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2003_01_quality_report.html">2003-01 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2002_07_quality_report.html">2002-07 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2002_01_quality_report.html">2002-01 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2001_07_quality_report.html">2001-07 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_2000_05_quality_report.html">2000-05 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_1999_12_quality_report.html">1999-12 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_1998_09_quality_report.html">1998-09 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_1997_10_quality_report.html">1997-10 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_1996_06_quality_report.html">1996-06 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_1995_08_quality_report.html">1995-08 Legacy BMF Quality Report</a></li>
+      <li><a href="bmf_legacy_1989_06_quality_report.html">1989-06 Legacy BMF Quality Report</a></li>
   </ul>
 
   <a href="../" class="back-link">&larr; Back to Documentation</a>
-
-  <script>
-    // This script attempts to list available reports dynamically
-    // In a static hosting environment, reports would need to be listed manually
-    // or via a build-time script that generates this list
-
-    // For now, we'll attempt to detect common report patterns
-    const reportList = document.getElementById('report-list');
-    const currentYear = new Date().getFullYear();
-    const reports = [];
-
-    // Check for recent reports (last 24 months)
-    for (let year = currentYear; year >= currentYear - 1; year--) {
-      for (let month = 12; month >= 1; month--) {
-        const monthStr = month.toString().padStart(2, '0');
-        const filename = `${year}_${monthStr}.html`;
-        reports.push({ year, month: monthStr, filename });
-      }
-    }
-
-    // Try to fetch each report to see if it exists
-    async function checkReports() {
-      const existingReports = [];
-
-      for (const report of reports) {
-        try {
-          const response = await fetch(report.filename, { method: 'HEAD' });
-          if (response.ok) {
-            existingReports.push(report);
-          }
-        } catch (e) {
-          // Report doesn't exist, continue
-        }
-      }
-
-      if (existingReports.length > 0) {
-        reportList.innerHTML = existingReports.map(r =>
-          `<li><a href="${r.filename}">${r.year}-${r.month} BMF Quality Report</a></li>`
-        ).join('');
-      }
-    }
-
-    checkReports();
-  </script>
 </body>
 </html>
+
