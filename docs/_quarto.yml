@@ -25,6 +25,7 @@ book:
     - 09-legacy-harmonization.qmd
     - 10-ec2-batch-processing.qmd
     - 11-master-bmf.qmd
+    - 12-state-marts.qmd
 
 format:
   html:

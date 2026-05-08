@@ -256,6 +256,15 @@ merge_master_geocoded_results <- function(
   log_info(sprintf("Stacked geocoded rows: %s",
                    format(nrow(geocoded), big.mark = ",")))
 
+  # Rename geocoder columns (Latitude -> geo_lat, etc.). Mirrors the
+  # per-month merge in R/geocoding_merge.R.
+  available_geo_cols <- intersect(names(GEOCODER_COLUMN_MAP), names(geocoded))
+  cols_to_keep <- c("ein", available_geo_cols)
+  geocoded <- geocoded[, ..cols_to_keep]
+  for (old_name in available_geo_cols) {
+    data.table::setnames(geocoded, old_name, GEOCODER_COLUMN_MAP[old_name])
+  }
+
   # Cast lat/lon to numeric (the only non-VARCHAR columns we keep).
   if ("geo_lat" %in% names(geocoded)) {
     geocoded[, geo_lat := suppressWarnings(as.numeric(geo_lat))]

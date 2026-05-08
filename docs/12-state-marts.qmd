@@ -1,0 +1,86 @@
+# State Data Marts {#sec-state-marts}
+
+The **state data marts** split the geocoded Master BMF into one file
+per US state / territory so end users can pull only the rows they need
+instead of downloading the full ~3 GB unified file.
+
+## Motivation
+
+`bmf_master_geocoded.csv` is 3.1 GB. Most analyses are state-scoped
+(an Urban Institute team studying nonprofits in Ohio, a state
+attorney general's office, a researcher writing about Texas
+foundations), so a partitioned distribution layer dramatically cuts
+download size and load time without touching the underlying master.
+
+## Partition key
+
+Rows are partitioned on `org_addr_state` — the cleaned mailing-address
+state from the BMF. This is the org's reported state (populated for
+~99.8 % of rows), not the geocoded state, so coverage is essentially
+complete. Rows where `org_addr_state` is missing or empty are bucketed
+into `state=ZZ` so they remain discoverable rather than being dropped.
+
+The partition column is renamed `state` in the parquet output (so
+queries can `WHERE state = 'NY'` without remembering the longer
+underlying name).
+
+## Outputs
+
+Two formats are produced from the same source:
+
+| Format  | Layout                                                  | Use case                                  |
+|---------|---------------------------------------------------------|-------------------------------------------|
+| Parquet | `data/master/state_marts/parquet/state=XX/part-0.parquet` | DuckDB / Athena / pandas — Hive-partitioned |
+| CSV     | `data/master/state_marts/csv/bmf_master_XX.csv`           | Spreadsheet tools, R/Python users who want a single file |
+
+S3 mirrors the same structure under `s3://nccsdata/master/bmf/state_marts/`.
+
+The Hive layout means a DuckDB query like
+
+```sql
+SELECT * FROM read_parquet('s3://nccsdata/master/bmf/state_marts/parquet/**/*.parquet',
+                           hive_partitioning = 1)
+WHERE state = 'NY'
+```
+
+reads only the `state=NY/` partition.
+
+## Coverage
+
+The build produces 63 marts on the current geocoded master:
+
+- 50 US states + DC
+- 5 US territories: PR, VI, GU, AS, MP
+- 3 APO/FPO military codes: AA, AE, AP
+- 3 Compact-of-Free-Association codes: FM, MH, PW
+- 1 missing-state bucket: ZZ
+
+## Running it
+
+```r
+source("R/run_master_state_marts.R")
+```
+
+The script reads
+`data/geocoding/master/merged/bmf_master_geocoded.parquet`, writes
+both formats to `data/master/state_marts/`, and (if
+`ENABLE_S3_UPLOAD <- TRUE`) uploads everything to S3.
+
+## Update cadence
+
+Rebuild the marts whenever the geocoded master is rebuilt — i.e.
+after a new monthly current BMF lands and the master + master
+geocoding workflow is re-run. The state marts are a pure derivation
+of the geocoded master; they have no other inputs.
+
+## Caveats
+
+- **Mailing state, not operational state.** A nonprofit headquartered
+  in DE that operates nationally appears only in the `DE` mart. Use
+  the geocoded master directly for analyses that need the geocoded
+  state (`geo_state_abbr`).
+- **All-VARCHAR schema.** Same convention as the master — consumers
+  should cast numeric and date columns after reading. See
+  @sec-master-bmf for the recommended cast list.
+- **No schema changes.** The marts contain the exact same columns as
+  the geocoded master plus the `state` partition column.

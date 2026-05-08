@@ -29,6 +29,7 @@ raw/bmf/          intermediate/bmf/       processed/bmf/         geocoding/bmf/
 | `intermediate/bmf-legacy/YYYY_MM/` | After transform | Parquet | Harmonized legacy BMF, full schema |
 | `processed/bmf-legacy/YYYY_MM/` | Final output | CSV | Harmonized legacy BMF, slim per-vintage schema |
 | `master/bmf/` | Consolidated | Parquet + CSV | One row per EIN across all current+legacy vintages |
+| `master/bmf/state_marts/` | Distribution | Parquet + CSV | Geocoded master split into one file per state |
 
 ## Which Dataset Should I Use?
 
@@ -38,6 +39,9 @@ raw/bmf/          intermediate/bmf/       processed/bmf/         geocoding/bmf/
   geocoding, longitudinal coverage, EIN registry). One row per EIN, drawn from the
   most-recent vintage in which the EIN appears across both current and legacy
   pipelines. Includes `first_year_in_bmf` / `last_year_in_bmf` markers.
+- **`master/bmf/state_marts/`** -- If you only need a single state or a handful of
+  states, pull from here instead of downloading the full ~3 GB geocoded master.
+  Same content as the geocoded master, partitioned on `org_addr_state`.
 - **`processed/bmf-legacy/`** -- For historical analysis on a specific NCCS legacy
   vintage (1989-2022). Slim per-vintage schema -- only columns whose underlying
   input was populated in that file.
@@ -143,6 +147,26 @@ carries the most-recent vintage's contents plus first/last vintage markers
     vintage histogram, completeness
 - **Example:** `master/bmf/bmf_master.parquet`
 - **Inputs:** `processed/bmf/*/...` and `processed/bmf-legacy/*/...`
+
+### `master/bmf/state_marts/`
+
+Per-state data marts derived from the geocoded Master BMF
+(`geocoding/master/merged/bmf_master_geocoded.parquet`). Built so end
+users can pull only the state(s) they need instead of the full ~3 GB
+unified file. Partition key is `org_addr_state` (cleaned mailing
+state); rows with missing state are bucketed into `ZZ`. Built by
+`R/run_master_state_marts.R`.
+
+- **Files:**
+  - `state_marts/parquet/state=XX/part-0.parquet` -- Hive-partitioned;
+    query with `hive_partitioning = 1` in DuckDB / pandas / Athena
+  - `state_marts/csv/bmf_master_XX.csv` -- One CSV per state for
+    spreadsheet tools and single-file consumers
+- **Coverage:** 50 states + DC, US territories (PR, VI, GU, AS, MP),
+  APO/FPO codes (AA, AE, AP), Compact-of-Free-Association codes (FM,
+  MH, PW), and a `ZZ` missing-state bucket
+- **Example:** `master/bmf/state_marts/csv/bmf_master_NY.csv`
+- **Input:** `geocoding/master/merged/bmf_master_geocoded.parquet`
 
 ## Documentation
 

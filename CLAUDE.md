@@ -103,6 +103,20 @@ bash scripts/run_master.sh
 Outputs land in `data/master/` and upload to `s3://nccsdata/master/bmf/`.
 See `docs/11-master-bmf.qmd` for the full design.
 
+### Build the per-state Data Marts
+Splits the geocoded Master BMF into one parquet partition + one CSV
+per US state/territory so end users can pull only the rows they need.
+Partition key is `org_addr_state`; rows with missing state are
+bucketed into `ZZ`.
+
+```r
+source("R/run_master_state_marts.R")
+```
+
+Outputs land in `data/master/state_marts/{parquet,csv}/` and upload to
+`s3://nccsdata/master/bmf/state_marts/`. See `docs/12-state-marts.qmd`
+for the full design.
+
 ### Batch-process all legacy vintages on EC2
 For running the legacy pipeline across every vintage in
 `s3://nccsdata/legacy/bmf/`, use the EC2 batch scripts:
@@ -186,6 +200,10 @@ S3 (raw/bmf/YYYY-MM-BMF.csv) → Download → Transform → Validated BMF (parqu
 - `R/run_master_pipeline.R` - DuckDB-based orchestrator
 - `R/master_bmf_builder.R` - Discovery, stack via `union_by_name`, dedup with window function (current wins on vintage_ym ties)
 - `R/quality/master_post_checks.R` - Master-specific quality report (EIN-uniqueness gate, source coverage, vintage histogram, completeness)
+
+**Per-state Data Marts (geocoded master split by state):**
+- `R/run_master_state_marts.R` - Orchestrator
+- `R/master_state_marts.R` - `build_master_state_marts()`: Hive-partitioned parquet + per-state CSV writer
 
 **EC2 batch scripts:**
 - `scripts/setup_ec2.sh` - One-shot bootstrap (R, system libs, AWS CLI, Quarto, R packages)

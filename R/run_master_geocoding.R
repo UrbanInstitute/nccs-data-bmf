@@ -20,6 +20,7 @@ MASTER_GEOCODING_DIR <- here::here("data", "geocoding", "master")
 source(here::here("R", "config.R"))
 source(here::here("R", "utils", "logging.R"))
 source(here::here("R", "master_geocoding.R"))
+source(here::here("R", "quality", "geocoding_checks.R"))
 
 if (MASTER_GEOCODING_MODE == "export") {
   log_phase_start("MASTER GEOCODING -- EXPORT")
