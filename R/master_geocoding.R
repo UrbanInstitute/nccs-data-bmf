@@ -319,11 +319,17 @@ merge_master_geocoded_results <- function(
   parquet_path <- file.path(merged_dir, "bmf_master_geocoded.parquet")
   csv_path     <- file.path(merged_dir, "bmf_master_geocoded.csv")
   qr_path      <- file.path(merged_dir, "bmf_master_geocoded_quality_report.json")
+  dict_path    <- file.path(merged_dir, "bmf_master_geocoded_data_dictionary.csv")
 
   arrow::write_parquet(master_geo, parquet_path, compression = "zstd")
   log_info(sprintf("Parquet written: %s", parquet_path))
   data.table::fwrite(master_geo, csv_path)
   log_info(sprintf("CSV written:     %s", csv_path))
+
+  log_info("Generating data dictionary")
+  data_dictionary <- generate_data_dictionary(master_geo)
+  data.table::fwrite(data_dictionary, dict_path)
+  log_info(sprintf("Dictionary:      %s", dict_path))
 
   quality_report <- list(
     timestamp                = format(Sys.time(), "%Y-%m-%dT%H:%M:%S%z"),
@@ -342,6 +348,7 @@ merge_master_geocoded_results <- function(
     upload_to_s3(parquet_path, paste0(s3_merged_prefix, basename(parquet_path)))
     upload_to_s3(csv_path,     paste0(s3_merged_prefix, basename(csv_path)))
     upload_to_s3(qr_path,      paste0(s3_merged_prefix, basename(qr_path)))
+    upload_to_s3(dict_path,    paste0(s3_merged_prefix, basename(dict_path)))
   }
 
   invisible(list(
@@ -349,6 +356,7 @@ merge_master_geocoded_results <- function(
     matched      = sum(master_geo$geo_is_geocoded, na.rm = TRUE),
     parquet      = parquet_path,
     csv          = csv_path,
-    quality      = qr_path
+    quality      = qr_path,
+    dictionary   = dict_path
   ))
 }

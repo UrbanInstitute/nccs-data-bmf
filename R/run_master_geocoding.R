@@ -19,6 +19,7 @@ MASTER_GEOCODING_DIR <- here::here("data", "geocoding", "master")
 
 source(here::here("R", "config.R"))
 source(here::here("R", "utils", "logging.R"))
+source(here::here("R", "quality", "post_checks.R"))         # generate_data_dictionary()
 source(here::here("R", "master_geocoding.R"))
 source(here::here("R", "quality", "geocoding_checks.R"))
 

@@ -119,9 +119,10 @@ MASTER_GEOCODING_MODE <- "merge"
 source("R/run_master_geocoding.R")
 ```
 
-Outputs: `data/geocoding/master/merged/bmf_master_geocoded.{parquet,csv}`
-plus a JSON quality report. Uploads to
-`s3://nccsdata/geocoding/bmf-master/merged/` if `ENABLE_S3_UPLOAD`.
+Outputs: `data/geocoding/master/merged/bmf_master_geocoded.{parquet,csv}`,
+a JSON quality report, and `bmf_master_geocoded_data_dictionary.csv`.
+Uploads to `s3://nccsdata/geocoding/bmf-master/merged/` if
+`ENABLE_S3_UPLOAD`.
 
 The geocoded master keeps the all-VARCHAR convention for the BMF
 columns, but `geo_lat` and `geo_lon` are explicitly cast to DOUBLE
