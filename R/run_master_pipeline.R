@@ -70,6 +70,7 @@ source(here::here("R", "utils", "logging.R"))
 source(here::here("R", "quality", "post_checks.R"))            # generate_data_dictionary()
 source(here::here("R", "master_bmf_builder.R"))
 source(here::here("R", "quality", "master_post_checks.R"))
+source(here::here("R", "publish_lookups.R"))
 
 # ============================================================================
 # PHASE 1: DISCOVERY
@@ -185,6 +186,19 @@ if (ENABLE_S3_UPLOAD) {
     upload_to_s3(quality_report_html,
                  paste0(MASTER_S3_PREFIX, basename(quality_report_html)))
   }
+}
+
+# ============================================================================
+# PHASE 7: PUBLISH LOOKUPS
+# ============================================================================
+# Mirror the canonical BMF lookup tables (lookup_ls) to S3 so downstream
+# consumers (e.g. the nccsdata R package) can pull a stable, versioned
+# snapshot. See R/publish_lookups.R and the "Published artifacts" section
+# of CLAUDE.md for the path contract.
+
+if (ENABLE_S3_UPLOAD) {
+  log_phase_start("PUBLISH LOOKUPS")
+  publish_bmf_lookups()
 }
 
 # ============================================================================

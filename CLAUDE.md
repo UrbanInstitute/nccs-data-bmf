@@ -273,6 +273,50 @@ Pipeline saves intermediate states for recovery and debugging. Checkpoint number
 **S3 bucket documentation:**
 - `data/s3-readme/README.md` - Version-controlled README uploaded to bucket root
 
+## Published artifacts
+
+Some artifacts in this repo are part of a stable contract with downstream
+consumers. Treat their S3 paths as a public API: do not rename, do not move,
+and re-publish whenever the local source changes.
+
+### BMF lookup tables → S3
+
+Path contract:
+
+- `s3://nccsdata/lookups/bmf/{YYYY_MM}/{lookup_name}.csv` — vintage snapshot
+- `s3://nccsdata/lookups/bmf/{YYYY_MM}/MANIFEST.json` — file list, row counts,
+  column names, sha256, byte size
+- `s3://nccsdata/lookups/bmf/latest/...` — mirror of the most recent vintage
+
+The 17 published tables come from two on-disk sources, both of which feed
+`lookup_ls` in `R/config.R` (the single source of truth):
+
+| Source | Tables |
+| --- | --- |
+| `data/lookup/bmf_code_lookup.xlsx` (every sheet) | `status_code`, `asset_code`, `filing_requirement_code`, `income_code`, `pf_filing_requirement_code`, `ntee_code`, `ntee_common_code`, `ntee_code_major_group`, `parent_organization`, `subsection_classification_code`, `affiliation_code`, `organization_code`, `activity_code`, `deductibility_code`, `nteev2_subsector`, `foundation_code` |
+| `data/lookup/ntee_legacy_5char_lookup.csv` | `ntee_legacy_5char` |
+
+How it runs:
+
+- As Phase 7 of `R/run_master_pipeline.R` (automatic when `ENABLE_S3_UPLOAD = TRUE`).
+- Or standalone: `source("R/run_publish_lookups.R")` — supports
+  `PUBLISH_DRY_RUN <- TRUE` and `PUBLISH_VINTAGE <- "YYYY_MM"`.
+
+Implementation: `R/publish_lookups.R`. Idempotency is manifest-driven —
+each file's sha256 is compared against the existing remote `MANIFEST.json`
+and unchanged files are skipped (no `aws s3 sync`; all S3 traffic in this
+repo uses `aws.s3::put_object` for consistency).
+
+**Maintenance rule**: any edit to `data/lookup/bmf_code_lookup.xlsx` or
+`data/lookup/ntee_legacy_5char_lookup.csv` requires re-running the publish
+step (`source("R/run_publish_lookups.R")`) to refresh S3. Otherwise
+downstream consumers will silently go stale against the new local copy.
+
+**Downstream consumer**: the sibling `../nccsdata/` R package pulls these
+via its own `data-raw/build_lookups.R` and bundles them as internal package
+data. nccsdata does *not* import from this repo directly — S3 is the
+contract surface.
+
 ## Key Dependencies
 
 - `data.table` - Primary data manipulation (chosen for speed with ~2M rows)
