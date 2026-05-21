@@ -1,6 +1,9 @@
 # ============================================================================
 # master_bmf_builder.R
 #
+# Producer of the bmf-master contract — see
+# https://github.com/UrbanInstitute/nccs-contracts/blob/main/contracts/bmf-master.yml
+#
 # Builds the Master BMF: one row per EIN, drawn from the most-recent vintage
 # in which that EIN appears across both the current monthly BMF pipeline
 # (s3://nccsdata/processed/bmf/) and the legacy 501CX-NONPROFIT-PX pipeline
