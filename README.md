@@ -20,7 +20,7 @@ to `data/` locally and (when `ENABLE_S3_UPLOAD = TRUE`) uploads to the
 | **Legacy BMF** | `R/run_legacy_pipeline.R` | Harmonizes an NCCS 501CX-NONPROFIT-PX vintage (1989–2022) to the current schema, then runs the same transforms | `processed/bmf-legacy/YYYY_MM/` |
 | **Master BMF** | `R/run_master_pipeline.R` | Consolidates every processed vintage (current + legacy) into one row per EIN | `master/bmf/` |
 | **State marts** | `R/run_master_state_marts.R` | Splits the geocoded Master BMF into one file per US state/territory | `master/bmf/state_marts/` |
-| **Geocoding** | `R/run_geocoding.R`, `R/run_master_geocoding.R` | Two-phase (export → merge) workflow that appends lat/lon + FIPS via the Urban Institute geocoder | `geocoding/bmf/YYYY_MM/`, `geocoding/master/` |
+| **Geocoding** | `R/run_geocoding.R`, `R/run_master_geocoding.R` | Two-phase (export → merge) workflow that appends lat/lon + FIPS via the Urban Institute geocoder | `geocoding/bmf/YYYY_MM/`, `geocoding/bmf-master/` |
 
 ## Data flow
 
