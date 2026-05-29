@@ -70,6 +70,7 @@ source(here::here("R", "utils", "logging.R"))
 source(here::here("R", "quality", "post_checks.R"))            # generate_data_dictionary()
 source(here::here("R", "master_bmf_builder.R"))
 source(here::here("R", "quality", "master_post_checks.R"))
+source(here::here("R", "manifest.R"))
 source(here::here("R", "publish_lookups.R"))
 
 # ============================================================================

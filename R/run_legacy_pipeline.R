@@ -54,6 +54,7 @@ library(data.table)
 # ============================================================================
 
 source(here::here("R", "config.R"))
+source(here::here("R", "manifest.R"))
 source(here::here("R", "input_validation.R"))
 source(here::here("R", "utils", "logging.R"))
 source(here::here("R", "utils", "transform_utils.R"))
@@ -352,6 +353,33 @@ if (ENABLE_S3_UPLOAD) {
     month = PROCESSING_MONTH,
     prefix = BMF_S3_LEGACY_PROCESSED_PREFIX
   )
+
+  # --- Contract-standard manifest (nccs-contracts ADR 0014) -----------------
+  # bmf-legacy is an append-only archive of historical dumps: one manifest
+  # per vintage, with NO latest/ mirror — consumers (master_bmf_builder.R)
+  # glob and stack all vintages. See contracts/bmf-legacy.yml and ADR 0013's
+  # legacy exemption. Emission follows the R/publish_lookups.R reference.
+  legacy_vintage <- sprintf("%s_%s", PROCESSING_YEAR, PROCESSING_MONTH)
+  mw_legacy <- write_manifest(
+    vintage = legacy_vintage,
+    out_dir = "data/processed",
+    outputs = list(
+      processed  = list(path = processed_path,
+                        row_count = nrow(bmf_processed),
+                        columns   = names(bmf_processed)),
+      dictionary = list(path = dictionary_path)
+    ),
+    inputs = list(
+      # Provenance: the read-only historical archive this vintage built from.
+      # TODO: thread the exact source object key + S3 ETag here.
+      list(uri = paste0("s3://", BMF_S3_BUCKET, "/", BMF_S3_LEGACY_PREFIX))
+    )
+  )
+  legacy_manifest_key <- sprintf("%s%s/_manifest.json",
+                                 BMF_S3_LEGACY_PROCESSED_PREFIX, legacy_vintage)
+  upload_to_s3(mw_legacy$path, legacy_manifest_key, bucket = BMF_S3_BUCKET)
+  log_info(sprintf("Uploaded legacy _manifest.json to s3://%s/%s",
+                   BMF_S3_BUCKET, legacy_manifest_key))
 }
 
 # ============================================================================

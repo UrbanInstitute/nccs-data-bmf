@@ -18,6 +18,7 @@ if (!exists("PUBLISH_VINTAGE")) PUBLISH_VINTAGE <- format(Sys.Date(), "%Y_%m")
 
 source(here::here("R", "config.R"))
 source(here::here("R", "utils", "logging.R"))
+source(here::here("R", "manifest.R"))
 source(here::here("R", "publish_lookups.R"))
 
 log_phase_start("PUBLISH LOOKUPS")

@@ -10,23 +10,35 @@
 #
 # Output:
 #   s3://nccsdata/lookups/bmf/{YYYY_MM}/{name}.csv
-#   s3://nccsdata/lookups/bmf/{YYYY_MM}/MANIFEST.json
-#   s3://nccsdata/lookups/bmf/latest/{name}.csv   (mirror of most-recent vintage)
-#   s3://nccsdata/lookups/bmf/latest/MANIFEST.json
+#   s3://nccsdata/lookups/bmf/{YYYY_MM}/_manifest.json   (ADR 0014 shape)
+#   s3://nccsdata/lookups/bmf/{YYYY_MM}/MANIFEST.json     (deprecated; byte
+#                                                          copy, 90-day window)
+#   s3://nccsdata/lookups/bmf/latest/{name}.csv          (mirror of newest vintage)
+#   s3://nccsdata/lookups/bmf/latest/_manifest.json
+#   s3://nccsdata/lookups/bmf/latest/MANIFEST.json        (deprecated copy)
 #
-# Idempotency: each file's sha256 is recorded in MANIFEST.json. On re-run,
+# Manifest: the contract-standard `_manifest.json` (nccs-contracts ADR 0014),
+# built via R/manifest.R::write_manifest(). This file is the reference
+# implementation other BMF producers copy. The legacy `MANIFEST.json` name
+# is dual-written (byte-identical) for one deprecation window per ADR 0014.
+#
+# Idempotency: each file's sha256 is recorded in _manifest.json. On re-run,
 # the existing remote manifest is fetched; any file whose hash is unchanged
-# is skipped. The convention `aws s3 sync` referenced elsewhere in the
-# repo is not used here because all existing S3 traffic in this codebase
-# goes through aws.s3::put_object — staying consistent with that pattern.
+# is skipped. All S3 traffic goes through aws.s3::put_object (upload_to_s3),
+# consistent with the rest of this codebase.
+#
+# Note (ADR 0013): the vintage path format flip from YYYY_MM to v{YYYY.MM}
+# is intentionally NOT done here — it is a breaking path change handled in a
+# separate, consumer-coordinated migration. This change is manifest-shape
+# only (ADR 0014).
 # ============================================================================
 
 #' Publish BMF lookup tables to S3
 #'
 #' Writes each entry of `lookup_ls` to a CSV under `lookup_dir`, builds a
-#' MANIFEST.json (file name, row count, columns, sha256), and uploads to
-#' s3://{bucket}/{s3_prefix}{vintage}/. Then mirrors the same files to
-#' s3://{bucket}/{s3_prefix}latest/.
+#' contract-standard `_manifest.json` (ADR 0014, via `write_manifest()`),
+#' and uploads to s3://{bucket}/{s3_prefix}{vintage}/. Then mirrors the same
+#' files to s3://{bucket}/{s3_prefix}latest/.
 #'
 #' @param lookups     Named list of data.tables/data.frames (default: lookup_ls).
 #' @param vintage     YYYY_MM stamp for this publication (default: current month).
@@ -53,60 +65,65 @@ publish_bmf_lookups <- function(lookups    = lookup_ls,
   out_dir <- file.path(lookup_dir, vintage)
   if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
 
-  # --- Write CSVs and build manifest entries ---------------------------------
-  manifest_entries <- vector("list", length(lookups))
-  names(manifest_entries) <- names(lookups)
-
+  # --- Write CSVs ------------------------------------------------------------
+  outputs <- vector("list", length(lookups))
+  names(outputs) <- names(lookups)
   for (nm in names(lookups)) {
     df <- lookups[[nm]]
     csv_path <- file.path(out_dir, paste0(nm, ".csv"))
     data.table::fwrite(df, csv_path)
-    manifest_entries[[nm]] <- list(
-      file     = paste0(nm, ".csv"),
-      rows     = as.integer(nrow(df)),
-      cols     = as.integer(ncol(df)),
-      columns  = as.list(names(df)),
-      sha256   = digest::digest(file = csv_path, algo = "sha256"),
-      bytes    = as.integer(file.size(csv_path))
-    )
+    outputs[[nm]] <- list(path = csv_path, row_count = nrow(df), columns = names(df))
   }
 
-  manifest <- list(
-    vintage      = vintage,
-    generated_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
-    source       = list(
-      workbook   = "data/lookup/bmf_code_lookup.xlsx",
-      extra_csv  = "data/lookup/ntee_legacy_5char_lookup.csv"
-    ),
-    files        = manifest_entries
+  # --- Build the contract-standard _manifest.json (ADR 0014) -----------------
+  inputs <- list(
+    manifest_input_repo("data/lookup/bmf_code_lookup.xlsx"),
+    manifest_input_repo("data/lookup/ntee_legacy_5char_lookup.csv")
   )
-  manifest_path <- file.path(out_dir, "MANIFEST.json")
-  jsonlite::write_json(manifest, manifest_path, pretty = TRUE, auto_unbox = TRUE)
+  mw <- write_manifest(vintage = vintage, out_dir = out_dir,
+                       outputs = outputs, inputs = inputs)
+  manifest      <- mw$manifest
+  manifest_path <- mw$path
 
-  message(sprintf("Wrote %d lookup CSVs + MANIFEST.json to %s",
+  # sha256 per output file, keyed by basename (as in manifest$files).
+  shas <- vapply(names(lookups),
+                 function(nm) manifest$files[[paste0(nm, ".csv")]]$sha256,
+                 character(1))
+  names(shas) <- paste0(names(lookups), ".csv")
+
+  message(sprintf("Wrote %d lookup CSVs + _manifest.json to %s",
                   length(lookups), out_dir))
 
-  # --- Fetch existing remote manifest for skip decisions ---------------------
+  # --- Skip-decision inputs --------------------------------------------------
   vintage_prefix <- paste0(s3_prefix, vintage, "/")
   latest_prefix  <- paste0(s3_prefix, "latest/")
-  remote_manifest <- .read_remote_manifest(
-    paste0(vintage_prefix, "MANIFEST.json"), bucket
+  remote_manifest <- read_existing_manifest(
+    paste0(vintage_prefix, "_manifest.json"), bucket
   )
 
   uploaded <- character()
   skipped  <- character()
 
+  # Dual-write the manifest during the ADR 0014 deprecation window:
+  # _manifest.json is canonical; MANIFEST.json is a byte-identical copy kept
+  # readable for one window for any consumer still on the old path.
+  put_manifest <- function(prefix) {
+    upload_to_s3(manifest_path, paste0(prefix, "_manifest.json"), bucket = bucket)
+    upload_to_s3(manifest_path, paste0(prefix, "MANIFEST.json"),  bucket = bucket)
+  }
+
   if (dry_run) {
     message("DRY RUN: would upload to s3://", bucket, "/", vintage_prefix)
     for (nm in names(lookups)) {
-      action <- if (.hash_unchanged(remote_manifest, nm, manifest_entries[[nm]]$sha256)) {
+      key <- paste0(nm, ".csv")
+      action <- if (manifest_unchanged(remote_manifest, key, shas[[key]])) {
         skipped  <- c(skipped, nm); "SKIP"
       } else {
         uploaded <- c(uploaded, nm); "PUT "
       }
-      message(sprintf("  %s %s%s.csv", action, vintage_prefix, nm))
+      message(sprintf("  %s %s%s", action, vintage_prefix, key))
     }
-    message(sprintf("  PUT  %sMANIFEST.json", vintage_prefix))
+    message(sprintf("  PUT  %s_manifest.json (+ MANIFEST.json copy)", vintage_prefix))
     message("DRY RUN: latest/ mirror would copy the same files.")
     return(invisible(list(manifest = manifest, vintage = vintage,
                           uploaded = uploaded, skipped = skipped)))
@@ -114,66 +131,37 @@ publish_bmf_lookups <- function(lookups    = lookup_ls,
 
   # --- Upload to vintage prefix ----------------------------------------------
   for (nm in names(lookups)) {
-    csv_local <- file.path(out_dir, paste0(nm, ".csv"))
-    csv_key   <- paste0(vintage_prefix, nm, ".csv")
-    if (.hash_unchanged(remote_manifest, nm, manifest_entries[[nm]]$sha256)) {
-      message(sprintf("SKIP (unchanged): s3://%s/%s", bucket, csv_key))
+    key       <- paste0(nm, ".csv")
+    csv_local <- file.path(out_dir, key)
+    if (manifest_unchanged(remote_manifest, key, shas[[key]])) {
+      message(sprintf("SKIP (unchanged): s3://%s/%s%s", bucket, vintage_prefix, key))
       skipped <- c(skipped, nm)
       next
     }
-    upload_to_s3(csv_local, csv_key, bucket = bucket)
+    upload_to_s3(csv_local, paste0(vintage_prefix, key), bucket = bucket)
     uploaded <- c(uploaded, nm)
   }
-  # Always refresh the manifest — it carries the generated_at timestamp.
-  upload_to_s3(manifest_path,
-               paste0(vintage_prefix, "MANIFEST.json"),
-               bucket = bucket)
+  put_manifest(vintage_prefix)  # always refresh — carries the built_at timestamp
 
   # --- Mirror to latest/ -----------------------------------------------------
-  # Compare against latest/MANIFEST.json so we only re-PUT files that
+  # Compare against latest/_manifest.json so we only re-PUT files that
   # actually changed relative to whatever "latest" currently points at.
-  remote_latest <- .read_remote_manifest(
-    paste0(latest_prefix, "MANIFEST.json"), bucket
+  remote_latest <- read_existing_manifest(
+    paste0(latest_prefix, "_manifest.json"), bucket
   )
   for (nm in names(lookups)) {
-    if (.hash_unchanged(remote_latest, nm, manifest_entries[[nm]]$sha256)) {
-      message(sprintf("SKIP latest (unchanged): %s%s.csv", latest_prefix, nm))
+    key <- paste0(nm, ".csv")
+    if (manifest_unchanged(remote_latest, key, shas[[key]])) {
+      message(sprintf("SKIP latest (unchanged): %s%s", latest_prefix, key))
       next
     }
-    csv_local <- file.path(out_dir, paste0(nm, ".csv"))
-    upload_to_s3(csv_local, paste0(latest_prefix, nm, ".csv"), bucket = bucket)
+    upload_to_s3(file.path(out_dir, key), paste0(latest_prefix, key), bucket = bucket)
   }
-  upload_to_s3(manifest_path,
-               paste0(latest_prefix, "MANIFEST.json"),
-               bucket = bucket)
+  put_manifest(latest_prefix)
 
   message(sprintf("Publish complete: %d uploaded, %d skipped (vintage=%s)",
                   length(uploaded), length(skipped), vintage))
 
   invisible(list(manifest = manifest, vintage = vintage,
                  uploaded = uploaded, skipped = skipped))
-}
-
-# Returns parsed manifest list or NULL if not present.
-.read_remote_manifest <- function(s3_key, bucket) {
-  exists <- tryCatch(
-    aws.s3::object_exists(object = s3_key, bucket = bucket),
-    error = function(e) FALSE
-  )
-  if (!isTRUE(exists)) return(NULL)
-  tryCatch({
-    raw <- aws.s3::get_object(object = s3_key, bucket = bucket)
-    jsonlite::fromJSON(rawToChar(raw), simplifyVector = FALSE)
-  }, error = function(e) {
-    message(sprintf("Could not read remote manifest s3://%s/%s: %s",
-                    bucket, s3_key, e$message))
-    NULL
-  })
-}
-
-.hash_unchanged <- function(remote_manifest, name, sha256) {
-  if (is.null(remote_manifest)) return(FALSE)
-  entry <- remote_manifest$files[[name]]
-  if (is.null(entry) || is.null(entry$sha256)) return(FALSE)
-  identical(entry$sha256, sha256)
 }
