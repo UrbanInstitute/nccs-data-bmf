@@ -1,6 +1,9 @@
 # ============================================================================
 # master_bmf_builder.R
 #
+# Producer of the bmf-master contract — see
+# https://github.com/UrbanInstitute/nccs-contracts/blob/main/contracts/bmf-master.yml
+#
 # Builds the Master BMF: one row per EIN, drawn from the most-recent vintage
 # in which that EIN appears across both the current monthly BMF pipeline
 # (s3://nccsdata/processed/bmf/) and the legacy 501CX-NONPROFIT-PX pipeline
@@ -337,7 +340,8 @@ build_master_bmf <- function(con,
              SUM(n_vintages)       OVER (PARTITION BY ein) AS bmf_vintages_observed
         FROM combined
     )
-    SELECT * EXCLUDE (rn, first_vintage_ym, last_vintage_ym, n_vintages),
+    SELECT * EXCLUDE (rn, first_vintage_ym, last_vintage_ym, n_vintages,
+                      combined_first_vintage_ym, combined_last_vintage_ym),
            combined_first_vintage_ym AS first_vintage_ym,
            combined_last_vintage_ym  AS last_vintage_ym,
            combined_last_vintage_ym  AS bmf_vintage_ym,

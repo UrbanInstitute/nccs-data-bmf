@@ -151,7 +151,7 @@ carries the most-recent vintage's contents plus first/last vintage markers
 ### `master/bmf/state_marts/`
 
 Per-state data marts derived from the geocoded Master BMF
-(`geocoding/master/merged/bmf_master_geocoded.parquet`). Built so end
+(`geocoding/bmf-master/merged/bmf_master_geocoded.parquet`). Built so end
 users can pull only the state(s) they need instead of the full ~3 GB
 unified file. Partition key is `org_addr_state` (cleaned mailing
 state); rows with missing state are bucketed into `ZZ`. Built by
@@ -166,7 +166,7 @@ state); rows with missing state are bucketed into `ZZ`. Built by
   APO/FPO codes (AA, AE, AP), Compact-of-Free-Association codes (FM,
   MH, PW), and a `ZZ` missing-state bucket
 - **Example:** `master/bmf/state_marts/csv/bmf_master_NY.csv`
-- **Input:** `geocoding/master/merged/bmf_master_geocoded.parquet`
+- **Input:** `geocoding/bmf-master/merged/bmf_master_geocoded.parquet`
 
 ## Documentation
 
