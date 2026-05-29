@@ -1,0 +1,71 @@
+# Environment setup for the GitHub Copilot coding agent.
+#
+# When Copilot is assigned an issue/PR in this repo, it provisions an
+# ephemeral Ubuntu runner and runs the steps in the job named exactly
+# `copilot-setup-steps` BEFORE it starts work. Use this to preinstall
+# the R toolchain so the agent can run and self-validate the pipeline
+# code, rather than editing R blind.
+#
+# Docs: https://docs.github.com/en/copilot/how-tos/copilot-on-github/customize-copilot/customize-cloud-agent/customize-the-agent-environment
+#
+# Notes:
+#   - Modeled on scripts/setup_ec2.sh (the EC2 bootstrap), trimmed for a
+#     code/validation env: no AWS CLI (the agent has NO AWS credentials,
+#     so it can run pure transforms/tests but cannot read/write S3).
+#   - This file only takes effect once it is on the DEFAULT branch.
+#   - The job MUST be named `copilot-setup-steps`.
+
+name: Copilot setup steps
+
+on:
+  # Lets you validate the setup manually and on changes to this file.
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+  pull_request:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-22.04
+    permissions:
+      # Copilot needs no extra permissions here; read is enough to set up.
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system libraries (mirror setup_ec2.sh)
+        run: |
+          sudo apt-get update -y
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            pandoc cmake \
+            libcurl4-openssl-dev libssl-dev libxml2-dev \
+            libfontconfig1-dev libharfbuzz-dev libfribidi-dev \
+            libpng-dev libtiff5-dev libjpeg-dev libfreetype6-dev \
+            libgit2-dev unzip
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          # Posit Public Package Manager => fast precompiled binaries on jammy
+          use-public-rspm: true
+
+      - name: Set up Quarto (quality-report rendering)
+        uses: quarto-dev/quarto-actions/setup@v2
+
+      - name: Install R packages (mirror setup_ec2.sh)
+        run: |
+          Rscript --vanilla -e '
+            pkgs <- c("data.table","arrow","aws.s3","openxlsx","here",
+                      "purrr","stringr","lubridate","jsonlite","quarto",
+                      "duckdb","DBI")
+            to_install <- setdiff(pkgs, rownames(installed.packages()))
+            if (length(to_install) > 0) install.packages(to_install)
+            ok <- vapply(pkgs, requireNamespace, logical(1), quietly = TRUE)
+            if (!all(ok)) stop("Failed to load: ", paste(pkgs[!ok], collapse = ", "))
+            cat("All R packages installed and loadable.\n")
+          '
