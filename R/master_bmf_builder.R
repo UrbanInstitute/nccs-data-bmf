@@ -340,7 +340,8 @@ build_master_bmf <- function(con,
              SUM(n_vintages)       OVER (PARTITION BY ein) AS bmf_vintages_observed
         FROM combined
     )
-    SELECT * EXCLUDE (rn, first_vintage_ym, last_vintage_ym, n_vintages),
+    SELECT * EXCLUDE (rn, first_vintage_ym, last_vintage_ym, n_vintages,
+                      combined_first_vintage_ym, combined_last_vintage_ym),
            combined_first_vintage_ym AS first_vintage_ym,
            combined_last_vintage_ym  AS last_vintage_ym,
            combined_last_vintage_ym  AS bmf_vintage_ym,
