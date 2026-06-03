@@ -84,3 +84,13 @@ of the geocoded master; they have no other inputs.
   @sec-master-bmf for the recommended cast list.
 - **No schema changes.** The marts contain the exact same columns as
   the geocoded master plus the `state` partition column.
+- **Counts won't match sector-in-brief.** A nonprofit count from these
+  marts (filtering `last_year_in_bmf`, partitioned on the mailing-state
+  key `org_addr_state`) runs slightly below the `sector-in-brief`
+  `number_nonprofits` figure for the same place/year. That product
+  counts by an active-window rule (`org_year_first ≤ Y ≤ org_year_last`)
+  and by geocoded county/state — both by design, not a data error. For
+  "how many active nonprofits in place X," cite sector-in-brief; query
+  these marts directly only for EIN-level detail. See the "Counting
+  semantics" note in the `nccs-contracts` `sector-in-brief.yml` /
+  `bmf-master-geocoded.yml` contracts for the rule and a worked example.
