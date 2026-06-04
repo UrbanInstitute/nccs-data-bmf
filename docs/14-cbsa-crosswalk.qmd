@@ -1,0 +1,122 @@
+# CBSA Crosswalk {#sec-cbsa-crosswalk}
+
+The **CBSA crosswalk** maps each county to its **Core-Based Statistical
+Area** — the OMB-defined metropolitan or micropolitan statistical area
+it belongs to. It is **derived from** the
+[County FIPS Crosswalk](13-county-fips-crosswalk.qmd): CBSAs are unions
+of *whole counties*, so a county GEOID is the natural bridge between a
+geocoded nonprofit and its metro area.
+
+## The two-hop chain
+
+```
+raw geocoder label  ──county_fips_crosswalk──▶  county_fips
+                    ──cbsa_crosswalk──────────▶  CBSA (code, title, metro/micro)
+```
+
+Each crosswalk does one job and consumers compose them
+([ADR 0016, @sec-master-bmf]). Nothing in the Master BMF carries CBSA
+columns; this is an optional join layer.
+
+## Source & vintage
+
+Membership comes from the authoritative **OMB July-2023 delineation**
+(Census *"List 1"*), not a spatial guess — it gives the official CBSA
+code, title, metropolitan/micropolitan designation, central/outlying
+status, and the Combined Statistical Area (CSA), all keyed by county
+FIPS. Crucially, the July-2023 delineation uses the **same geography
+vintage as the TIGER-2023 county crosswalk** — including the
+**Connecticut planning regions** (`09110`–`09190`) — so every county
+GEOID joins cleanly.
+
+## Schema
+
+One row per county GEOID in the county crosswalk's *resolved* universe.
+CBSA columns are `NA` for **rural** counties that belong to no CBSA.
+
+| Column             | Type | Description                                                       |
+|--------------------|------|-------------------------------------------------------------------|
+| `county_fips`      | chr  | 5-char county GEOID — join key to the county crosswalk's `geo_county_fips` |
+| `county_name`      | chr  | Census `NAMELSAD`, carried from the county crosswalk              |
+| `cbsa_code`        | chr  | 5-char CBSA code (`NA` if rural)                                  |
+| `cbsa_title`       | chr  | e.g. `Hartford-West Hartford-East Hartford, CT`                   |
+| `cbsa_type`        | chr  | `Metropolitan Statistical Area` \| `Micropolitan Statistical Area` |
+| `central_outlying` | chr  | `Central` \| `Outlying` county within the CBSA                    |
+| `csa_code`         | chr  | 3-char Combined Statistical Area code (`NA` if none)             |
+| `csa_title`        | chr  | CSA title (`NA` if none)                                          |
+| `delineation_year` | int  | OMB delineation vintage (**2023**)                                |
+
+> `county_fips`, `cbsa_code`, and `csa_code` are **strings** —
+> leading zeros are significant (`09110` CT, `01001` AL).
+
+## How it is built
+
+```
+scripts/build_cbsa_crosswalk.R
+```
+
+1. Take the distinct **resolved** `geo_county_fips` from
+   `county_fips_crosswalk.parquet` (the county universe + canonical names).
+2. Download the OMB List 1 delineation xlsx, parse county→CBSA membership
+   (county FIPS = 2-char state + 3-char county, leading zeros preserved).
+3. Left-join membership onto the county universe; counties absent from the
+   delineation are rural (`NA` CBSA), made explicit rather than dropped.
+
+```r
+Rscript scripts/build_cbsa_crosswalk.R   # DELINEATION_YEAR=2023 by default
+```
+
+## Coverage (OMB 2023)
+
+Of the **3,224** resolved county GEOIDs in the county crosswalk:
+
+| Bucket                         | Counties | CBSAs |
+|--------------------------------|----------|-------|
+| Metropolitan Statistical Area  | 1,250    |       |
+| Micropolitan Statistical Area  |   661    |       |
+| **In a CBSA**                  | **1,911**| 935   |
+| Rural (no CBSA)                | 1,313    | —     |
+
+`cbsa_crosswalk_audit.csv` records the rural tally plus the handful of
+delineation counties absent from the BMF universe — these are the four
+CT planning regions (`Bridgeport-Stamford-Danbury`, `Putnam`,
+`Torrington`, `Waterbury-Shelton`) whose old-county *labels* are
+`ambiguous` in the county crosswalk (see its CT note), so no resolved
+`county_fips` reaches them. That is honest propagation of the upstream
+ambiguity, not a CBSA error.
+
+## How to use it
+
+Published to `s3://nccsdata/crosswalks/cbsa/` (parquet + csv +
+`_manifest.json`). Chain it after the county crosswalk:
+
+```r
+library(dplyr); library(arrow)
+county_xwalk <- read_parquet("county_fips_crosswalk.parquet")  # chr keys
+cbsa_xwalk   <- read_parquet("cbsa_crosswalk.parquet")
+
+bmf_geo |>
+  left_join(county_xwalk, by = c("geo_state_abbr", "geo_county" = "geo_county_raw")) |>
+  left_join(cbsa_xwalk,   by = c("geo_county_fips" = "county_fips")) |>
+  # cbsa_code / cbsa_title / cbsa_type now attached; NA = rural or unresolved county
+  count(cbsa_title, sort = TRUE)
+```
+
+Filter to metro areas only, or roll nonprofits up to a CSA:
+
+```r
+metro <- bmf_joined |> filter(cbsa_type == "Metropolitan Statistical Area")
+by_csa <- bmf_joined |> filter(!is.na(csa_code)) |> count(csa_title, sort = TRUE)
+```
+
+`NA` `cbsa_code` means the county is rural **or** the county label was
+unresolved upstream — handle the two together (no metro) unless you need
+to distinguish them via the county crosswalk's `resolution`.
+
+## Maintenance
+
+Keyed to the OMB delineation vintage (`delineation_year`). Rebuild and
+re-publish (`R/publish_cbsa_crosswalk.R`, idempotent on sha256) when OMB
+issues a new delineation **or** when the county crosswalk's resolved
+universe changes. Keep the two crosswalks on the same geography vintage
+(TIGER year ↔ OMB delineation year) so county GEOIDs continue to match.

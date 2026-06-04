@@ -1,0 +1,6 @@
+issue,county_fips,cbsa_title
+delineation_county_absent_from_bmf,09190,"Bridgeport-Stamford-Danbury, CT"
+delineation_county_absent_from_bmf,09150,"Putnam, CT"
+delineation_county_absent_from_bmf,09160,"Torrington, CT"
+delineation_county_absent_from_bmf,09140,"Waterbury-Shelton, CT"
+rural_counties_no_cbsa,(1313 counties),

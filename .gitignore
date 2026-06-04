@@ -32,3 +32,11 @@ data/validate/
 # Temp and misc
 *.png
 *.parquet
+# ...but the published county FIPS crosswalk is a committed artifact
+# (its _county_points_cache.parquet sibling stays ignored — it is a
+# rebuildable single-read snapshot from the geocoded master on S3).
+!data/crosswalks/county_fips_crosswalk.parquet
+!data/crosswalks/cbsa_crosswalk.parquet
+
+# Publish-time staging manifests (the canonical copy lives on S3; built_at churns)
+_manifest.json
