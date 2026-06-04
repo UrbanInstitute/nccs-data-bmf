@@ -151,6 +151,10 @@ Checkpoints are saved to `data/checkpoints/` after each transformation phase.
 | [Legacy Harmonization](09-legacy-harmonization.qmd) | 501CX-NONPROFIT-PX (1989–2022) harmonization to current schema |
 | [EC2 Batch Processing](10-ec2-batch-processing.qmd) | EC2 setup and batch drivers for legacy + master pipelines |
 | [Master BMF](11-master-bmf.qmd) | One-row-per-EIN consolidation across all vintages |
+| [State Data Marts](12-state-marts.qmd) | Per-state split of the geocoded master (parquet + CSV) |
+| [County FIPS Crosswalk](13-county-fips-crosswalk.qmd) | Geocoder county labels → Census county FIPS GEOID + canonical names |
+| [CBSA Crosswalk](14-cbsa-crosswalk.qmd) | County FIPS → metro/micropolitan statistical area (derived from the county crosswalk + OMB delineation) |
+| [CT Planning-Region Crosswalk](15-ct-planning-region-crosswalk.qmd) | Connecticut resolved to 2022 planning regions by coordinate (the county-name grain cannot) |
 
 ## IRS BMF Source
 
@@ -183,12 +187,16 @@ nccs-data-bmf/
 │   ├── setup_ec2.sh               # One-shot EC2 environment bootstrap
 │   ├── run_all_legacy.sh          # Batch driver for every legacy vintage
 │   ├── run_master.sh              # Driver for the master BMF build
+│   ├── read_county_points.R       # Single S3 read → local point cache for the county crosswalk
+│   ├── build_county_fips_crosswalk.R     # Geocoder county label → county FIPS (sf/tigris)
+│   ├── build_cbsa_crosswalk.R     # County FIPS → CBSA (OMB delineation)
+│   ├── build_ct_planning_region_crosswalk.R  # CT coordinate → planning region (TIGER)
 │   ├── check_ntee_legacy_coverage.R  # Diagnostic for 5-char NTEE crosswalk
 │   └── scrape_legacy_dictionaries.py  # NCCS legacy dictionary scraper
 ├── data/
 │   ├── raw/                       # Downloaded BMF files
 │   ├── lookup/                    # Reference/lookup tables (incl. ntee_legacy_5char_lookup.csv)
-│   ├── crosswalks/                # Legacy → current schema crosswalk
+│   ├── crosswalks/                # Legacy schema + geography crosswalks (county FIPS, CBSA, CT planning region)
 │   ├── dictionaries/              # Column descriptions for data dictionary
 │   ├── s3-readme/                 # S3 bucket README (uploaded to bucket root)
 │   ├── checkpoints/               # Intermediate saves
