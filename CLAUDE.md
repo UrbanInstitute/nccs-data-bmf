@@ -141,6 +141,22 @@ city vs namesake county, CT planning-region change, wrong-state source
 labels). Publish with `source("R/publish_county_fips_crosswalk.R")`.
 See `docs/13-county-fips-crosswalk.qmd` for the full design.
 
+### Build the CBSA Crosswalk
+Derived from the county FIPS crosswalk: maps each resolved county GEOID
+to its OMB Core-Based Statistical Area (metropolitan/micropolitan). Uses
+the authoritative OMB July-2023 delineation (Census "List 1"), same
+geography vintage as TIGER 2023 (incl. CT planning regions). Consumers
+chain the two: raw label → `county_fips` → CBSA.
+
+```bash
+Rscript scripts/build_cbsa_crosswalk.R   # DELINEATION_YEAR=2023 default
+```
+
+Outputs `data/crosswalks/cbsa_crosswalk.parquet` (one row per resolved
+county GEOID; CBSA columns NA for rural counties) + `*_audit.csv`.
+Publish with `source("R/publish_cbsa_crosswalk.R")`. See
+`docs/14-cbsa-crosswalk.qmd`.
+
 ### Batch-process all legacy vintages on EC2
 For running the legacy pipeline across every vintage in
 `s3://nccsdata/legacy/bmf/`, use the EC2 batch scripts:
@@ -229,12 +245,14 @@ S3 (raw/bmf/YYYY-MM-BMF.csv) → Download → Transform → Validated BMF (parqu
 - `R/run_master_state_marts.R` - Orchestrator
 - `R/master_state_marts.R` - `build_master_state_marts()`: Hive-partitioned parquet + per-state CSV writer
 
-**County FIPS Crosswalk (geocoder county labels → Census FIPS identity):**
+**County FIPS & CBSA Crosswalks (geocoder county labels → Census geography):**
 - `scripts/read_county_points.R` - Single S3 read of the geocoded master → local point cache
-- `scripts/build_county_fips_crosswalk.R` - `sf`/`tigris` resolution (TIGER name match + org-mass point-in-polygon); writes the crosswalk parquet + audit CSV
-- `R/publish_county_fips_crosswalk.R` - Idempotent publish to `s3://nccsdata/crosswalks/county-fips/` (reuses `R/manifest.R`)
-- `data/crosswalks/county_fips_crosswalk.csv` / `.parquet` - The committed artifact
-- `data/crosswalks/county_fips_crosswalk_audit.csv` - Ambiguous/unresolved labels with candidate GEOIDs + mass shares
+- `scripts/build_county_fips_crosswalk.R` - `sf`/`tigris` resolution (TIGER name match + org-mass point-in-polygon); writes the county crosswalk parquet/csv + audit
+- `scripts/build_cbsa_crosswalk.R` - Derives county→CBSA from the county crosswalk + OMB List 1 delineation
+- `R/publish_crosswalk.R` - Generic crosswalk publisher (parquet + csv + ADR 0014 manifest, idempotent)
+- `R/publish_county_fips_crosswalk.R` / `R/publish_cbsa_crosswalk.R` - Thin wrappers → `s3://nccsdata/crosswalks/{county-fips,cbsa}/`
+- `data/crosswalks/county_fips_crosswalk.{csv,parquet}` + `_audit.csv` - County artifact (ambiguous/unresolved labels audited)
+- `data/crosswalks/cbsa_crosswalk.{csv,parquet}` + `_audit.csv` - CBSA artifact (rural tally + delineation counties absent from BMF)
 
 **EC2 batch scripts:**
 - `scripts/setup_ec2.sh` - One-shot bootstrap (R, system libs, AWS CLI, Quarto, R packages)
@@ -309,6 +327,25 @@ Pipeline saves intermediate states for recovery and debugging. Checkpoint number
 Some artifacts in this repo are part of a stable contract with downstream
 consumers. Treat their S3 paths as a public API: do not rename, do not move,
 and re-publish whenever the local source changes.
+
+### Geography crosswalks → S3
+
+Path contract (each prefix holds `*.parquet` + `*.csv` + ADR 0014 `_manifest.json`):
+
+- `s3://nccsdata/crosswalks/county-fips/` — geocoder county label →
+  county FIPS GEOID + canonical `NAMELSAD` (TIGER 2023). Built by
+  `scripts/build_county_fips_crosswalk.R` from the geocoded master.
+- `s3://nccsdata/crosswalks/cbsa/` — county FIPS → CBSA (metro/micro).
+  Derived from the county crosswalk + OMB 2023 delineation by
+  `scripts/build_cbsa_crosswalk.R`.
+
+Consumers join these themselves (ADR 0016 consumer-composes); FIPS/CBSA
+columns are deliberately NOT added to the Master BMF (avoids pinning a
+TIGER vintage). Both publish via `R/publish_crosswalk.R` (idempotent
+sha256). **Maintenance rule**: re-run the matching
+`R/publish_{county_fips,cbsa}_crosswalk.R` after rebuilding either local
+artifact, and keep the two on the same geography vintage (TIGER year ↔
+OMB delineation year) so county GEOIDs match.
 
 ### BMF lookup tables → S3
 

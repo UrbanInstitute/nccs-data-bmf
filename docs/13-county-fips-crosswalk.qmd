@@ -33,8 +33,12 @@ a single crosswalk artifact is the safe exception to the
 This crosswalk does **not** overwrite `geo_county` in the Master BMF
 (sector-in-brief reads that field verbatim), and it does **not** add
 geography columns to the master. It is an optional, consumer-composed
-join layer. v1 carries county identity only — no CBSA, tract, block,
-place, or ZCTA.
+join layer. It carries county identity only — no tract, block, place,
+or ZCTA.
+
+> **Roll up to metro areas?** The county FIPS produced here is the join
+> key for the [CBSA Crosswalk](14-cbsa-crosswalk.qmd), which maps each
+> county to its metropolitan / micropolitan statistical area.
 
 ## Schema
 
