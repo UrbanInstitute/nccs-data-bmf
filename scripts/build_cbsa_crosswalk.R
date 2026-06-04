@@ -91,8 +91,9 @@ n_cbsa  <- sum(!is.na(xwalk$cbsa_code))
 n_rural <- sum(is.na(xwalk$cbsa_code))
 n_metro <- sum(xwalk$cbsa_type == "Metropolitan Statistical Area", na.rm = TRUE)
 n_micro <- sum(xwalk$cbsa_type == "Micropolitan Statistical Area", na.rm = TRUE)
-message(sprintf("      %d in a CBSA (%d metro, %d micro) | %d rural (no CBSA)",
-                n_cbsa, n_metro, n_micro, n_rural))
+message(sprintf("      %d in a CBSA (%d metro, %d micro) across %d distinct CBSAs | %d rural (no CBSA)",
+                n_cbsa, n_metro, n_micro,
+                dplyr::n_distinct(xwalk$cbsa_code[!is.na(xwalk$cbsa_code)]), n_rural))
 
 # Invariants
 stopifnot(

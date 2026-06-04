@@ -74,7 +74,7 @@ Of the **3,224** resolved county GEOIDs in the county crosswalk:
 |--------------------------------|----------|-------|
 | Metropolitan Statistical Area  | 1,250    |       |
 | Micropolitan Statistical Area  |   661    |       |
-| **In a CBSA**                  | **1,911**| 935   |
+| **In a CBSA**                  | **1,911**| 932   |
 | Rural (no CBSA)                | 1,313    | —     |
 
 `cbsa_crosswalk_audit.csv` records the rural tally plus the handful of
