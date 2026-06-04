@@ -1,0 +1,17 @@
+geo_state_abbr,geo_county_raw,resolution,top_share,n_orgs,n_orgs_in_state,candidates,state_fips,tiger_year
+AK,Valdez-Cordova Census Area,ambiguous,0.515384615384615,189,130,02066(52%); 02063(48%),02,2023
+AS,West,ambiguous,0.606060606060606,99,99,60010(61%); 60050(39%),60,2023
+CT,Fairfield County,ambiguous,0.685105234754452,7454,7412,09190(69%); 09120(28%); 09140(3%); 09170(0%),09,2023
+CT,Litchfield County,ambiguous,0.665443425076453,1637,1635,09160(67%); 09140(20%); 09190(13%); 09110(0%),09,2023
+CT,New Haven County,ambiguous,0.729673744174003,5841,5793,09170(73%); 09140(27%); 09120(0%); 09130(0%),09,2023
+CT,Westchester County,unresolved,,2,0,,,2023
+CT,Windham County,ambiguous,0.810810810810811,704,703,09150(81%); 09180(19%); 09110(0%),09,2023
+DE,Dorchester County,unresolved,,1,0,,,2023
+ID,Whitman County,unresolved,,5,0,,,2023
+MD,Baltimore,ambiguous,0.948051948051948,154,154,24005(95%); 24510(5%),24,2023
+MO,St Louis,ambiguous,0.977272727272727,44,44,29189(98%); 29510(2%),29,2023
+MO,St. Louis,ambiguous,0.941176470588235,17,17,29189(94%); 29510(6%),29,2023
+PA,Garrett County,unresolved,,1,0,,,2023
+VA,Fairfax,ambiguous,1,3,3,51059(100%),51,2023
+VA,Richmond,ambiguous,1,1,1,51760(100%),51,2023
+VA,Roanoke,ambiguous,0.5,2,2,51161(50%); 51770(50%),51,2023

@@ -117,6 +117,30 @@ Outputs land in `data/master/state_marts/{parquet,csv}/` and upload to
 `s3://nccsdata/master/bmf/state_marts/`. See `docs/12-state-marts.qmd`
 for the full design.
 
+### Build the County FIPS Crosswalk
+Maps the geocoder's dirty county labels (`geo_county`) to canonical
+Census county identity (5-char FIPS GEOID + `NAMELSAD`) so consumers can
+canonicalize names and filter by a collision-proof key (e.g. Baltimore
+city `24510` vs Baltimore County `24005`). Published as a **separate**
+artifact — FIPS columns are deliberately NOT added to the Master BMF
+(ADR 0016; avoids pinning consumers to a TIGER vintage). `sf`/`tigris`
+are isolated to these scripts, never in pipeline runtime.
+
+```bash
+# One-time single S3 read of the geocoded master -> local cache:
+eval "$(aws configure export-credentials --profile thiya --format env)"
+Rscript scripts/read_county_points.R
+# Resolve via TIGER name match + org-mass point-in-polygon:
+Rscript scripts/build_county_fips_crosswalk.R        # TIGER_YEAR=2023 default
+```
+
+Outputs `data/crosswalks/county_fips_crosswalk.parquet` (one row per
+`(geo_state_abbr, geo_county_raw)`; ~3,635 rows) plus a
+`*_audit.csv` of the genuinely ambiguous/unresolved labels (independent
+city vs namesake county, CT planning-region change, wrong-state source
+labels). Publish with `source("R/publish_county_fips_crosswalk.R")`.
+See `docs/13-county-fips-crosswalk.qmd` for the full design.
+
 ### Batch-process all legacy vintages on EC2
 For running the legacy pipeline across every vintage in
 `s3://nccsdata/legacy/bmf/`, use the EC2 batch scripts:
@@ -204,6 +228,13 @@ S3 (raw/bmf/YYYY-MM-BMF.csv) → Download → Transform → Validated BMF (parqu
 **Per-state Data Marts (geocoded master split by state):**
 - `R/run_master_state_marts.R` - Orchestrator
 - `R/master_state_marts.R` - `build_master_state_marts()`: Hive-partitioned parquet + per-state CSV writer
+
+**County FIPS Crosswalk (geocoder county labels → Census FIPS identity):**
+- `scripts/read_county_points.R` - Single S3 read of the geocoded master → local point cache
+- `scripts/build_county_fips_crosswalk.R` - `sf`/`tigris` resolution (TIGER name match + org-mass point-in-polygon); writes the crosswalk parquet + audit CSV
+- `R/publish_county_fips_crosswalk.R` - Idempotent publish to `s3://nccsdata/crosswalks/county-fips/` (reuses `R/manifest.R`)
+- `data/crosswalks/county_fips_crosswalk.csv` / `.parquet` - The committed artifact
+- `data/crosswalks/county_fips_crosswalk_audit.csv` - Ambiguous/unresolved labels with candidate GEOIDs + mass shares
 
 **EC2 batch scripts:**
 - `scripts/setup_ec2.sh` - One-shot bootstrap (R, system libs, AWS CLI, Quarto, R packages)

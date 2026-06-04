@@ -26,6 +26,7 @@ book:
     - 10-ec2-batch-processing.qmd
     - 11-master-bmf.qmd
     - 12-state-marts.qmd
+    - 13-county-fips-crosswalk.qmd
 
 format:
   html:
