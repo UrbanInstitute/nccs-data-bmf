@@ -1,11 +1,15 @@
 geo_state_abbr,geo_county_raw,resolution,top_share,n_orgs,n_orgs_in_state,candidates,state_fips,tiger_year
 AK,Valdez-Cordova Census Area,ambiguous,0.515384615384615,189,130,02066(52%); 02063(48%),02,2023
 AS,West,ambiguous,0.606060606060606,99,99,60010(61%); 60050(39%),60,2023
-CT,Fairfield County,ambiguous,0.685105234754452,7454,7412,09190(69%); 09120(28%); 09140(3%); 09170(0%),09,2023
-CT,Litchfield County,ambiguous,0.665443425076453,1637,1635,09160(67%); 09140(20%); 09190(13%); 09110(0%),09,2023
-CT,New Haven County,ambiguous,0.729673744174003,5841,5793,09170(73%); 09140(27%); 09120(0%); 09130(0%),09,2023
+CT,Fairfield County,deferred_ct_planning_region,0.685105234754452,7454,7412,09190(69%); 09120(28%); 09140(3%); 09170(0%),09,2023
+CT,Hartford County,deferred_ct_planning_region,0.949872692552514,6287,6284,09110(95%); 09140(4%); 09160(1%); 09130(0%),09,2023
+CT,Litchfield County,deferred_ct_planning_region,0.665443425076453,1637,1635,09160(67%); 09140(20%); 09190(13%); 09110(0%),09,2023
+CT,Middlesex County,deferred_ct_planning_region,0.998482549317147,1321,1318,09130(100%); 09170(0%),09,2023
+CT,New Haven County,deferred_ct_planning_region,0.729673744174003,5841,5793,09170(73%); 09140(27%); 09120(0%); 09130(0%),09,2023
+CT,New London County,deferred_ct_planning_region,0.923076923076923,1857,1846,09180(92%); 09130(7%); 09150(1%),09,2023
+CT,Tolland County,deferred_ct_planning_region,0.993702770780856,794,794,09110(99%); 09150(1%),09,2023
 CT,Westchester County,unresolved,,2,0,,,2023
-CT,Windham County,ambiguous,0.810810810810811,704,703,09150(81%); 09180(19%); 09110(0%),09,2023
+CT,Windham County,deferred_ct_planning_region,0.810810810810811,704,703,09150(81%); 09180(19%); 09110(0%),09,2023
 DE,Dorchester County,unresolved,,1,0,,,2023
 ID,Whitman County,unresolved,,5,0,,,2023
 MD,Baltimore,ambiguous,0.948051948051948,154,154,24005(95%); 24510(5%),24,2023

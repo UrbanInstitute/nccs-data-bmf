@@ -68,22 +68,27 @@ Rscript scripts/build_cbsa_crosswalk.R   # DELINEATION_YEAR=2023 by default
 
 ## Coverage (OMB 2023)
 
-Of the **3,224** resolved county GEOIDs in the county crosswalk:
+Of the **3,228** county GEOIDs in the universe (resolved county-crosswalk
+GEOIDs plus the nine CT planning regions folded in from the
+[CT planning-region companion](15-ct-planning-region-crosswalk.qmd)):
 
 | Bucket                         | Counties | CBSAs |
 |--------------------------------|----------|-------|
-| Metropolitan Statistical Area  | 1,250    |       |
-| Micropolitan Statistical Area  |   661    |       |
-| **In a CBSA**                  | **1,911**| 932   |
+| Metropolitan Statistical Area  | 1,252    |       |
+| Micropolitan Statistical Area  |   663    |       |
+| **In a CBSA**                  | **1,915**| 935   |
 | Rural (no CBSA)                | 1,313    | —     |
 
-`cbsa_crosswalk_audit.csv` records the rural tally plus the handful of
-delineation counties absent from the BMF universe — these are the four
-CT planning regions (`Bridgeport-Stamford-Danbury`, `Putnam`,
-`Torrington`, `Waterbury-Shelton`) whose old-county *labels* are
-`ambiguous` in the county crosswalk (see its CT note), so no resolved
-`county_fips` reaches them. That is honest propagation of the upstream
-ambiguity, not a CBSA error.
+The universe includes the nine CT planning regions because their old-county
+*labels* are `deferred_ct_planning_region` in the county crosswalk (they
+resolve by coordinate, not by name — see the
+[CT companion](15-ct-planning-region-crosswalk.qmd)). Folding the
+companion's GEOIDs in here is what lets the full chain
+`raw label → coordinate → planning region → CBSA` complete; without it the
+four CT metros/micros (`Bridgeport-Stamford-Danbury`, `Putnam`,
+`Torrington`, `Waterbury-Shelton`) would dead-end. As a result
+`cbsa_crosswalk_audit.csv` now records **zero** delineation counties absent
+from the BMF universe — only the rural tally remains.
 
 ## How to use it
 
@@ -112,6 +117,16 @@ by_csa <- bmf_joined |> filter(!is.na(csa_code)) |> count(csa_title, sort = TRUE
 `NA` `cbsa_code` means the county is rural **or** the county label was
 unresolved upstream — handle the two together (no metro) unless you need
 to distinguish them via the county crosswalk's `resolution`.
+
+::: {.callout-note}
+## Connecticut routes through the companion
+The county-label join above yields `NA` for every CT `<name> County` row —
+those labels are `deferred_ct_planning_region`, because a retired CT county
+splits across several planning regions. To attach a CBSA to CT nonprofits,
+recover the planning-region `geo_county_fips` by **coordinate** first, via
+the [CT planning-region companion](15-ct-planning-region-crosswalk.qmd),
+then join *that* to `cbsa_crosswalk` exactly as above.
+:::
 
 ## Maintenance
 

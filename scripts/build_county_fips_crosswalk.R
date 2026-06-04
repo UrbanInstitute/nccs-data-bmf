@@ -27,6 +27,8 @@
 #     state_fips            chr  2-char state FIPS, leading zeros
 #     geo_county_canonical  chr  Census NAMELSAD (NA if unresolved/ambiguous)
 #     resolution            chr  "resolved" | "ambiguous" | "unresolved"
+#                                | "deferred_ct_planning_region" (CT old-county
+#                                  labels -> coordinate-keyed companion)
 #     tiger_year            int  TIGER/Census vintage of the boundaries
 #   data/crosswalks/county_fips_crosswalk_audit.csv  (ambiguous + unresolved only)
 #
@@ -156,6 +158,16 @@ message("[4/5] Resolving per (state, raw county): name match + org-mass corrobor
 # the core.
 DOMINANT_THRESHOLD <- 0.90
 
+# Connecticut: Census retired the 8 historical counties in 2022 for 9 planning
+# regions. The geocoder still emits old "<name> County" labels, but a single
+# old county genuinely splits across multiple planning regions, so it cannot be
+# canonicalized at the (state, county) grain -- and mass-fallback would silently
+# collapse the ones that happen to clear DOMINANT_THRESHOLD onto a single region
+# (mislabeling the minority slivers). Defer every old-CT-county label to the
+# coordinate-keyed companion (scripts/build_ct_planning_region_crosswalk.R).
+CT_OLD_COUNTIES <- c("fairfield", "hartford", "litchfield", "middlesex",
+                     "new haven", "new london", "tolland", "windham")
+
 classify_group <- function(g, key) {
   state    <- key$geo_state_abbr
   raw      <- key$geo_county
@@ -173,6 +185,13 @@ classify_group <- function(g, key) {
   top   <- if (length(mass)) names(mass)[1] else NA_character_
   cands <- if (length(mass))
     paste(sprintf("%s(%.0f%%)", names(mass), 100 * share), collapse = "; ") else NA_character_
+
+  # 0. Connecticut old-county labels -> defer to the planning-region companion.
+  #    Only an explicit "<name> County" is deferred; a bare town label (e.g.
+  #    "Hartford") lacks the county token and still resolves normally below.
+  if (state == "CT" && grepl("county$", tolower(trimws(raw))) && rawnm %in% CT_OLD_COUNTIES)
+    return(emit(NA_character_, "09", NA_character_, "deferred_ct_planning_region",
+                if (length(share)) share[[1]] else NA_real_, cands))
 
   name_hits <- name_lookup[[paste(state, rawnm)]]
   is_bare   <- !grepl("(county|parish|borough|municipio|municipality|census area|district)$|^city of | city$",

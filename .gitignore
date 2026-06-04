@@ -37,6 +37,7 @@ data/validate/
 # rebuildable single-read snapshot from the geocoded master on S3).
 !data/crosswalks/county_fips_crosswalk.parquet
 !data/crosswalks/cbsa_crosswalk.parquet
+!data/crosswalks/ct_planning_region_crosswalk.parquet
 
 # Publish-time staging manifests (the canonical copy lives on S3; built_at churns)
 _manifest.json

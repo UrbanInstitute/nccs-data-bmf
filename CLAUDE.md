@@ -155,7 +155,32 @@ Rscript scripts/build_cbsa_crosswalk.R   # DELINEATION_YEAR=2023 default
 Outputs `data/crosswalks/cbsa_crosswalk.parquet` (one row per resolved
 county GEOID; CBSA columns NA for rural counties) + `*_audit.csv`.
 Publish with `source("R/publish_cbsa_crosswalk.R")`. See
-`docs/14-cbsa-crosswalk.qmd`.
+`docs/14-cbsa-crosswalk.qmd`. The universe also folds in the nine CT
+planning-region GEOIDs from the CT companion (below), so the CT chain
+completes and the audit lists zero delineation counties absent from BMF.
+
+### Build the CT Planning-Region Crosswalk
+Connecticut companion: Census retired CT's 8 historical counties for 9
+planning regions (`09110`–`09190`) in 2022, but the geocoder still emits
+old `<name> County` labels that each span multiple regions — so they cannot
+be resolved at the `(state, county)` grain. The county crosswalk marks all 8
+as `deferred_ct_planning_region`; this artifact resolves them by **coordinate**
+instead. A dense 0.01° lookup grid over CT (built purely from TIGER 2023, no
+S3 read, like CBSA derives from OMB); consumers round `geo_lat`/`geo_lon` to
+0.01° and join on `(lat2, lon2)`, then chain CBSA. Keeps the master FIPS-free
+(ADR 0016).
+
+```bash
+Rscript scripts/build_ct_planning_region_crosswalk.R   # TIGER_YEAR=2023 default
+```
+
+Outputs `data/crosswalks/ct_planning_region_crosswalk.parquet` (one row per
+CT-land cell; `geo_county_fips`/`geo_county_canonical` mirror the county
+crosswalk, plus `lat2`/`lon2` keys + `area_share` + `straddle` flag) +
+`*_audit.csv` (straddle/boundary cells). Publish with
+`source("R/publish_ct_planning_region_crosswalk.R")`. See
+`docs/15-ct-planning-region-crosswalk.qmd`. Rebuilding this requires
+rebuilding the CBSA crosswalk afterward (it folds these GEOIDs in).
 
 ### Batch-process all legacy vintages on EC2
 For running the legacy pipeline across every vintage in
@@ -245,14 +270,16 @@ S3 (raw/bmf/YYYY-MM-BMF.csv) → Download → Transform → Validated BMF (parqu
 - `R/run_master_state_marts.R` - Orchestrator
 - `R/master_state_marts.R` - `build_master_state_marts()`: Hive-partitioned parquet + per-state CSV writer
 
-**County FIPS & CBSA Crosswalks (geocoder county labels → Census geography):**
+**County FIPS, CBSA & CT Planning-Region Crosswalks (geocoder county labels → Census geography):**
 - `scripts/read_county_points.R` - Single S3 read of the geocoded master → local point cache
-- `scripts/build_county_fips_crosswalk.R` - `sf`/`tigris` resolution (TIGER name match + org-mass point-in-polygon); writes the county crosswalk parquet/csv + audit
-- `scripts/build_cbsa_crosswalk.R` - Derives county→CBSA from the county crosswalk + OMB List 1 delineation
+- `scripts/build_county_fips_crosswalk.R` - `sf`/`tigris` resolution (TIGER name match + org-mass point-in-polygon); writes the county crosswalk parquet/csv + audit. CT `<name> County` labels → `deferred_ct_planning_region` (resolved by coordinate via the CT companion, not by name)
+- `scripts/build_cbsa_crosswalk.R` - Derives county→CBSA from the county crosswalk + OMB List 1 delineation; folds the CT companion's 9 planning-region GEOIDs into the universe
+- `scripts/build_ct_planning_region_crosswalk.R` - Dense 0.01° CT lookup grid (TIGER 2023 only, no S3); coordinate → planning-region GEOID + `straddle` flag
 - `R/publish_crosswalk.R` - Generic crosswalk publisher (parquet + csv + ADR 0014 manifest, idempotent)
-- `R/publish_county_fips_crosswalk.R` / `R/publish_cbsa_crosswalk.R` - Thin wrappers → `s3://nccsdata/crosswalks/{county-fips,cbsa}/`
-- `data/crosswalks/county_fips_crosswalk.{csv,parquet}` + `_audit.csv` - County artifact (ambiguous/unresolved labels audited)
+- `R/publish_county_fips_crosswalk.R` / `R/publish_cbsa_crosswalk.R` / `R/publish_ct_planning_region_crosswalk.R` - Thin wrappers → `s3://nccsdata/crosswalks/{county-fips,cbsa,ct-planning-region}/`
+- `data/crosswalks/county_fips_crosswalk.{csv,parquet}` + `_audit.csv` - County artifact (ambiguous/unresolved/deferred labels audited)
 - `data/crosswalks/cbsa_crosswalk.{csv,parquet}` + `_audit.csv` - CBSA artifact (rural tally + delineation counties absent from BMF)
+- `data/crosswalks/ct_planning_region_crosswalk.{csv,parquet}` + `_audit.csv` - CT companion (coordinate grid; straddle cells audited)
 
 **EC2 batch scripts:**
 - `scripts/setup_ec2.sh` - One-shot bootstrap (R, system libs, AWS CLI, Quarto, R packages)
@@ -338,14 +365,21 @@ Path contract (each prefix holds `*.parquet` + `*.csv` + ADR 0014 `_manifest.jso
 - `s3://nccsdata/crosswalks/cbsa/` — county FIPS → CBSA (metro/micro).
   Derived from the county crosswalk + OMB 2023 delineation by
   `scripts/build_cbsa_crosswalk.R`.
+- `s3://nccsdata/crosswalks/ct-planning-region/` — CT coordinate
+  (`lat2`, `lon2`) → planning-region GEOID. Built from TIGER 2023 by
+  `scripts/build_ct_planning_region_crosswalk.R`. Resolves CT, whose
+  old-county labels are `deferred_ct_planning_region` in the county
+  crosswalk. CT chain: raw coord → planning region → CBSA.
 
 Consumers join these themselves (ADR 0016 consumer-composes); FIPS/CBSA
 columns are deliberately NOT added to the Master BMF (avoids pinning a
-TIGER vintage). Both publish via `R/publish_crosswalk.R` (idempotent
+TIGER vintage). All publish via `R/publish_crosswalk.R` (idempotent
 sha256). **Maintenance rule**: re-run the matching
-`R/publish_{county_fips,cbsa}_crosswalk.R` after rebuilding either local
-artifact, and keep the two on the same geography vintage (TIGER year ↔
-OMB delineation year) so county GEOIDs match.
+`R/publish_{county_fips,cbsa,ct_planning_region}_crosswalk.R` after
+rebuilding any local artifact, and keep all three on the same geography
+vintage (TIGER year ↔ OMB delineation year) so GEOIDs match. The three
+are coupled: rebuilding the CT companion or the county crosswalk requires
+rebuilding the CBSA crosswalk afterward (its universe folds in both).
 
 ### BMF lookup tables → S3
 

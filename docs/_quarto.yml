@@ -28,6 +28,7 @@ book:
     - 12-state-marts.qmd
     - 13-county-fips-crosswalk.qmd
     - 14-cbsa-crosswalk.qmd
+    - 15-ct-planning-region-crosswalk.qmd
 
 format:
   html:
