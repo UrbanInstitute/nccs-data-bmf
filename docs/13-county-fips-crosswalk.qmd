@@ -52,7 +52,7 @@ consumer `left_join` never fans out.
 | `geo_county_fips`      | chr  | 5-char county GEOID, leading zeros preserved (`NA` if unresolved)  |
 | `state_fips`           | chr  | 2-char state FIPS, leading zeros preserved                         |
 | `geo_county_canonical` | chr  | Census `NAMELSAD` (e.g. `Baltimore County`, `Alexandria city`)     |
-| `resolution`           | chr  | `resolved` \| `ambiguous` \| `unresolved`                          |
+| `resolution`           | chr  | `resolved` \| `ambiguous` \| `unresolved` \| `deferred_ct_planning_region` |
 | `tiger_year`           | int  | TIGER/Census boundary vintage the FIPS/name come from (**2023**)   |
 
 > The FIPS columns are **strings**, not integers — leading zeros
@@ -110,26 +110,34 @@ Rscript scripts/build_county_fips_crosswalk.R   # TIGER_YEAR=2023 by default
 
 Of **3,635** distinct `(state, raw county)` pairs:
 
-| Resolution   | Count | What it means                                                       |
-|--------------|-------|---------------------------------------------------------------------|
-| `resolved`   | 3,619 | Unique FIPS + canonical name attached (99.6 %)                      |
-| `ambiguous`  |    12 | Cannot be canonicalized to one FIPS — see below                     |
-| `unresolved` |     4 | Label names a county that is not in the org's state (source error)  |
+| Resolution                     | Count | What it means                                                       |
+|--------------------------------|-------|---------------------------------------------------------------------|
+| `resolved`                     | 3,615 | Unique FIPS + canonical name attached                               |
+| `deferred_ct_planning_region`  |     8 | CT old-county labels — resolve by coordinate via the companion      |
+| `ambiguous`                    |     8 | Cannot be canonicalized to one FIPS — see below                     |
+| `unresolved`                   |     4 | Label names a county that is not in the org's state (source error)  |
 
-The 12 ambiguous labels are all genuine, not artifacts:
+The 8 ambiguous labels are all genuine, not artifacts:
 
 - **Independent-city ⁄ namesake-county collisions** — `MD Baltimore`,
   `MO St Louis` / `St. Louis`, `VA Fairfax` / `Richmond` / `Roanoke`.
   A bare label cannot be assigned to the city *or* the county with
   certainty.
-- **Connecticut planning-region change (2022).** Old county names
-  (`Fairfield`, `Litchfield`, `New Haven`, `Windham`) were replaced by
-  nine planning regions in TIGER 2022+, so an old-county label spans
-  multiple new GEOIDs. Their candidate planning-region GEOIDs and shares
-  are in the audit file.
 - **Abolished Alaska census area** — `Valdez-Cordova` (split into
   Chugach `02063` and Copper River `02066` in 2019).
 - **American Samoa** — `West` maps to two districts.
+
+**Connecticut is handled separately.** In 2022 Census retired CT's eight
+historical counties for nine planning regions (`09110`–`09190`), so an old
+`<name> County` label (`Fairfield`, `Hartford`, … all eight) genuinely spans
+multiple new GEOIDs and cannot be canonicalized at the `(state, county)`
+grain. Rather than guess — or, worse, let org-mass silently collapse the
+counties that happen to clear the 90 % threshold onto a single region — every
+CT `<name> County` label is marked `deferred_ct_planning_region` and routed to
+the coordinate-keyed
+[CT planning-region companion](15-ct-planning-region-crosswalk.qmd). (Bare CT
+*town* labels such as `Hartford` or `New Haven` sit in exactly one region and
+still resolve normally.)
 
 The 4 unresolved labels (`CT Westchester`, `DE Dorchester`,
 `ID Whitman`, `PA Garrett`) name counties belonging to a *different*
@@ -173,10 +181,12 @@ bmf_geo |>
 **3 — Get the canonical county list for a state** (e.g. to populate a
 dropdown) straight from the crosswalk's resolved rows.
 
-Because the join is on the raw label, rows whose label is `ambiguous`
-or `unresolved` receive `NA` FIPS — handle them explicitly (the
-`coalesce` above keeps the original label as a display fallback) rather
-than letting them silently drop.
+Because the join is on the raw label, rows whose label is `ambiguous`,
+`unresolved`, or `deferred_ct_planning_region` receive `NA` FIPS — handle
+them explicitly (the `coalesce` above keeps the original label as a display
+fallback) rather than letting them silently drop. For the CT rows
+specifically, recover the planning region by coordinate via the
+[CT planning-region companion](15-ct-planning-region-crosswalk.qmd).
 
 ## Maintenance
 

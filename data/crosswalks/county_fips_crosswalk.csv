@@ -364,17 +364,17 @@ CO,Weld,08123,08,Weld County,resolved,2023
 CO,Weld County,08123,08,Weld County,resolved,2023
 CO,Yuma County,08125,08,Yuma County,resolved,2023
 CT,Fairfield,09120,09,Greater Bridgeport Planning Region,resolved,2023
-CT,Fairfield County,,09,,ambiguous,2023
+CT,Fairfield County,,09,,deferred_ct_planning_region,2023
 CT,Hartford,09110,09,Capitol Planning Region,resolved,2023
-CT,Hartford County,09110,09,Capitol Planning Region,resolved,2023
-CT,Litchfield County,,09,,ambiguous,2023
-CT,Middlesex County,09130,09,Lower Connecticut River Valley Planning Region,resolved,2023
+CT,Hartford County,,09,,deferred_ct_planning_region,2023
+CT,Litchfield County,,09,,deferred_ct_planning_region,2023
+CT,Middlesex County,,09,,deferred_ct_planning_region,2023
 CT,New Haven,09170,09,South Central Connecticut Planning Region,resolved,2023
-CT,New Haven County,,09,,ambiguous,2023
-CT,New London County,09180,09,Southeastern Connecticut Planning Region,resolved,2023
-CT,Tolland County,09110,09,Capitol Planning Region,resolved,2023
+CT,New Haven County,,09,,deferred_ct_planning_region,2023
+CT,New London County,,09,,deferred_ct_planning_region,2023
+CT,Tolland County,,09,,deferred_ct_planning_region,2023
 CT,Westchester County,,,,unresolved,2023
-CT,Windham County,,09,,ambiguous,2023
+CT,Windham County,,09,,deferred_ct_planning_region,2023
 DC,District of Columbia,11001,11,District of Columbia,resolved,2023
 DC,Washington DC,11001,11,District of Columbia,resolved,2023
 DE,Dorchester County,,,,unresolved,2023

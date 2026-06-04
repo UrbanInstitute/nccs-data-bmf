@@ -310,8 +310,12 @@ county_fips,county_name,cbsa_code,cbsa_title,cbsa_type,central_outlying,csa_code
 09110,Capitol Planning Region,25540,"Hartford-West Hartford-East Hartford, CT",Metropolitan Statistical Area,Central,405,"New Haven-Hartford-Waterbury, CT",2023
 09120,Greater Bridgeport Planning Region,14860,"Bridgeport-Stamford-Danbury, CT",Metropolitan Statistical Area,Central,408,"New York-Newark, NY-NJ-CT-PA",2023
 09130,Lower Connecticut River Valley Planning Region,25540,"Hartford-West Hartford-East Hartford, CT",Metropolitan Statistical Area,Central,405,"New Haven-Hartford-Waterbury, CT",2023
+09140,Naugatuck Valley Planning Region,47930,"Waterbury-Shelton, CT",Metropolitan Statistical Area,Central,405,"New Haven-Hartford-Waterbury, CT",2023
+09150,Northeastern Connecticut Planning Region,39480,"Putnam, CT",Micropolitan Statistical Area,Central,405,"New Haven-Hartford-Waterbury, CT",2023
+09160,Northwest Hills Planning Region,45860,"Torrington, CT",Micropolitan Statistical Area,Central,405,"New Haven-Hartford-Waterbury, CT",2023
 09170,South Central Connecticut Planning Region,35300,"New Haven, CT",Metropolitan Statistical Area,Central,405,"New Haven-Hartford-Waterbury, CT",2023
 09180,Southeastern Connecticut Planning Region,35980,"Norwich-New London-Willimantic, CT",Metropolitan Statistical Area,Central,405,"New Haven-Hartford-Waterbury, CT",2023
+09190,Western Connecticut Planning Region,14860,"Bridgeport-Stamford-Danbury, CT",Metropolitan Statistical Area,Central,408,"New York-Newark, NY-NJ-CT-PA",2023
 10001,Kent County,20100,"Dover, DE",Metropolitan Statistical Area,Central,428,"Philadelphia-Reading-Camden, PA-NJ-DE-MD",2023
 10003,New Castle County,37980,"Philadelphia-Camden-Wilmington, PA-NJ-DE-MD",Metropolitan Statistical Area,Central,428,"Philadelphia-Reading-Camden, PA-NJ-DE-MD",2023
 10005,Sussex County,42580,"Seaford, DE",Micropolitan Statistical Area,Central,,,2023

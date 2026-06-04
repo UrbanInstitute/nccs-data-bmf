@@ -53,11 +53,28 @@ audit_path  <- file.path(here_root, "data", "crosswalks", "cbsa_crosswalk_audit.
 
 stopifnot(file.exists(county_path))
 
-message("[1/4] County universe from the county FIPS crosswalk")
+message("[1/4] County universe from the county FIPS crosswalk + CT companion")
 cty <- read_parquet(county_path)
 universe <- cty %>%
   filter(resolution == "resolved", !is.na(geo_county_fips)) %>%
   distinct(county_fips = geo_county_fips, county_name = geo_county_canonical)
+
+# CT planning regions are deferred (coordinate-keyed) in the county crosswalk,
+# so fold the companion's distinct GEOIDs in here -- otherwise the chain
+# raw -> CT companion -> region -> CBSA would dead-end and the planning regions
+# would (wrongly) show as "absent_from_bmf".
+ct_path <- file.path(here_root, "data", "crosswalks", "ct_planning_region_crosswalk.parquet")
+if (file.exists(ct_path)) {
+  ct_universe <- read_parquet(ct_path) %>%
+    distinct(county_fips = geo_county_fips, county_name = geo_county_canonical)
+  universe <- universe %>%
+    bind_rows(ct_universe) %>%
+    distinct(county_fips, .keep_all = TRUE)
+  message(sprintf("      +%d CT planning-region GEOIDs from the companion", nrow(ct_universe)))
+} else {
+  message("      (CT companion not found; planning regions will be absent)")
+}
+universe <- arrange(universe, county_fips)
 message(sprintf("      %d distinct resolved county GEOIDs", nrow(universe)))
 
 message(sprintf("[2/4] Downloading OMB %d delineation (List 1)", DELINEATION_YEAR))
