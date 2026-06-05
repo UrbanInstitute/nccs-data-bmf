@@ -1,0 +1,24 @@
+name: contracts-guard
+
+# Thin caller of the reusable contract-change guard in nccs-contracts (ADR 0022).
+# The guard logic lives once there; this file passes only this repo's
+# paths_regex — the publish / config / manifest / schema code that defines
+# WHAT or WHERE nccs-data-bmf publishes. Tune the regex as that surface evolves.
+#
+# The guard verifies ACKNOWLEDGMENT, not correctness: a PR that touches the
+# matched paths must carry an `ADR NNNN` breadcrumb (commit message or PR body)
+# or the `contracts-ack` label, so the nccs-contracts reconcile isn't silently
+# skipped. See nccs-contracts/CONTRIBUTING.md.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+jobs:
+  contracts-guard:
+    uses: UrbanInstitute/nccs-contracts/.github/workflows/contracts-guard.yml@main
+    with:
+      paths_regex: '^(R/publish_.*\.R|R/run_.*\.R|R/master_.*\.R|R/config\.R|R/manifest\.R|scripts/build_.*\.R)$'
