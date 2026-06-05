@@ -355,6 +355,18 @@ Some artifacts in this repo are part of a stable contract with downstream
 consumers. Treat their S3 paths as a public API: do not rename, do not move,
 and re-publish whenever the local source changes.
 
+**Contract-change guard (ADR 0022).** A PR that touches what/where this repo
+publishes — or the schema/manifest shape — must acknowledge the
+[`nccs-contracts`](https://github.com/UrbanInstitute/nccs-contracts) impact, or
+CI fails. The `.github/workflows/contracts-guard.yml` caller (a thin wrapper over
+the reusable guard in `nccs-contracts`) fires on PRs that change
+`R/publish_*.R`, `R/run_*.R`, `R/master_*.R`, `R/config.R`, `R/manifest.R`, or
+`scripts/build_*.R`. To pass: add an `ADR NNNN` breadcrumb to a commit message
+or the PR body and queue the `nccs-contracts` reconcile, **or** add the
+`contracts-ack` label if there is genuinely no contract impact. The guard checks
+*acknowledgment, not correctness*. Keep the caller's `paths_regex` in sync with
+`nccs-contracts/scripts/reconcile.sh`. See `nccs-contracts/CONTRIBUTING.md`.
+
 ### Geography crosswalks → S3
 
 Path contract (each prefix holds `*.parquet` + `*.csv` + ADR 0014 `_manifest.json`):
