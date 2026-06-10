@@ -94,3 +94,28 @@ of the geocoded master; they have no other inputs.
   these marts directly only for EIN-level detail. See the "Counting
   semantics" note in the `nccs-contracts` `sector-in-brief.yml` /
   `bmf-master-geocoded.yml` contracts for the rule and a worked example.
+
+::: {.callout-note}
+## Worked example: "501(c)(3) public charities in DC" (2026)
+
+Three defensible queries give three different numbers — all correct for
+their definition:
+
+| Query | Geography | "Active" rule | Count |
+|---|---|---|---|
+| `subsection_code == 3`, latest vintage | mailing (`org_addr_state`) | present in 2026-05 file | 10,912 |
+| + public-charity filter | mailing | present in 2026-05 file | 10,246 |
+| + active-window | mailing | `last_year_in_bmf == 2026` | 10,358 |
+| **sector-in-brief / dashboard** | **geocoded (`Census State`)** | **active-window** | **10,368** |
+
+Two gotchas behind the spread:
+
+- **501(c)(3) ≠ 501(c)(3) public charity.** Every private foundation is
+  also a 501(c)(3). Filtering only `subsection_code == 3` keeps the
+  ~660 DC private foundations (`foundation_code` in {2,3,4}) and 4
+  suspense orgs (code 9). A public-charity count restricts to
+  `foundation_code %in% c(10:18, 21:24)`.
+- **The +122 vs. the dashboard** is ~112 active-window (orgs last seen
+  in an early-2026 vintage but not the May file) + ~10 geocoded-vs-mailing
+  geography. Cite **10,368** (sector-in-brief) for the public figure.
+:::
