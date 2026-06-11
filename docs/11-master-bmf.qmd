@@ -144,6 +144,15 @@ CSV. After `union_by_name` builds the master, those rows carry NA
 `org_addr_full` and are filtered out at export
 (`R/master_geocoding.R` requires non-empty `org_addr_full`).
 
+Because the master keeps each EIN's most-recent vintage and current
+(geocodable) coverage begins in 2023, this NA contract aligns with a
+clean year cutover: rows with **`last_year_in_bmf >= 2023` have
+non-NA `geo_lat`/`geo_lon` (0 % NA); `last_year_in_bmf <= 2022` are
+100 % NA**. Filter on `last_year_in_bmf`, *not* `first_year_in_bmf` —
+an org first seen in the legacy era but still present in a 2023+ vintage
+carries that recent vintage's geocoded row, so `first_year_in_bmf`
+shows a misleading partial-NA mix.
+
 We deliberately do **not** pre-bake ZIP- or city-centroid lat/lon for
 those rows. Pre-baked centroids would (a) commit every downstream
 consumer to one TIGER vintage, (b) conflate precision tiers in the
