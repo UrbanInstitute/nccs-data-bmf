@@ -17,7 +17,7 @@ NTEE_MAJOR_GROUP_LOOKUP_COLS <- c("ntee_code_first_character", "ntee_code_major_
 NTEE_COMMON_CODE_LOOKUP_COLS <- c("ntee_common_code", "ntee_common_code_definition")
 
 # Helper column names (dot prefix for internal use)
-HELPER_COLUMNS <- c(".len", ".first", ".last", ".int23", ".char23")
+HELPER_COLUMNS <- c(".len", ".first", ".last", ".char23")
 
 # Columns to set to UNDEFINED when NTEE code is invalid
 COLS_TO_FIX <- c("naics_code", "ntee_code_major_group", "ntee_code_definition")
@@ -215,22 +215,23 @@ transform_ntee_code <- function(
     .first = substr(ntee_code_raw, 1, 1),
     .char23 = substr(ntee_code_raw, 2, 3)
   )]
-  dt[, `:=`(
-    .last = substr(ntee_code_raw, .len, .len),
-    .int23 = suppressWarnings(as.integer(.char23))
-  )]
+  dt[, .last := substr(ntee_code_raw, .len, .len)]
 
   # ---------------------------------------------------------------------------
   # NTEE Code Standardization
   # ---------------------------------------------------------------------------
+  # A 4-char raw code is [letter][2-digit subgroup][trailing modifier], so the
+  # canonical 3-char NTEE-CC code is always substr(1, 3) regardless of whether
+  # the modifier is a letter or a digit. (ADR 0032: the prior digit-modifier
+  # branch did paste0(.first, .last, "0"), which discarded the subgroup —
+  # e.g. "B430" -> "B00" -> INVALID, wrongly killing valid university codes.)
   dt[, ntee_code_clean := data.table::fcase(
     .len == 0,                          NTEE_UNDEFINED,
     !grepl("[A-Z]", .first),            NTEE_INVALID,
     .len == 1,                          paste0(ntee_code_raw, "00"),
     .len == 2,                          paste0(ntee_code_raw, "0"),
     .len == 3,                          ntee_code_raw,
-    .len == 4 & grepl("[A-Z]", .last),  substr(ntee_code_raw, 1, 3),
-    .len == 4 & grepl("[0-9]", .last),  paste0(.first, .last, "0"),
+    .len == 4,                          substr(ntee_code_raw, 1, 3),
     default = NTEE_INVALID
   )]
 
@@ -345,17 +346,29 @@ transform_ntee_code <- function(
 }
 
 .nteev2_code_transform <- function(dt) {
-  # NTEEV2 Code
+  # NTEEV2 Code — the middle component is the cleaned, lookup-validated
+  # NTEE-CC code (e.g. "B43"); "Z99" only when the code is invalid or
+  # undefined. (ADR 0032: the prior formula keyed off raw char positions
+  # and collapsed ~69% of records to "Z99".) Legacy 5-char rows are
+  # re-derived in .apply_legacy_5char_crosswalk, which overrides .len == 5.
   dt[, nteev2_code := data.table::fcase(
-    .len == 3 & .int23 <= 19, paste0(.first, "00"),
-    .len == 4 & .int23 <= 19, paste0(.first, .last, "0"),
-    default = "Z99"
+    ntee_code_clean %chin% c(NTEE_INVALID, NTEE_UNDEFINED), "Z99",
+    default = ntee_code_clean
   )]
 
-  # NTEEV2 Subsector
+  # NTEEV2 Subsector — University/Hospital keyed off the cleaned NTEE-CC
+  # code so the B40-B43/B50 and E20-E24 sets are reachable. (ADR 0032: the
+  # prior code keyed off nteev2_code, which could never emit B41/B42/B43,
+  # so no real university ever reached "UNI".)
+  #
+  # Invalid/undefined codes resolve to "UNU" (Unknown): if we could not
+  # validate a code, we must not infer a real subsector from the raw first
+  # letter. (ADR 0032 Decision 4 — the correct policy; the prior fall-through
+  # to the .first cases mislabeled ~12.7k unvalidated rows as EDU/HMS/etc.)
   dt[, nteev2_subsector := data.table::fcase(
-    nteev2_code %chin% NTEEV2_SUBSECTOR_UNIVERSITY, "UNI",
-    nteev2_code %chin% NTEEV2_SUBSECTOR_HOSPITAL,   "HOS",
+    ntee_code_clean %chin% NTEEV2_SUBSECTOR_UNIVERSITY,      "UNI",
+    ntee_code_clean %chin% NTEEV2_SUBSECTOR_HOSPITAL,        "HOS",
+    ntee_code_clean %chin% c(NTEE_INVALID, NTEE_UNDEFINED),  "UNU",
     .first == "A",                                   "ART",
     .first == "B",                                   "EDU",
     .first %chin% c("C", "D"),                       "ENV",
