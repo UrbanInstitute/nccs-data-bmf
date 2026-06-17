@@ -291,11 +291,18 @@ if (!dir.exists(quality_html_dir)) {
   dir.create(quality_html_dir, recursive = TRUE)
 }
 quality_html_path <- file.path(quality_html_dir, sprintf("bmf_%s_%s_quality_report.html", PROCESSING_YEAR, PROCESSING_MONTH))
-render_quality_report(quality_report, quality_html_path, format = "html")
-log_info(sprintf("Quality report HTML rendered: %s", quality_html_path))
-
-source(here::here("R", "utils", "render_quality_report_index.R"))
-render_quality_report_index(quality_html_dir)
+# The HTML render (and its index) are cosmetic GitHub Pages artifacts. A render
+# failure (e.g. a quarto CLI/environment issue) must NOT abort the pipeline
+# before the data outputs in Phases 10-11 are written. Keep it non-fatal.
+tryCatch({
+  render_quality_report(quality_report, quality_html_path, format = "html")
+  log_info(sprintf("Quality report HTML rendered: %s", quality_html_path))
+  source(here::here("R", "utils", "render_quality_report_index.R"))
+  render_quality_report_index(quality_html_dir)
+}, error = function(e) {
+  log_warn(sprintf("Quality report HTML render skipped (non-fatal): %s",
+                   conditionMessage(e)))
+})
 
 # ============================================================================
 # PHASE 10: INTERMEDIATE OUTPUT (ALL COLUMNS)
