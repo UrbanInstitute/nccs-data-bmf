@@ -36,7 +36,7 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
   libcurl4-openssl-dev libssl-dev libxml2-dev \
   libfontconfig1-dev libharfbuzz-dev libfribidi-dev \
   libpng-dev libtiff5-dev libjpeg-dev libfreetype6-dev \
-  libgit2-dev unzip curl ca-certificates
+  libgit2-dev libuv1-dev unzip curl ca-certificates
 
 log "Installing AWS CLI v2 (if not already present)"
 if ! command -v aws >/dev/null 2>&1; then
@@ -61,10 +61,13 @@ else
 fi
 
 log "Installing R packages"
-Rscript --vanilla -e '
+# Use sudo: the system library /usr/local/lib/R/site-library is root-owned, so
+# a non-root Rscript cannot write to it. sudo is a no-op when already root, and
+# the instance-profile credentials remain reachable via IMDS for the root user.
+sudo Rscript --vanilla -e '
   pkgs <- c("data.table","arrow","aws.s3","openxlsx","here",
             "purrr","stringr","lubridate","jsonlite","quarto",
-            "duckdb","DBI")
+            "duckdb","DBI","dplyr")
   to_install <- setdiff(pkgs, rownames(installed.packages()))
   if (length(to_install) > 0) {
     install.packages(to_install, repos = "https://cloud.r-project.org",
