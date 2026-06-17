@@ -234,6 +234,9 @@ merge_master_geocoded_results <- function(
   if (!dir.exists(output_dir)) {
     stop(sprintf("Geocoder output dir not found: %s", output_dir))
   }
+  # Create the merged output dir here rather than relying on the export step
+  # having run first (merge can run standalone against staged geocoder output).
+  if (!dir.exists(merged_dir)) dir.create(merged_dir, recursive = TRUE)
 
   # Find geocoded CSVs.
   geocoded_files <- list.files(
