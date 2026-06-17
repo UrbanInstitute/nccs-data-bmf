@@ -520,6 +520,22 @@ warning, and applies the vendored
 NTEEv2 form (`ART-A20-AA`) instead of falling through to `Z99`. See
 chapter 9 for details.
 
+**NTEE code cleaning and NTEEv2 subsector derivation (ADR 0032).**
+Raw 4-character NTEE codes are structured
+`[letter][2-digit subgroup][trailing modifier]` (e.g. `B43` plus a `0`
+or letter modifier). Cleaning keeps the first **three** characters
+(`substr(1, 3)`), preserving the subgroup that identifies the
+organization — `B430 → B43`, not `B40` or `B00`. This matters because
+`nteev2_subsector` is keyed off the cleaned code (`ntee_code_clean`):
+real universities (`B41`/`B42`/`B43`) reach the `UNI` subsector and
+hospitals (`E20`–`E24`) reach `HOS`, rather than collapsing to `Z99`.
+`nteev2_code` is the cleaned NTEE-CC code, falling back to `Z99` only
+when the source code is invalid or undefined. Codes that fail validation
+(`INVALID`/`UNDEFINED`) map `nteev2_subsector` to `UNU` — they do **not**
+inherit a subsector from the raw first letter. The regression guard
+`scripts/check_ntee_university_coverage.R` asserts the `UNI`/`HOS` code
+sets stay reachable.
+
 **Output Columns:**
 
 | Column | Type | Description |
@@ -547,6 +563,7 @@ Several NTEE output columns use sentinel string values to represent missing, inv
 | `ntee_code_definition` | `UNDEFINED` | Source NTEE code is missing/empty or invalid |
 | `ntee_common_code` | `Undefined` | Source code is not a 4-character NTEE code with a recognized common suffix (01, 02, 03, 05, 11, 12, or 19) |
 | `naics_code` | `UNDEFINED` | Source NTEE code is missing/empty or invalid |
+| `nteev2_subsector` | `UNU` | Source NTEE code is `INVALID`/`UNDEFINED` — unvalidated codes do not inherit a subsector from the raw first letter (ADR 0032) |
 
 Note that `UNDEFINED` (all caps), `Unknown` (from lookup), and `Undefined` (title case) are three distinct values with different origins and semantics.
 
