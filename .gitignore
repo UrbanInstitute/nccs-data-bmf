@@ -28,6 +28,9 @@ data/validate/
 !data/dictionaries/*.csv
 !data/crosswalks/*.csv
 !data/crosswalks/legacy_dictionaries_raw/*.csv
+# ...except the NTEE-resolved crosswalk CSV, which is ~640 MB (3.6 M EINs) —
+# distributed via S3 (crosswalks/ntee-resolved/), never committed.
+data/crosswalks/ntee_resolved_crosswalk.csv
 
 # Temp and misc
 *.png
