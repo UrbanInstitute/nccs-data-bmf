@@ -360,6 +360,10 @@ if (ENABLE_S3_UPLOAD) {
   # glob and stack all vintages. See contracts/bmf-legacy.yml and ADR 0013's
   # legacy exemption. Emission follows the R/publish_lookups.R reference.
   legacy_vintage <- sprintf("%s_%s", PROCESSING_YEAR, PROCESSING_MONTH)
+  legacy_source_uri <- sprintf("s3://%s/%s%s",
+                               BMF_S3_BUCKET,
+                               BMF_S3_LEGACY_PREFIX,
+                               basename(LEGACY_BMF_FILE))
   mw_legacy <- write_manifest(
     vintage = legacy_vintage,
     out_dir = "data/processed",
@@ -369,11 +373,7 @@ if (ENABLE_S3_UPLOAD) {
                         columns   = names(bmf_processed)),
       dictionary = list(path = dictionary_path)
     ),
-    inputs = list(
-      # Provenance: the read-only historical archive this vintage built from.
-      # TODO: thread the exact source object key + S3 ETag here.
-      list(uri = paste0("s3://", BMF_S3_BUCKET, "/", BMF_S3_LEGACY_PREFIX))
-    )
+    inputs = list(list(uri = legacy_source_uri))
   )
   legacy_manifest_key <- sprintf("%s%s/_manifest.json",
                                  BMF_S3_LEGACY_PROCESSED_PREFIX, legacy_vintage)

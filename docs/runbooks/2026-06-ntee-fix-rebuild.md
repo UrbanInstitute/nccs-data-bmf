@@ -2,8 +2,8 @@
 
 Prepared 2026-06-16. Resumes the ADR 0032 NTEE-cleaner fix. Code is already
 merged to `main` (PR #23, commit f99a04e). This rebuild publishes the corrected
-`nteev2_subsector`/`nteev2` by processing the new 2026-06 vintage and refreshing
-the master. Overwrites `latest` in place. Legacy reprocess deferred.
+`nteev2_subsector`/`nteev2` by reprocessing the full legacy archive, rebuilding
+the master, and refreshing the geocoded master. Overwrites `latest` in place.
 
 **Instance profile (resolved 2026-06-17):** use `ec2-s3-fullaccess` — it carries
 the AWS-managed `AmazonS3FullAccess` policy, so the instance gets R/W to
@@ -100,20 +100,19 @@ eval "$(aws configure export-credentials --format env)"
 aws sts get-caller-identity            # sanity: prints the assumed role
 
 # 2. sanity
-aws s3 ls s3://nccsdata/processed/bmf/ | tail -3      # up to 2026_05, no 2026_06 yet
+aws s3 ls s3://nccsdata/processed/bmf-legacy/ | tail -3
 Rscript scripts/check_ntee_university_coverage.R      # must print PASS
 
-# 3. process the new 2026-06 vintage (the fix runs here)
+# 3. reprocess every legacy vintage at the fixed code SHA
 # A fresh clone ships only data/{dictionaries,s3-readme}; the pipeline's output
 # dirs are gitignored and must exist before the run, or Phase 1 fails on fwrite.
 mkdir -p logs data/raw data/intermediate data/processed data/quality data/checkpoints
-Rscript -e 'BMF_YEAR<-2026; BMF_MONTH<-6; source("R/run_pipeline.R")' 2>&1 | tee logs/rebuild_2026_06.log
+Rscript -e 'source("R/run_legacy_reprocess_all.R")' 2>&1 | tee logs/rebuild_legacy_all.log
 
-# 4. VERIFY processed output before the master
-Rscript -e 'library(data.table); dt<-fread("data/processed/bmf_2026_06_processed.csv", select="nteev2_subsector"); print(dt[,.N,by=nteev2_subsector][order(-N)])'
-#   expect UNI~3,589  HOS~5,621  UNU~602,905   (UNI in hundreds -> STOP, wrong code)
+# 4. verify the reprocess summary before rebuilding the master
+Rscript -e 'library(data.table); s<-fread("logs/legacy_reprocess/summary.csv"); s[,z99_share_pct:=round(100*z99_share,2)]; print(s[,.(vintage,status,row_count,z99_share_pct)][order(vintage)])'
 
-# 5. master refresh (overwrites latest in place)
+# 5. master refresh (overwrites latest in place, now with _manifest.json)
 bash scripts/run_master.sh
 
 # 6. verify master
@@ -141,9 +140,9 @@ Rscript -e 'library(arrow);library(data.table); g<-as.data.table(read_parquet("d
 #   ~1.83M unique addresses expand to the geocoded EIN set; new 2026-06 EINs are NA (expected)
 ```
 
-> Scope (by design): fixes currently-active EINs (2026-06 wins per-EIN);
-> legacy-only EINs keep old values until the deferred legacy reprocess.
-> New 2026-06 EINs have null geo until a normal export→geocoder→merge cycle.
+> Scope: fixes both currently-active and legacy-only EINs because the full
+> legacy archive is reprocessed before the master rebuild. New current-vintage
+> EINs still need a normal export→geocoder→merge cycle for fresh lat/lon.
 
 UPenn spot-check: `Rscript -e 'library(data.table); dt<-fread("data/processed/bmf_2026_06_processed.csv"); print(dt[EIN=="23-1352685",.(EIN,ntee_code_clean,nteev2_subsector,nteev2)])'` → expect `UNI` / `UNI-B43-RG`.
 

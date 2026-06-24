@@ -346,12 +346,41 @@ merge_master_geocoded_results <- function(
                        pretty = TRUE, auto_unbox = TRUE)
   log_info(sprintf("Quality report:  %s", qr_path))
 
+  merged_manifest <- write_manifest(
+    vintage = "latest",
+    out_dir = merged_dir,
+    outputs = list(
+      parquet = list(path = parquet_path,
+                     row_count = nrow(master_geo),
+                     columns = names(master_geo)),
+      csv = list(path = csv_path,
+                 row_count = nrow(master_geo),
+                 columns = names(master_geo)),
+      dictionary = list(path = dict_path),
+      quality_report = list(path = qr_path)
+    ),
+    inputs = c(
+      list(list(uri = paste0("s3://", BMF_S3_BUCKET, "/master/bmf/",
+                             basename(master_path)))),
+      list(list(uri = paste0("s3://", BMF_S3_BUCKET, "/",
+                             BMF_S3_MASTER_GEOCODING_PREFIX,
+                             "input/bmf_master_geocoder_addr_lookup.parquet"))),
+      lapply(basename(geocoded_files), function(fn) {
+        list(uri = paste0("s3://", BMF_S3_BUCKET, "/",
+                          BMF_S3_MASTER_GEOCODING_PREFIX, "output/", fn))
+      })
+    )
+  )
+  log_info(sprintf("Manifest:        %s", merged_manifest$path))
+
   if (s3_upload) {
     s3_merged_prefix <- paste0(BMF_S3_MASTER_GEOCODING_PREFIX, "merged/")
     upload_to_s3(parquet_path, paste0(s3_merged_prefix, basename(parquet_path)))
     upload_to_s3(csv_path,     paste0(s3_merged_prefix, basename(csv_path)))
     upload_to_s3(qr_path,      paste0(s3_merged_prefix, basename(qr_path)))
     upload_to_s3(dict_path,    paste0(s3_merged_prefix, basename(dict_path)))
+    upload_to_s3(merged_manifest$path,
+                 paste0(s3_merged_prefix, basename(merged_manifest$path)))
   }
 
   invisible(list(
@@ -360,6 +389,7 @@ merge_master_geocoded_results <- function(
     parquet      = parquet_path,
     csv          = csv_path,
     quality      = qr_path,
-    dictionary   = dict_path
+    dictionary   = dict_path,
+    manifest     = merged_manifest$path
   ))
 }

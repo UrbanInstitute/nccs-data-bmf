@@ -165,9 +165,30 @@ if (!quality_report$passed) {
 
 log_phase_start("WRITE OUTPUTS")
 out_paths <- write_master_outputs(con, out_dir = MASTER_OUTPUT_DIR)
+master_columns <- names(DBI::dbGetQuery(con, "SELECT * FROM bmf_master LIMIT 0"))
+master_manifest_outputs <- list(
+  parquet = list(path = out_paths$parquet,
+                 row_count = quality_report$total_rows,
+                 columns = master_columns),
+  csv = list(path = out_paths$csv,
+             row_count = quality_report$total_rows,
+             columns = master_columns),
+  dictionary = list(path = out_paths$dictionary),
+  quality_report = list(path = quality_report_path)
+)
+if (file.exists(quality_report_html)) {
+  master_manifest_outputs$quality_report_html <- list(path = quality_report_html)
+}
+master_manifest <- write_manifest(
+  vintage = "latest",
+  out_dir = MASTER_OUTPUT_DIR,
+  outputs = master_manifest_outputs,
+  inputs = lapply(unique(inputs$s3_uri), function(uri) list(uri = uri))
+)
 for (nm in names(out_paths)) {
   log_info(sprintf("  %-11s -> %s", nm, out_paths[[nm]]))
 }
+log_info(sprintf("  manifest    -> %s", master_manifest$path))
 
 # ============================================================================
 # PHASE 6: S3 UPLOAD
@@ -187,6 +208,8 @@ if (ENABLE_S3_UPLOAD) {
     upload_to_s3(quality_report_html,
                  paste0(MASTER_S3_PREFIX, basename(quality_report_html)))
   }
+  upload_to_s3(master_manifest$path,
+               paste0(MASTER_S3_PREFIX, basename(master_manifest$path)))
 }
 
 # ============================================================================
