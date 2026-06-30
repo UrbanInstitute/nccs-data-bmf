@@ -68,6 +68,8 @@ One row per `ein`. 18 columns.
 | Column                        | Type | Description                                                                 |
 |-------------------------------|------|-----------------------------------------------------------------------------|
 | `ein`                         | chr  | Formatted EIN (`XX-XXXXXXX`) — **join key**                                  |
+| `ein_prefixed`                | chr  | Coercion-safe lowercase EIN key (`ein-XX-XXXXXXX`); bijective with `ein` (ADR 0036) |
+| `EIN2`                        | chr  | Legacy-compatibility alias (`EIN-XX-XXXXXXX`); same key, legacy ecosystem format (ADR 0036) |
 | `ntee_current`                | chr  | Cleaned NTEE-CC from the **latest current vintage**; `NA` if never in current or IRS-NULLed |
 | `ntee_current_subsector`      | chr  | NTEEv2 subsector for the current code                                        |
 | `ntee_current_nteev2`         | chr  | Full NTEEv2 code for the current code                                        |

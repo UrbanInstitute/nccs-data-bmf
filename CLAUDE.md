@@ -81,14 +81,20 @@ was actually populated in the legacy file. The intermediate parquet
 keeps the full schema for audit. See `docs/09-legacy-harmonization.qmd`
 for the full design.
 
-### Build the Master BMF
-The Master BMF is a single-row-per-EIN consolidation of every nonprofit
-ever observed across both pipelines (current monthly + legacy). Each
-row carries the most-recent vintage's contents plus `first_vintage_ym`,
-`last_vintage_ym`, `first_year_in_bmf`, `last_year_in_bmf`,
-`bmf_vintages_observed`, and `bmf_source`. Built via DuckDB
-`union_by_name` over the processed CSVs of both pipelines; current
-wins on vintage_ym ties.
+### Build the Master / Unified BMF
+The Master BMF (being renamed the **Unified BMF**, ADR 0037) is a
+single-row-per-EIN consolidation of every nonprofit ever observed across
+both pipelines (current monthly + legacy). Each row carries the
+most-recent vintage's contents plus `first_vintage_ym`, `last_vintage_ym`,
+`first_year_in_bmf`, `last_year_in_bmf`, `bmf_vintages_observed`, and
+`bmf_source`. Built via DuckDB `union_by_name` over the processed CSVs of
+both pipelines; current wins on vintage_ym ties.
+
+It also carries the additive coercion-safe EIN columns `ein_prefixed`
+(`ein-XX-XXXXXXX`) and `EIN2` (`EIN-XX-XXXXXXX`) derived from the
+unchanged canonical `ein` (ADR 0036; SQL mirror of `ein_to_prefixed()` /
+`ein_to_ein2()` in `R/ein.R`), and emits a per-build ADR 0014
+`_manifest.json` (commit, input hashes, row counts).
 
 ```r
 source("R/run_master_pipeline.R")
@@ -100,8 +106,13 @@ Or on EC2:
 bash scripts/run_master.sh
 ```
 
-Outputs land in `data/master/` and upload to `s3://nccsdata/master/bmf/`.
-See `docs/11-master-bmf.qmd` for the full design.
+Outputs land in `data/master/` and upload to `s3://nccsdata/unified/`
+(`UNIFIED_S3_PREFIX`, default stem `bmf_unified`), **superseding**
+`s3://nccsdata/master/bmf/` which stays reachable for a 90-day window
+then archives (ADR 0037; never a silent move). **The exact unified
+path/filenames are pending nccs-contracts ratification** —
+`run_master_pipeline.R` carries the proposed defaults. See
+`docs/11-master-bmf.qmd` for the full design.
 
 ### Build the per-state Data Marts
 Splits the geocoded Master BMF into one parquet partition + one CSV
@@ -437,7 +448,9 @@ Path contract (prefix holds `*.parquet` + `*.csv` + ADR 0014 `_manifest.json`):
   `scripts/build_ntee_resolved_crosswalk.R` from the intermediate parquets;
   published via `R/publish_ntee_resolved_crosswalk.R`. Consumers join by
   `ein` (ADR 0016 consumer-composes; NTEE fields are deliberately NOT added
-  to the Master BMF). **Maintenance rule**: rebuild + re-publish after each
+  to the Master BMF). Also carries the additive coercion-safe EIN columns
+  `ein_prefixed` + `EIN2` (ADR 0036; from the unchanged canonical `ein` via
+  `R/ein.R`). **Maintenance rule**: rebuild + re-publish after each
   new monthly current BMF so `ntee_current` tracks the newest vintage; the
   legacy half is static. The manifest records the input prefixes and the
   sha256 of `transform_ntee_code.R` + the legacy 5-char lookup, so a change
@@ -508,3 +521,12 @@ BMF files are downloaded from S3 bucket `nccsdata`:
 - New field transforms go in dedicated `R/<field_name>.R` files
 - Add corresponding lookup data to Excel workbook or CSV
 - Call new transforms from `run_pipeline.R` in logical sequence
+
+## Shared workstream context
+
+This is one of the NCCS core data repos. The shared architecture &
+data-engineering doctrine (change management, the machinery-enforced quality
+bar, canonical-mapping discipline, source/geography rules) is single-sourced in
+the home Claude folder and imported here:
+
+@~/.claude/nccs-architecture-context.md

@@ -342,6 +342,12 @@ build_master_bmf <- function(con,
     )
     SELECT * EXCLUDE (rn, first_vintage_ym, last_vintage_ym, n_vintages,
                       combined_first_vintage_ym, combined_last_vintage_ym),
+           -- ADR 0036: additive coercion-safe EIN renderings. Canonical `ein`
+           -- (XX-XXXXXXX) is left unchanged. SQL mirror of ein_to_prefixed() /
+           -- ein_to_ein2() in R/ein.R (conventions/ein-format.md §3) — keep
+           -- the format strings identical.
+           ('ein-' || ein) AS ein_prefixed,
+           ('EIN-' || ein) AS \"EIN2\",
            combined_first_vintage_ym AS first_vintage_ym,
            combined_last_vintage_ym  AS last_vintage_ym,
            combined_last_vintage_ym  AS bmf_vintage_ym,
@@ -374,17 +380,27 @@ build_master_bmf <- function(con,
   invisible(master_n)
 }
 
-#' Write Master BMF outputs (parquet + CSV + dictionary)
+#' Write Master / Unified BMF outputs (parquet + CSV + dictionary + manifest)
 #'
 #' @param con DuckDB connection (must contain bmf_master table)
 #' @param out_dir Local directory to write outputs (default: "data/master")
-#' @return Named list of output paths
-write_master_outputs <- function(con, out_dir = "data/master") {
+#' @param stem Output filename stem (default: "bmf_master"). The Unified BMF
+#'   rename (ADR 0037) sets this to the unified product stem; see
+#'   run_master_pipeline.R. The data dictionary, quality report, and manifest
+#'   are co-located under the same stem.
+#' @param inputs Optional list of manifest `inputs[]` descriptors (ADR 0014);
+#'   pass the processed-BMF S3 prefixes the build read from. When NULL the
+#'   manifest records no inputs.
+#' @param vintage Vintage tag for the manifest (default: today's YYYY_MM).
+#' @return Named list of output paths (parquet, csv, dictionary, manifest)
+write_master_outputs <- function(con, out_dir = "data/master",
+                                 stem = "bmf_master", inputs = NULL,
+                                 vintage = format(Sys.Date(), "%Y_%m")) {
   if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
 
-  parquet_path <- file.path(out_dir, "bmf_master.parquet")
-  csv_path     <- file.path(out_dir, "bmf_master.csv")
-  dict_path    <- file.path(out_dir, "bmf_master_data_dictionary.csv")
+  parquet_path <- file.path(out_dir, paste0(stem, ".parquet"))
+  csv_path     <- file.path(out_dir, paste0(stem, ".csv"))
+  dict_path    <- file.path(out_dir, paste0(stem, "_data_dictionary.csv"))
 
   log_info(sprintf("Writing parquet: %s", parquet_path))
   DBI::dbExecute(con, sprintf(
@@ -417,5 +433,29 @@ write_master_outputs <- function(con, out_dir = "data/master") {
   }
   data.table::fwrite(dict, dict_path)
 
-  list(parquet = parquet_path, csv = csv_path, dictionary = dict_path)
+  # ADR 0037 §5 / ADR 0014: per-build manifest (commit, input hashes, row
+  # counts) so every vintage is citable + reproducible. Requires manifest.R
+  # (write_manifest); run_master_pipeline.R sources it.
+  manifest_path <- NULL
+  if (exists("write_manifest", mode = "function")) {
+    n_rows <- DBI::dbGetQuery(con, "SELECT COUNT(*) AS n FROM bmf_master")$n
+    cols   <- DBI::dbListFields(con, "bmf_master")
+    mw <- write_manifest(
+      vintage = vintage,
+      out_dir = out_dir,
+      outputs = list(
+        list(path = parquet_path, row_count = n_rows, columns = cols),
+        list(path = csv_path,     row_count = n_rows, columns = cols),
+        list(path = dict_path)
+      ),
+      inputs = if (is.null(inputs)) list() else inputs
+    )
+    manifest_path <- mw$path
+    log_info(sprintf("Wrote manifest: %s", manifest_path))
+  } else {
+    log_warn("write_manifest() not available — skipping _manifest.json")
+  }
+
+  list(parquet = parquet_path, csv = csv_path, dictionary = dict_path,
+       manifest = manifest_path)
 }

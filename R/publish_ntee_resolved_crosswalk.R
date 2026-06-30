@@ -44,6 +44,7 @@ publish_ntee_resolved_crosswalk <- function(
     list(uri  = sprintf("s3://%s/intermediate/bmf-legacy/", bucket),
          note = "legacy-pipeline intermediate parquets (all vintages): ntee_code_raw"),
     manifest_input_repo("R/transform_ntee_code.R"),
+    manifest_input_repo("R/ein.R"),   # ADR 0036: ein_prefixed/EIN2 renderings
     manifest_input_repo("data/lookup/ntee_legacy_5char_lookup.csv"))
 
   publish_crosswalk(parquet_path = crosswalk_path, s3_prefix = s3_prefix,

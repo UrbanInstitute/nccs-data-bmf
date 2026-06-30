@@ -6,6 +6,21 @@ pipeline and the legacy NCCS 501CX-NONPROFIT-PX pipeline. It is a
 *derived* artifact — the per-vintage processed CSVs remain the source
 of truth for historical detail.
 
+::: {.callout-note title="Renamed to the Unified BMF (ADR 0037)"}
+This artifact is being renamed to the restored community name **Unified
+BMF** and published under `s3://nccsdata/unified/` (superseding
+`s3://nccsdata/master/bmf/`). The prior path stays live and reachable
+for a 90-day deprecation window, then archives — never a silent move.
+Each build now carries a per-build `_manifest.json` (commit, input
+hashes, row counts) for citability/reproducibility (ADR 0014). It also
+carries the additive coercion-safe EIN columns **`ein_prefixed`** and
+**`EIN2`** (ADR 0036; see below). The canonical `ein` is unchanged.
+
+The exact unified path/filenames are pending nccs-contracts ratification;
+until then `run_master_pipeline.R` carries the proposed defaults
+(`UNIFIED_S3_PREFIX`, `UNIFIED_STEM`).
+:::
+
 ## Motivation
 
 The processed BMF outputs are vintage-specific: there is one CSV per
@@ -30,6 +45,14 @@ across vintages:
 | `first_year_in_bmf`       | int     | `YEAR(first_vintage_ym)` — convenience for filtering                      |
 | `last_year_in_bmf`        | int     | `YEAR(last_vintage_ym)`                                                   |
 | `bmf_vintages_observed`   | int     | Count of vintages in which this EIN appeared (≥ 1)                        |
+| `ein_prefixed`            | char    | Coercion-safe lowercase EIN key (`ein-XX-XXXXXXX`); bijective with `ein` (ADR 0036) |
+| `EIN2`                    | char    | Legacy-compatibility alias (`EIN-XX-XXXXXXX`); same key, legacy ecosystem format (ADR 0036) |
+
+The canonical **`ein`** (`XX-XXXXXXX`) is left unchanged — it is
+externally load-bearing. `ein_prefixed`/`EIN2` are purely additive
+renderings (the leading alpha forces text typing, so spreadsheet
+coercion can't drop leading zeros); `ein_raw` remains a lossy
+bare-integer surface and should not be used as a join key.
 
 Columns from the legacy slim per-vintage schema that don't exist in the
 current schema are filled with `NULL` for current-sourced rows, and

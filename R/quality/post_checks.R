@@ -338,7 +338,9 @@ SOURCE_COLUMN_MAP <- list(
 COLUMN_DESCRIPTIONS <- list(
   # Identity
   ein = "Employer Identification Number formatted as XX-XXXXXXX",
-  ein_raw = "Original 9-digit EIN value from source file without formatting",
+  ein_raw = "Source EIN as ingested (non-digits removed, NOT left-zero-padded) — a lossy bare-integer surface (e.g. 000000004 -> 4). Use ein, ein_prefixed, or EIN2 for a safe join key.",
+  ein_prefixed = "Coercion-safe lowercase EIN key (ein-XX-XXXXXXX); leading alpha forces text typing. Bijective with ein (ADR 0036).",
+  EIN2 = "Legacy-compatibility EIN alias (EIN-XX-XXXXXXX); same key as ein_prefixed in the legacy ecosystem's uppercase format, retained for existing merges (ADR 0036).",
   # Organization Name
   org_name_raw = "Original organization name exactly as it appears in the source file",
   org_name_join = "Standardized name for matching and joining (uppercase, punctuation removed)",

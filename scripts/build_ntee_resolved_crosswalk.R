@@ -32,6 +32,7 @@ library(here)
 source(here::here("R", "config.R"))                 # lookup_ls, BMF_S3_BUCKET
 source(here::here("R", "utils", "logging.R"))
 source(here::here("R", "transform_ntee_code.R"))     # the fixed cleaner (reused)
+source(here::here("R", "ein.R"))                     # ein_to_prefixed/ein_to_ein2 (ADR 0036 reference)
 
 BUCKET   <- if (exists("BMF_S3_BUCKET")) BMF_S3_BUCKET else "nccsdata"
 REGION   <- Sys.getenv("AWS_DEFAULT_REGION", unset = "us-east-1")
@@ -220,7 +221,13 @@ xwalk[, ntee_agreement := fifelse(n_vintages_with_ntee == 1L, "single",
 
 # keep only EINs that actually carry an NTEE somewhere
 xwalk <- xwalk[!is.na(ntee_most_recent) | !is.na(ntee_current)]
-setcolorder(xwalk, c("ein",
+
+# ADR 0036: additive coercion-safe EIN renderings alongside the canonical `ein`
+# (which is left unchanged). Uses the BMF reference formatters in R/ein.R.
+xwalk[, ein_prefixed := ein_to_prefixed(ein)]
+xwalk[, EIN2         := ein_to_ein2(ein)]
+
+setcolorder(xwalk, c("ein", "ein_prefixed", "EIN2",
   "ntee_current", "ntee_current_subsector", "ntee_current_nteev2", "current_vintage",
   "ntee_most_recent", "ntee_most_recent_subsector", "ntee_most_recent_nteev2",
   "ntee_most_recent_vintage", "ntee_most_recent_source",
