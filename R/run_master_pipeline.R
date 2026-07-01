@@ -15,16 +15,17 @@
 #   data/master/_manifest.json              (ADR 0014 per-build manifest)
 #   data/quality/<stem>_quality_report.json
 #
-# S3 (if ENABLE_S3_UPLOAD), under UNIFIED_S3_PREFIX (default "unified/"):
-#   s3://nccsdata/unified/<stem>.parquet
-#   s3://nccsdata/unified/<stem>.csv
-#   s3://nccsdata/unified/<stem>_data_dictionary.csv
-#   s3://nccsdata/unified/_manifest.json
-#   s3://nccsdata/unified/<stem>_quality_report.json
+# S3 (if ENABLE_S3_UPLOAD), under UNIFIED_S3_PREFIX (default "unified/bmf/"):
+#   s3://nccsdata/unified/bmf/<stem>.parquet
+#   s3://nccsdata/unified/bmf/<stem>.csv
+#   s3://nccsdata/unified/bmf/<stem>_data_dictionary.csv
+#   s3://nccsdata/unified/bmf/_manifest.json
+#   s3://nccsdata/unified/bmf/<stem>_quality_report.json
 #
-# NOTE: the exact unified path/stem are PENDING contracts ratification
-# (needs-ADR-review) — see the ADR 0037 config block below. The prior
-# master/bmf/ artifact stays reachable for 90 days, then archives (not deleted).
+# The unified path/stem are ratified by ADR 0037 §5 (amended 2026-06-30):
+# flat "unified/bmf/" + "bmf_unified" (interim; versioned subdir + latest/
+# mirror deferred to ADR 0013). The prior master/bmf/ artifact stays
+# reachable for 90 days, then archives (not deleted).
 #
 # Usage (in R):
 #   source("R/run_master_pipeline.R")
@@ -62,22 +63,17 @@ MASTER_QUALITY_DIR   <- "data/quality"
 # ADR 0037 — Master BMF -> Unified BMF rename (non-silent supersession).
 #
 # The master artifact is renamed to the restored community name "Unified BMF"
-# and published under unified/. The prior master/bmf/ artifact stays live and
-# reachable for the 90-day deprecation window (do NOT delete or silently move
-# it), then moves to a retained, reachable archive at cutover (~2026-09-28).
+# and published under unified/bmf/. The prior master/bmf/ artifact stays live
+# and reachable for the 90-day deprecation window (do NOT delete or silently
+# move it), then moves to a retained, reachable archive at cutover
+# (~2026-09-28).
 #
-#   >>> needs-ADR-review (escalation gate): the EXACT unified path layout and
-#   >>> filenames are NOT pinned by ADR 0037 (§5 defers them to the in-flight
-#   >>> ADR 0013 versioning + /latest work). The values below are the proposed
-#   >>> default; they must be ratified in a nccs-contracts session BEFORE the
-#   >>> first public publish to unified/. Open questions for ratification:
-#   >>>   - prefix: "unified/" vs "unified/bmf/"
-#   >>>   - stem:   snake_case "bmf_unified" (house style) vs the historical
-#   >>>             uppercase/versioned "UNIFIED_BMF_V1.2" form
-#   >>>   - versioned subdir + latest/ mirror (ADR 0013) yes/no
+# Path layout ratified by ADR 0037 §5 (amended 2026-06-30, nccs-contracts
+# PR #51): flat "unified/bmf/" + "bmf_unified" stem, interim (no
+# {vintage}/ subdir or latest/ mirror yet — deferred to ADR 0013).
 # ---------------------------------------------------------------------------
-UNIFIED_S3_PREFIX    <- "unified/"      # PENDING RATIFICATION (see above)
-UNIFIED_STEM         <- "bmf_unified"   # PENDING RATIFICATION (see above)
+UNIFIED_S3_PREFIX    <- "unified/bmf/"
+UNIFIED_STEM         <- "bmf_unified"
 # Prior path kept live as the 90-day fallback; archived (not deleted) at cutover.
 MASTER_LEGACY_S3_PREFIX <- "master/bmf/"
 MASTER_DEPRECATION_CUTOVER <- "2026-09-28"  # 90 days from 2026-06-30
@@ -219,11 +215,10 @@ for (nm in names(out_paths)) {
 
 if (ENABLE_S3_UPLOAD) {
   log_phase_start("S3 UPLOAD")
-  # ADR 0037: publish the renamed Unified BMF under UNIFIED_S3_PREFIX.
-  # NOTE (needs-ADR-review): the prefix/stem are PENDING contracts ratification
-  # — see the ADR 0037 block at the top of this file. Confirm the public path
-  # before the first publish; the prior master/bmf/ artifact stays reachable for
-  # the 90-day window and is archived (not deleted) at MASTER_DEPRECATION_CUTOVER.
+  # ADR 0037: publish the renamed Unified BMF under UNIFIED_S3_PREFIX
+  # (ratified: unified/bmf/, see the ADR 0037 block at the top of this file).
+  # The prior master/bmf/ artifact stays reachable for the 90-day window and
+  # is archived (not deleted) at MASTER_DEPRECATION_CUTOVER.
   upload_to_s3(out_paths$parquet,
                paste0(UNIFIED_S3_PREFIX, basename(out_paths$parquet)))
   upload_to_s3(out_paths$csv,
