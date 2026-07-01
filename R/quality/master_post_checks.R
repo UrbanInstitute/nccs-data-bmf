@@ -93,7 +93,7 @@ generate_master_quality_report <- function(con, inputs) {
 #'
 #' @param report list returned by generate_master_quality_report()
 print_master_quality_report <- function(report) {
-  message("================ Master BMF Quality Report ================")
+  message("================ Unified BMF Quality Report ================")
   message(sprintf("Timestamp:        %s", report$timestamp))
   message(sprintf("Passed:           %s", report$passed))
   message(sprintf("Total rows:       %s", format(report$total_rows, big.mark = ",")))
