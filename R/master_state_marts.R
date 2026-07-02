@@ -13,14 +13,16 @@
 #   data/master/state_marts/parquet/state=XX/part-0.parquet  (Hive-partitioned)
 #   data/master/state_marts/csv/bmf_master_XX.csv            (one per state)
 #
-# S3 (if enabled):
-#   s3://nccsdata/master/bmf/state_marts/parquet/state=XX/...
-#   s3://nccsdata/master/bmf/state_marts/csv/bmf_master_XX.csv
+# S3 (if enabled), dual-written for the ADR 0039 90-day deprecation window:
+#   s3://nccsdata/unified/bmf/state_marts/parquet/state=XX/...  (new)
+#   s3://nccsdata/unified/bmf/state_marts/csv/bmf_master_XX.csv (new)
+#   s3://nccsdata/master/bmf/state_marts/parquet/state=XX/...   (old, unchanged)
+#   s3://nccsdata/master/bmf/state_marts/csv/bmf_master_XX.csv  (old, unchanged)
 # ============================================================================
 
-#' Build per-state data marts from the geocoded Master BMF
+#' Build per-state data marts from the geocoded Unified BMF
 #'
-#' @param geocoded_path  Path to bmf_master_geocoded.parquet
+#' @param geocoded_path  Path to bmf_unified_geocoded.parquet
 #' @param output_dir     Output root (default: data/master/state_marts)
 #' @param s3_upload      Upload marts to S3 (default: TRUE)
 #' @param missing_state_bucket  Bucket name for rows with NA state (default: "ZZ")
@@ -28,7 +30,7 @@
 #' @export
 build_master_state_marts <- function(
     geocoded_path = here::here("data", "geocoding", "master", "merged",
-                               "bmf_master_geocoded.parquet"),
+                               "bmf_unified_geocoded.parquet"),
     output_dir    = here::here("data", "master", "state_marts"),
     s3_upload     = TRUE,
     missing_state_bucket = "ZZ"
@@ -93,15 +95,19 @@ build_master_state_marts <- function(
   # --------------------------------------------------------------------------
   if (s3_upload) {
     log_info("Uploading state marts to S3")
-    s3_root <- "master/bmf/state_marts"
+    # ADR 0039 dual-write: new unified/ prefix + old master/ prefix
+    # (unchanged), same 90-day deprecation window as the geocoded merge.
+    s3_roots <- c("unified/bmf/state_marts", "master/bmf/state_marts")
 
     parquet_files <- list.files(parquet_dir, recursive = TRUE, full.names = TRUE)
-    for (pf in parquet_files) {
-      rel <- sub(paste0("^", parquet_dir, "/"), "", pf)
-      upload_to_s3(pf, file.path(s3_root, "parquet", rel))
-    }
-    for (cf in csv_paths) {
-      upload_to_s3(cf, file.path(s3_root, "csv", basename(cf)))
+    for (s3_root in s3_roots) {
+      for (pf in parquet_files) {
+        rel <- sub(paste0("^", parquet_dir, "/"), "", pf)
+        upload_to_s3(pf, file.path(s3_root, "parquet", rel))
+      }
+      for (cf in csv_paths) {
+        upload_to_s3(cf, file.path(s3_root, "csv", basename(cf)))
+      }
     }
   }
 

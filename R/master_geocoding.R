@@ -319,10 +319,13 @@ merge_master_geocoded_results <- function(
                           big.mark = ",")))
 
   # ---------------------------------------------------------------- write
-  parquet_path <- file.path(merged_dir, "bmf_master_geocoded.parquet")
-  csv_path     <- file.path(merged_dir, "bmf_master_geocoded.csv")
-  qr_path      <- file.path(merged_dir, "bmf_master_geocoded_quality_report.json")
-  dict_path    <- file.path(merged_dir, "bmf_master_geocoded_data_dictionary.csv")
+  # ADR 0039: renamed stem bmf_master_geocoded -> bmf_unified_geocoded,
+  # dual-written below to the new unified/ prefix and the old bmf-master/
+  # prefix (unchanged old filenames) for the 90-day deprecation window.
+  parquet_path <- file.path(merged_dir, "bmf_unified_geocoded.parquet")
+  csv_path     <- file.path(merged_dir, "bmf_unified_geocoded.csv")
+  qr_path      <- file.path(merged_dir, "bmf_unified_geocoded_quality_report.json")
+  dict_path    <- file.path(merged_dir, "bmf_unified_geocoded_data_dictionary.csv")
 
   arrow::write_parquet(master_geo, parquet_path, compression = "zstd")
   log_info(sprintf("Parquet written: %s", parquet_path))
@@ -347,11 +350,40 @@ merge_master_geocoded_results <- function(
   log_info(sprintf("Quality report:  %s", qr_path))
 
   if (s3_upload) {
-    s3_merged_prefix <- paste0(BMF_S3_MASTER_GEOCODING_PREFIX, "merged/")
-    upload_to_s3(parquet_path, paste0(s3_merged_prefix, basename(parquet_path)))
-    upload_to_s3(csv_path,     paste0(s3_merged_prefix, basename(csv_path)))
-    upload_to_s3(qr_path,      paste0(s3_merged_prefix, basename(qr_path)))
-    upload_to_s3(dict_path,    paste0(s3_merged_prefix, basename(dict_path)))
+    # New path (ADR 0039): geocoding/unified-bmf/merged/, new stem + manifest.
+    new_prefix <- paste0(BMF_S3_UNIFIED_GEOCODING_PREFIX, "merged/")
+    upload_to_s3(parquet_path, paste0(new_prefix, basename(parquet_path)))
+    upload_to_s3(csv_path,     paste0(new_prefix, basename(csv_path)))
+    upload_to_s3(qr_path,      paste0(new_prefix, basename(qr_path)))
+    upload_to_s3(dict_path,    paste0(new_prefix, basename(dict_path)))
+
+    if (exists("write_manifest")) {
+      mw <- write_manifest(
+        vintage = format(Sys.time(), "%Y_%m"),
+        out_dir = merged_dir,
+        outputs = list(
+          list(path = parquet_path, row_count = nrow(master_geo)),
+          list(path = csv_path,     row_count = nrow(master_geo)),
+          list(path = dict_path),
+          list(path = qr_path)
+        ),
+        inputs = list(list(uri = master_path))
+      )
+      upload_to_s3(mw$path, paste0(new_prefix, basename(mw$path)))
+      log_info(sprintf("Wrote manifest: %s", mw$path))
+    } else {
+      log_warn("write_manifest() not available -- skipping _manifest.json")
+    }
+
+    # Old path (pre-ADR-0039), 90-day deprecation window: same content,
+    # unchanged old filenames, so pinned consumers (nccsdata::nccs_read(),
+    # sector-in-brief-api) keep working unchanged. Archived (not deleted)
+    # at cutover -- see MASTER_DEPRECATION_CUTOVER in run_master_pipeline.R.
+    old_prefix <- paste0(BMF_S3_MASTER_GEOCODING_PREFIX, "merged/")
+    upload_to_s3(parquet_path, paste0(old_prefix, "bmf_master_geocoded.parquet"))
+    upload_to_s3(csv_path,     paste0(old_prefix, "bmf_master_geocoded.csv"))
+    upload_to_s3(qr_path,      paste0(old_prefix, "bmf_master_geocoded_quality_report.json"))
+    upload_to_s3(dict_path,    paste0(old_prefix, "bmf_master_geocoded_data_dictionary.csv"))
   }
 
   invisible(list(

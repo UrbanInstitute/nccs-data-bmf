@@ -9,6 +9,9 @@ BMF_S3_INTERMEDIATE_PREFIX <- "intermediate/bmf/"
 BMF_S3_PROCESSED_PREFIX <- "processed/bmf/"
 BMF_S3_GEOCODING_PREFIX <- "geocoding/bmf/"
 BMF_S3_MASTER_GEOCODING_PREFIX <- "geocoding/bmf-master/"
+# ADR 0039: renamed geocoded-master publish path; dual-written alongside
+# BMF_S3_MASTER_GEOCODING_PREFIX (above) for a 90-day deprecation window.
+BMF_S3_UNIFIED_GEOCODING_PREFIX <- "geocoding/unified-bmf/"
 BMF_S3_LEGACY_INTERMEDIATE_PREFIX <- "intermediate/bmf-legacy/"
 BMF_S3_LEGACY_PROCESSED_PREFIX <- "processed/bmf-legacy/"
 GEOCODER_BATCH_SIZE <- 900000

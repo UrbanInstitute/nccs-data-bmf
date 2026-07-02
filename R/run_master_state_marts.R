@@ -12,7 +12,7 @@
 ENABLE_S3_UPLOAD <- TRUE
 
 GEOCODED_MASTER_PATH <- here::here("data", "geocoding", "master", "merged",
-                                   "bmf_master_geocoded.parquet")
+                                   "bmf_unified_geocoded.parquet")
 STATE_MARTS_DIR      <- here::here("data", "master", "state_marts")
 
 source(here::here("R", "config.R"))
