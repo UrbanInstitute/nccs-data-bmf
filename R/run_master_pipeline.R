@@ -5,17 +5,27 @@
 # in which that EIN appears across both the current monthly BMF pipeline
 # and the legacy 501CX-NONPROFIT-PX pipeline.
 #
-# Outputs:
-#   data/master/bmf_master.parquet          (full schema, zstd-compressed)
-#   data/master/bmf_master.csv              (same rows, CSV form)
-#   data/master/bmf_master_data_dictionary.csv
-#   data/quality/bmf_master_quality_report.json
+# Renamed to the "Unified BMF" (ADR 0037); carries additive coercion-safe EIN
+# columns ein_prefixed + EIN2 (ADR 0036) and a per-build _manifest.json.
 #
-# S3 (if ENABLE_S3_UPLOAD):
-#   s3://nccsdata/master/bmf/bmf_master.parquet
-#   s3://nccsdata/master/bmf/bmf_master.csv
-#   s3://nccsdata/master/bmf/bmf_master_data_dictionary.csv
-#   s3://nccsdata/master/bmf/bmf_master_quality_report.json
+# Outputs (stem = UNIFIED_STEM, default "bmf_unified"):
+#   data/master/<stem>.parquet              (full schema, zstd-compressed)
+#   data/master/<stem>.csv                  (same rows, CSV form)
+#   data/master/<stem>_data_dictionary.csv
+#   data/master/_manifest.json              (ADR 0014 per-build manifest)
+#   data/quality/<stem>_quality_report.json
+#
+# S3 (if ENABLE_S3_UPLOAD), under UNIFIED_S3_PREFIX (default "unified/bmf/"):
+#   s3://nccsdata/unified/bmf/<stem>.parquet
+#   s3://nccsdata/unified/bmf/<stem>.csv
+#   s3://nccsdata/unified/bmf/<stem>_data_dictionary.csv
+#   s3://nccsdata/unified/bmf/_manifest.json
+#   s3://nccsdata/unified/bmf/<stem>_quality_report.json
+#
+# The unified path/stem are ratified by ADR 0037 §5 (amended 2026-06-30):
+# flat "unified/bmf/" + "bmf_unified" (interim; versioned subdir + latest/
+# mirror deferred to ADR 0013). The prior master/bmf/ artifact stays
+# reachable for 90 days, then archives (not deleted).
 #
 # Usage (in R):
 #   source("R/run_master_pipeline.R")
@@ -48,7 +58,27 @@ DUCKDB_TEMP_DIR      <- "data/master/duckdb-tmp"
 MASTER_OUTPUT_DIR    <- "data/master"
 MASTER_STAGING_DIR   <- "data/master/staging"
 MASTER_QUALITY_DIR   <- "data/quality"
-MASTER_S3_PREFIX     <- "master/bmf/"
+
+# ---------------------------------------------------------------------------
+# ADR 0037 — Master BMF -> Unified BMF rename (non-silent supersession).
+#
+# The master artifact is renamed to the restored community name "Unified BMF"
+# and published under unified/bmf/. The prior master/bmf/ artifact stays live
+# and reachable for the 90-day deprecation window (do NOT delete or silently
+# move it), then moves to a retained, reachable archive at cutover
+# (~2026-09-28).
+#
+# Path layout ratified by ADR 0037 §5 (amended 2026-06-30, nccs-contracts
+# PR #51): flat "unified/bmf/" + "bmf_unified" stem, interim (no
+# {vintage}/ subdir or latest/ mirror yet — deferred to ADR 0013).
+# ---------------------------------------------------------------------------
+UNIFIED_S3_PREFIX    <- "unified/bmf/"
+UNIFIED_STEM         <- "bmf_unified"
+# Prior path kept live as the 90-day fallback; archived (not deleted) at cutover.
+MASTER_LEGACY_S3_PREFIX <- "master/bmf/"
+MASTER_DEPRECATION_CUTOVER <- "2026-09-28"  # 90 days from 2026-06-30
+# Build-vintage tag recorded in the manifest (newest current vintage).
+MASTER_VINTAGE       <- format(Sys.Date(), "%Y_%m")
 # `aws s3 sync` is always incremental — files matching size+mtime are
 # skipped. To force a fresh download, delete MASTER_STAGING_DIR before
 # running. MIRROR_DELETE adds --delete to remove local files no longer
@@ -142,13 +172,13 @@ quality_report <- generate_master_quality_report(con, inputs)
 print_master_quality_report(quality_report)
 
 quality_report_path <- file.path(
-  MASTER_QUALITY_DIR, "bmf_master_quality_report.json"
+  MASTER_QUALITY_DIR, paste0(UNIFIED_STEM, "_quality_report.json")
 )
 save_master_quality_report(quality_report, quality_report_path)
 
 quality_report_html <- file.path(
   here::here("docs", "quality-reports"),
-  "bmf_master_quality_report.html"
+  paste0(UNIFIED_STEM, "_quality_report.html")
 )
 render_master_quality_report(quality_report, quality_report_html)
 
@@ -164,7 +194,17 @@ if (!quality_report$passed) {
 # ============================================================================
 
 log_phase_start("WRITE OUTPUTS")
-out_paths <- write_master_outputs(con, out_dir = MASTER_OUTPUT_DIR)
+# ADR 0014/0037 manifest inputs: the two processed-BMF prefixes the build read.
+master_manifest_inputs <- list(
+  list(uri  = sprintf("s3://%s/%s", BMF_S3_BUCKET, BMF_S3_PROCESSED_PREFIX),
+       note = "current-pipeline processed CSVs (all vintages)"),
+  list(uri  = sprintf("s3://%s/%s", BMF_S3_BUCKET, BMF_S3_LEGACY_PROCESSED_PREFIX),
+       note = "legacy-pipeline processed CSVs (all vintages)")
+)
+out_paths <- write_master_outputs(
+  con, out_dir = MASTER_OUTPUT_DIR, stem = UNIFIED_STEM,
+  inputs = master_manifest_inputs, vintage = MASTER_VINTAGE
+)
 for (nm in names(out_paths)) {
   log_info(sprintf("  %-11s -> %s", nm, out_paths[[nm]]))
 }
@@ -175,17 +215,25 @@ for (nm in names(out_paths)) {
 
 if (ENABLE_S3_UPLOAD) {
   log_phase_start("S3 UPLOAD")
+  # ADR 0037: publish the renamed Unified BMF under UNIFIED_S3_PREFIX
+  # (ratified: unified/bmf/, see the ADR 0037 block at the top of this file).
+  # The prior master/bmf/ artifact stays reachable for the 90-day window and
+  # is archived (not deleted) at MASTER_DEPRECATION_CUTOVER.
   upload_to_s3(out_paths$parquet,
-               paste0(MASTER_S3_PREFIX, basename(out_paths$parquet)))
+               paste0(UNIFIED_S3_PREFIX, basename(out_paths$parquet)))
   upload_to_s3(out_paths$csv,
-               paste0(MASTER_S3_PREFIX, basename(out_paths$csv)))
+               paste0(UNIFIED_S3_PREFIX, basename(out_paths$csv)))
   upload_to_s3(out_paths$dictionary,
-               paste0(MASTER_S3_PREFIX, basename(out_paths$dictionary)))
+               paste0(UNIFIED_S3_PREFIX, basename(out_paths$dictionary)))
+  if (!is.null(out_paths$manifest) && file.exists(out_paths$manifest)) {
+    upload_to_s3(out_paths$manifest,
+                 paste0(UNIFIED_S3_PREFIX, basename(out_paths$manifest)))
+  }
   upload_to_s3(quality_report_path,
-               paste0(MASTER_S3_PREFIX, basename(quality_report_path)))
+               paste0(UNIFIED_S3_PREFIX, basename(quality_report_path)))
   if (file.exists(quality_report_html)) {
     upload_to_s3(quality_report_html,
-                 paste0(MASTER_S3_PREFIX, basename(quality_report_html)))
+                 paste0(UNIFIED_S3_PREFIX, basename(quality_report_html)))
   }
 }
 

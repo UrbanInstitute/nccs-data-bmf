@@ -45,8 +45,8 @@ transform_ein(dt, input_col = "EIN")
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `ein_raw` | character | Original EIN value |
-| `ein` | character | Formatted as XX-XXXXXXX |
+| `ein_raw` | character | Source EIN as ingested (non-digits removed, **not** zero-padded) — lossy bare-integer surface (e.g. `000000004` → `4`); use `ein`/`ein_prefixed`/`EIN2` to join |
+| `ein` | character | Formatted as XX-XXXXXXX (canonical published key) |
 
 **Validation:**
 - Removes non-numeric characters

@@ -2,7 +2,7 @@
 # render_quality_report_index.R
 #
 # Scans docs/quality-reports/ for *_quality_report.html files and writes
-# a static index.html grouping them into Master / Current monthly / Legacy.
+# a static index.html grouping them into Unified / Current monthly / Legacy.
 # Called by each pipeline after it writes its own HTML quality report.
 # ============================================================================
 
@@ -21,7 +21,7 @@ render_quality_report_index <- function(
   files <- list.files(dir, pattern = "_quality_report\\.html$", full.names = FALSE)
   files <- setdiff(files, "index.html")
 
-  master_files  <- files[grepl("^bmf_master_quality_report\\.html$", files)]
+  master_files  <- files[grepl("^bmf_unified_quality_report\\.html$", files)]
   legacy_files  <- files[grepl("^bmf_legacy_\\d{4}_\\d{2}_quality_report\\.html$", files)]
   current_files <- setdiff(files, c(master_files, legacy_files))
   current_files <- current_files[grepl("^bmf_\\d{4}_\\d{2}_quality_report\\.html$", current_files)]
@@ -54,9 +54,9 @@ render_quality_report_index <- function(
   }
 
   master_section <- section_html(
-    "Master BMF",
+    "Unified BMF",
     if (length(master_files) > 0)
-      list(li(master_files[[1]], "Master BMF Quality Report")) else list(),
+      list(li(master_files[[1]], "Unified BMF Quality Report")) else list(),
     "Not yet generated."
   )
 

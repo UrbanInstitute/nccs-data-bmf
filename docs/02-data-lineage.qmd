@@ -599,8 +599,8 @@ flowchart LR
 #### Identity Columns
 | Column | Type | Source | Description |
 |--------|------|--------|-------------|
-| `ein` | char(11) | EIN | Employer Identification Number formatted as XX-XXXXXXX |
-| `ein_raw` | char | EIN | Original 9-digit EIN value from source file without formatting |
+| `ein` | char(11) | EIN | Employer Identification Number formatted as XX-XXXXXXX (canonical published key) |
+| `ein_raw` | char | EIN | Source EIN as ingested (non-digits removed, **not** zero-padded) — lossy bare-integer surface (e.g. `000000004` → `4`); use `ein`/`ein_prefixed`/`EIN2` to join |
 | `org_name_raw` | char | NAME | Original organization name exactly as it appears in the source file |
 | `org_name_join` | char | NAME | Standardized name for matching and joining (uppercase punctuation removed) |
 | `org_name_display` | char | NAME | Title-cased organization name suitable for display purposes |

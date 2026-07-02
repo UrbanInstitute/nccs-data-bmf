@@ -1,5 +1,5 @@
 ---
-title: "Master BMF Quality Report"
+title: "Unified BMF Quality Report"
 format:
   html:
     toc: true
@@ -40,7 +40,7 @@ fmt_pct <- function(x) sprintf("%.2f %%", x)
 
 # Summary
 
-The Master BMF is a single-row-per-EIN consolidation drawn from the
+The Unified BMF is a single-row-per-EIN consolidation drawn from the
 most-recent vintage in which each EIN appears across both the
 current monthly BMF pipeline and the legacy 501CX-NONPROFIT-PX
 pipeline. See [chapter 11](https://urbaninstitute.github.io/nccs-data-bmf/11-master-bmf.html)
@@ -107,7 +107,7 @@ kable(vo_dt, format = "html",
 
 # Vintage histogram
 
-Number of surviving master rows contributed by each vintage. A
+Number of surviving Unified BMF rows contributed by each vintage. A
 vintage with many rows contributed many EINs whose latest sighting
 was in that month.
 

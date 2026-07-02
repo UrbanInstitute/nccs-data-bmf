@@ -81,14 +81,20 @@ was actually populated in the legacy file. The intermediate parquet
 keeps the full schema for audit. See `docs/09-legacy-harmonization.qmd`
 for the full design.
 
-### Build the Master BMF
-The Master BMF is a single-row-per-EIN consolidation of every nonprofit
-ever observed across both pipelines (current monthly + legacy). Each
-row carries the most-recent vintage's contents plus `first_vintage_ym`,
-`last_vintage_ym`, `first_year_in_bmf`, `last_year_in_bmf`,
-`bmf_vintages_observed`, and `bmf_source`. Built via DuckDB
-`union_by_name` over the processed CSVs of both pipelines; current
-wins on vintage_ym ties.
+### Build the Master / Unified BMF
+The Master BMF (being renamed the **Unified BMF**, ADR 0037) is a
+single-row-per-EIN consolidation of every nonprofit ever observed across
+both pipelines (current monthly + legacy). Each row carries the
+most-recent vintage's contents plus `first_vintage_ym`, `last_vintage_ym`,
+`first_year_in_bmf`, `last_year_in_bmf`, `bmf_vintages_observed`, and
+`bmf_source`. Built via DuckDB `union_by_name` over the processed CSVs of
+both pipelines; current wins on vintage_ym ties.
+
+It also carries the additive coercion-safe EIN columns `ein_prefixed`
+(`ein-XX-XXXXXXX`) and `EIN2` (`EIN-XX-XXXXXXX`) derived from the
+unchanged canonical `ein` (ADR 0036; SQL mirror of `ein_to_prefixed()` /
+`ein_to_ein2()` in `R/ein.R`), and emits a per-build ADR 0014
+`_manifest.json` (commit, input hashes, row counts).
 
 ```r
 source("R/run_master_pipeline.R")
@@ -100,8 +106,13 @@ Or on EC2:
 bash scripts/run_master.sh
 ```
 
-Outputs land in `data/master/` and upload to `s3://nccsdata/master/bmf/`.
-See `docs/11-master-bmf.qmd` for the full design.
+Outputs land in `data/master/` and upload to `s3://nccsdata/unified/`
+(`UNIFIED_S3_PREFIX`, default stem `bmf_unified`), **superseding**
+`s3://nccsdata/master/bmf/` which stays reachable for a 90-day window
+then archives (ADR 0037; never a silent move). **The exact unified
+path/filenames are pending nccs-contracts ratification** —
+`run_master_pipeline.R` carries the proposed defaults. See
+`docs/11-master-bmf.qmd` for the full design.
 
 ### Build the per-state Data Marts
 Splits the geocoded Master BMF into one parquet partition + one CSV
@@ -181,6 +192,36 @@ crosswalk, plus `lat2`/`lon2` keys + `area_share` + `straddle` flag) +
 `source("R/publish_ct_planning_region_crosswalk.R")`. See
 `docs/15-ct-planning-region-crosswalk.qmd`. Rebuilding this requires
 rebuilding the CBSA crosswalk afterward (it folds these GEOIDs in).
+
+### Build the NTEE-resolved crosswalk
+Per-EIN lookup that recovers a usable NTEE classification for orgs whose
+`NTEE_CD` is blank in the current BMF but was populated in an earlier vintage
+(motivating case: Carnegie Mellon 25-0969449 — empty in current, `B43` in
+legacy). Aggregates the **raw** NTEE code (vintage-invariant, so no legacy
+reprocess) for each EIN across every vintage of both pipelines, cleans the
+distinct codes once via the fixed `transform_ntee_code()`, and exposes four
+views — `ntee_current` (may be NULL), `ntee_most_recent`, `ntee_modal`, and
+`ntee_code_distribution` (JSON) — each with `_subsector`/`_nteev2` plus
+`n_distinct_codes`/`n_vintages_with_ntee`/`ntee_agreement`. "Expose all, no
+opinionated pick" (ADR 0034); a separate join layer, NOT columns on the
+master (ADR 0016).
+
+```bash
+eval "$(aws configure export-credentials --profile <profile> --format env)"
+Rscript scripts/build_ntee_resolved_crosswalk.R
+```
+
+Reads only `(ein, ntee_code_raw)` from the all-columns intermediate parquets
+of both pipelines via DuckDB `httpfs` — column projection pulls a small slice
+of the ~36 GB, so it runs locally (no EC2). The heavy `GROUP BY` spills to
+disk (the script sets `temp_directory` + `preserve_insertion_order=false` +
+env-overridable `DUCKDB_MEMORY_LIMIT`/`DUCKDB_THREADS`) and `INSTALL`/`LOAD`s
+the DuckDB `aws` extension (the `credential_chain` S3 secret needs it).
+Outputs `data/crosswalks/ntee_resolved_crosswalk.{parquet,csv}` (the 640 MB
+CSV is gitignored — distributed via S3 only). Publish with
+`source("R/publish_ntee_resolved_crosswalk.R"); publish_ntee_resolved_crosswalk()`.
+See `docs/16-ntee-resolved-crosswalk.qmd`. Rebuild after each new monthly
+current BMF so `ntee_current` tracks the newest vintage.
 
 ### Batch-process all legacy vintages on EC2
 For running the legacy pipeline across every vintage in
@@ -280,6 +321,11 @@ S3 (raw/bmf/YYYY-MM-BMF.csv) → Download → Transform → Validated BMF (parqu
 - `data/crosswalks/county_fips_crosswalk.{csv,parquet}` + `_audit.csv` - County artifact (ambiguous/unresolved/deferred labels audited)
 - `data/crosswalks/cbsa_crosswalk.{csv,parquet}` + `_audit.csv` - CBSA artifact (rural tally + delineation counties absent from BMF)
 - `data/crosswalks/ct_planning_region_crosswalk.{csv,parquet}` + `_audit.csv` - CT companion (coordinate grid; straddle cells audited)
+
+**NTEE-resolved crosswalk (per-EIN NTEE recovered across all vintages):**
+- `scripts/build_ntee_resolved_crosswalk.R` - DuckDB aggregate of raw NTEE across both pipelines' intermediate parquets; cleans distinct codes via `transform_ntee_code()`; writes per-EIN current/most-recent/modal/distribution views. Runs locally (column projection + disk spill); no EC2
+- `R/publish_ntee_resolved_crosswalk.R` - Thin wrapper over `R/publish_crosswalk.R` → `s3://nccsdata/crosswalks/ntee-resolved/`
+- `data/crosswalks/ntee_resolved_crosswalk.parquet` - Local artifact (CSV sibling is ~640 MB, gitignored; both distributed via S3)
 
 **EC2 batch scripts:**
 - `scripts/setup_ec2.sh` - One-shot bootstrap (R, system libs, AWS CLI, Quarto, R packages)
@@ -393,6 +439,24 @@ vintage (TIGER year ↔ OMB delineation year) so GEOIDs match. The three
 are coupled: rebuilding the CT companion or the county crosswalk requires
 rebuilding the CBSA crosswalk afterward (its universe folds in both).
 
+### NTEE-resolved crosswalk → S3
+
+Path contract (prefix holds `*.parquet` + `*.csv` + ADR 0014 `_manifest.json`):
+
+- `s3://nccsdata/crosswalks/ntee-resolved/` — per-EIN NTEE recovered across
+  every vintage of both pipelines. Built by
+  `scripts/build_ntee_resolved_crosswalk.R` from the intermediate parquets;
+  published via `R/publish_ntee_resolved_crosswalk.R`. Consumers join by
+  `ein` (ADR 0016 consumer-composes; NTEE fields are deliberately NOT added
+  to the Master BMF). Also carries the additive coercion-safe EIN columns
+  `ein_prefixed` + `EIN2` (ADR 0036; from the unchanged canonical `ein` via
+  `R/ein.R`). **Maintenance rule**: rebuild + re-publish after each
+  new monthly current BMF so `ntee_current` tracks the newest vintage; the
+  legacy half is static. The manifest records the input prefixes and the
+  sha256 of `transform_ntee_code.R` + the legacy 5-char lookup, so a change
+  to the cleaner or that lookup is visible in published provenance. See ADR
+  0034 and `docs/16-ntee-resolved-crosswalk.qmd`.
+
 ### BMF lookup tables → S3
 
 Path contract:
@@ -457,3 +521,12 @@ BMF files are downloaded from S3 bucket `nccsdata`:
 - New field transforms go in dedicated `R/<field_name>.R` files
 - Add corresponding lookup data to Excel workbook or CSV
 - Call new transforms from `run_pipeline.R` in logical sequence
+
+## Shared workstream context
+
+This is one of the NCCS core data repos. The shared architecture &
+data-engineering doctrine (change management, the machinery-enforced quality
+bar, canonical-mapping discipline, source/geography rules) is single-sourced in
+the home Claude folder and imported here:
+
+@~/.claude/nccs-architecture-context.md

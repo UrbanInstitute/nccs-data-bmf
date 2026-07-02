@@ -71,8 +71,10 @@ EIN_FORMAT_REPLACEMENT <- "\\1-\\2"
 #'
 #' @return data.table with new columns:
 #'   \itemize{
-#'     \item ein_raw - Original EIN value
-#'     \item ein - Formatted EIN (XX-XXXXXXX)
+#'     \item ein_raw - Source EIN as ingested, non-digits removed but NOT
+#'       left-zero-padded: a lossy bare-integer surface (e.g. 000000004 -> 4).
+#'       For a safe join key use \code{ein}, \code{ein_prefixed}, or \code{EIN2}.
+#'     \item ein - Formatted EIN (XX-XXXXXXX), the canonical published key
 #'   }
 #'
 #' @examples
@@ -114,4 +116,39 @@ transform_ein <- function(dt, input_col = "EIN") {
   ))
 
   return(dt_safe)
+}
+
+# ============================================================================
+# Additive EIN renderings (ADR 0036)
+#
+# Coercion-safe, additive renderings of the canonical dashed `ein`. The
+# canonical `ein` (XX-XXXXXXX) is externally load-bearing and is left
+# UNCHANGED; these are extra columns, not a reformat. Both are bijective
+# with `ein` (conventions/ein-format.md §3, §7):
+#   ein_prefixed = "ein-" + ein   (e.g. ein-38-2787387) — lowercase house key
+#   EIN2         = "EIN-" + ein   (e.g. EIN-38-2787387) — legacy-compat alias
+#
+# This is the REFERENCE implementation of the renderings for the BMF repo
+# (ADR 0036 N1). Other emission points in this repo that cannot call R
+# (the Unified BMF DuckDB build in master_bmf_builder.R) mirror these exact
+# formats in SQL and cross-reference this function; keep them identical. The
+# nccs-data-core twin must produce the same strings.
+# ============================================================================
+
+#' Render the lowercase coercion-safe EIN key (`ein_prefixed`).
+#'
+#' @param ein Character vector of canonical dashed EINs (XX-XXXXXXX).
+#' @return Character vector `ein-XX-XXXXXXX` (NA preserved).
+#' @export
+ein_to_prefixed <- function(ein) {
+  ifelse(is.na(ein), NA_character_, paste0("ein-", ein))
+}
+
+#' Render the uppercase legacy-compat EIN alias (`EIN2`).
+#'
+#' @param ein Character vector of canonical dashed EINs (XX-XXXXXXX).
+#' @return Character vector `EIN-XX-XXXXXXX` (NA preserved).
+#' @export
+ein_to_ein2 <- function(ein) {
+  ifelse(is.na(ein), NA_character_, paste0("EIN-", ein))
 }

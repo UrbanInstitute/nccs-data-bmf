@@ -1,0 +1,168 @@
+# NTEE-Resolved Crosswalk {#sec-ntee-resolved-crosswalk}
+
+The **NTEE-resolved crosswalk** is a per-EIN lookup that recovers a usable
+NTEE classification for organizations whose `NTEE_CD` is **blank in the
+current IRS BMF** but was populated in some earlier vintage. It consolidates
+the raw NTEE code observed for each EIN across **every** vintage of both
+pipelines (current monthly + legacy 501CX) and exposes several resolved
+views so the consumer — not this repo — picks the rule that fits their
+analysis.
+
+Like the geography crosswalks, it is a **separate join layer**, not columns
+on the Master BMF ([ADR 0016](11-master-bmf.qmd) consumer-composes).
+
+## Why it exists
+
+The IRS periodically **NULLs** `NTEE_CD` for organizations that were
+previously classified. The motivating case is **Carnegie Mellon University
+(EIN 25-0969449)**: `NTEE_CD` is empty in the current BMF but `B43` (a
+university code) in the legacy NCCS files. After the
+[NTEE cleaner fix](03-transforms-reference.qmd) (ADR 0032), CMU still
+resolves to `UNU`/`Z99` in the current vintage — because the *source* code
+is genuinely absent. No cleaner can recover a code the IRS removed; only a
+**cross-vintage lookup** can.
+
+Aggregating across vintages recovers a code for the large population of such
+EINs while leaving the current value visible and untouched, so a consumer
+can choose between "what the IRS says today" and "the best code we have ever
+seen for this org."
+
+## What it is
+
+One row per EIN (universe = any EIN that carries an NTEE in at least one
+vintage). Each row exposes **four parallel resolutions** plus provenance —
+"expose all, no opinionated pick":
+
+```
+EIN ──ntee_resolved_crosswalk──▶  ntee_current      (latest current vintage; may be NULL)
+                                  ntee_most_recent  (newest non-null, any source)
+                                  ntee_modal        (most-observed across vintages)
+                                  ntee_code_distribution (full per-code history, JSON)
+```
+
+Each resolution carries its `_subsector` (NTEEv2 sector, e.g. `UNI`, `HOS`,
+`EDU`) and `_nteev2` (full NTEEv2 code), so "universities" is
+`ntee_most_recent_subsector == 'UNI'`, not a substring guess.
+
+## Source & vintage
+
+Built from **`ntee_code_raw`** in the all-columns *intermediate* parquets of
+both pipelines:
+
+| Pattern                                                  | Source  |
+|----------------------------------------------------------|---------|
+| `s3://nccsdata/intermediate/bmf/*/*.parquet`             | current |
+| `s3://nccsdata/intermediate/bmf-legacy/*/*.parquet`      | legacy  |
+
+Raw codes are **vintage-invariant** — the verbatim IRS/NCCS source string,
+independent of which cleaner version processed that vintage — so **no
+reprocessing of old vintages is required**. The distinct raw codes are
+cleaned **once** through the current, fixed `transform_ntee_code()` (reused,
+never reimplemented), so the resolved codes always reflect the latest
+cleaner logic.
+
+## Schema
+
+One row per `ein`. 18 columns.
+
+| Column                        | Type | Description                                                                 |
+|-------------------------------|------|-----------------------------------------------------------------------------|
+| `ein`                         | chr  | Formatted EIN (`XX-XXXXXXX`) — **join key**                                  |
+| `ein_prefixed`                | chr  | Coercion-safe lowercase EIN key (`ein-XX-XXXXXXX`); bijective with `ein` (ADR 0036) |
+| `EIN2`                        | chr  | Legacy-compatibility alias (`EIN-XX-XXXXXXX`); same key, legacy ecosystem format (ADR 0036) |
+| `ntee_current`                | chr  | Cleaned NTEE-CC from the **latest current vintage**; `NA` if never in current or IRS-NULLed |
+| `ntee_current_subsector`      | chr  | NTEEv2 subsector for the current code                                        |
+| `ntee_current_nteev2`         | chr  | Full NTEEv2 code for the current code                                        |
+| `current_vintage`             | chr  | `YYYY_MM` of the latest current vintage observed (may be `NA`)               |
+| `ntee_most_recent`            | chr  | Cleaned NTEE-CC from the **newest vintage carrying a non-null code** (any source) |
+| `ntee_most_recent_subsector`  | chr  | NTEEv2 subsector for the most-recent code                                    |
+| `ntee_most_recent_nteev2`     | chr  | Full NTEEv2 code for the most-recent code                                    |
+| `ntee_most_recent_vintage`    | chr  | `YYYY_MM` that supplied `ntee_most_recent`                                   |
+| `ntee_most_recent_source`     | chr  | `current` or `legacy` — pipeline that supplied `ntee_most_recent`            |
+| `ntee_modal`                  | chr  | **Most-observed** cleaned code across vintages (ties broken by recency)      |
+| `ntee_modal_subsector`        | chr  | NTEEv2 subsector for the modal code                                          |
+| `ntee_modal_nteev2`           | chr  | Full NTEEv2 code for the modal code                                          |
+| `ntee_modal_n`                | int  | Number of vintage-observations supporting the modal code                     |
+| `ntee_code_distribution`      | chr  | JSON keyed on cleaned NTEE-CC: `{code: {n, first, last}}` — full history     |
+| `n_distinct_codes`            | int  | Count of distinct cleaned codes ever observed for the EIN                     |
+| `n_vintages_with_ntee`        | int  | Total vintage-observations that carried an NTEE                               |
+| `ntee_agreement`              | chr  | `single` (one observation) / `unanimous` (all agree) / `mixed`               |
+
+> `ein` is the **formatted** string. In the all-columns intermediate parquet
+> the formatted EIN collides case-insensitively with the raw integer `EIN`
+> and surfaces as `ein_1`; the build resolves the column defensively from the
+> schema.
+
+## How it is built
+
+```bash
+eval "$(aws configure export-credentials --profile <profile> --format env)"
+Rscript scripts/build_ntee_resolved_crosswalk.R
+```
+
+1. Over every intermediate parquet, project **only** `(ein, ntee_code_raw)`
+   via DuckDB `httpfs` and aggregate per `(ein, src, raw)` with first/last
+   vintage. Parquet column projection means only a small slice of the
+   ~36 GB corpus crosses the wire, so this **runs locally; no EC2 needed**.
+2. Clean the (small) set of distinct raw codes through `transform_ntee_code()`
+   — legacy codes via the `legacy_mode` 5-char crosswalk, current codes via
+   the standard path — and join the cleaned forms back.
+3. Resolve the four per-EIN views and write `parquet` + `csv` to
+   `data/crosswalks/`.
+
+The heavy `GROUP BY` spills to disk: the script sets a `temp_directory`,
+`preserve_insertion_order=false`, and an env-overridable `memory_limit` /
+`threads`, so it completes on a RAM-limited host (it streams to disk rather
+than OOM-ing). It also `INSTALL`/`LOAD`s the DuckDB `aws` extension, which
+the S3 `credential_chain` secret requires.
+
+## Coverage
+
+Built over the 2026-06 corpus (current + legacy intermediate parquets):
+
+| Metric                                              | Value       |
+|-----------------------------------------------------|-------------|
+| EINs with a resolvable NTEE                          | 3,613,958   |
+| EINs with a usable **current** NTEE                 | 1,559,544   |
+| EINs with NULL/blank current NTEE                   | 2,054,414   |
+| …of which **recovered** a code via `ntee_most_recent` | **2,031,485** |
+| `ntee_agreement` = unanimous                        | 2,585,156 (71.5 %) |
+| `ntee_agreement` = mixed                            | 777,236 (21.5 %) |
+| `ntee_agreement` = single                           | 251,566 (7.0 %)  |
+
+The bulk of the NULL-current population is legacy-only EINs (never present in
+a current vintage); `ntee_most_recent` gives them a classification anchored
+to their last observed code. The CMU sanity check passes:
+`ntee_current = NA`, `ntee_most_recent = B43` (`UNI`), `ntee_modal = B43`.
+
+## How to use it
+
+Published to `s3://nccsdata/crosswalks/ntee-resolved/` (parquet + csv +
+`_manifest.json`). Join by `ein` and pick the column that matches your
+question:
+
+```r
+library(dplyr); library(arrow)
+ntee <- read_parquet("ntee_resolved_crosswalk.parquet")
+
+bmf |>
+  left_join(ntee, by = "ein") |>
+  # "best available" classification: current if present, else most-recent
+  mutate(ntee_best = coalesce(ntee_current, ntee_most_recent),
+         subsector = coalesce(ntee_current_subsector, ntee_most_recent_subsector)) |>
+  # e.g. all universities ever recognized
+  filter(subsector == "UNI")
+```
+
+- Use `ntee_current` to match exactly what the IRS reports today.
+- Use `ntee_most_recent` (or the `coalesce` above) to recover NULL-source orgs.
+- Use `ntee_modal` for the org's most-typical historical classification.
+- Use `ntee_code_distribution` + `ntee_agreement` to audit reclassifications.
+
+## Maintenance
+
+Rebuild and re-publish (`R/publish_ntee_resolved_crosswalk.R`, idempotent on
+sha256) **after each new monthly current BMF lands**, so `ntee_current`
+tracks the newest vintage. The legacy half is static. The manifest records
+the input prefixes and the sha256 of `transform_ntee_code.R` and the legacy
+5-char lookup, so a change to either is visible in the published provenance.

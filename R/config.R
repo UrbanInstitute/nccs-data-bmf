@@ -9,6 +9,9 @@ BMF_S3_INTERMEDIATE_PREFIX <- "intermediate/bmf/"
 BMF_S3_PROCESSED_PREFIX <- "processed/bmf/"
 BMF_S3_GEOCODING_PREFIX <- "geocoding/bmf/"
 BMF_S3_MASTER_GEOCODING_PREFIX <- "geocoding/bmf-master/"
+# ADR 0039: renamed geocoded-master publish path; dual-written alongside
+# BMF_S3_MASTER_GEOCODING_PREFIX (above) for a 90-day deprecation window.
+BMF_S3_UNIFIED_GEOCODING_PREFIX <- "geocoding/unified-bmf/"
 BMF_S3_LEGACY_INTERMEDIATE_PREFIX <- "intermediate/bmf-legacy/"
 BMF_S3_LEGACY_PROCESSED_PREFIX <- "processed/bmf-legacy/"
 GEOCODER_BATCH_SIZE <- 900000
@@ -267,18 +270,37 @@ download_legacy_bmf_from_s3 <- function(bucket = BMF_S3_BUCKET,
 #' }
 #'
 #' @export
+#' Content-Type for a local file, by extension, for the S3 PUT header.
+#' Without this, aws.s3 leaves Content-Type unset and S3 defaults to
+#' binary/octet-stream — browsers then force-download .html/.json/.csv
+#' instead of rendering/displaying them inline.
+s3_content_type <- function(local_file) {
+  ext <- tolower(tools::file_ext(local_file))
+  switch(ext,
+    html = "text/html; charset=utf-8",
+    htm  = "text/html; charset=utf-8",
+    json = "application/json",
+    csv  = "text/csv",
+    NULL
+  )
+}
+
 upload_to_s3 <- function(local_file, s3_key, bucket = BMF_S3_BUCKET) {
   if (!file.exists(local_file)) {
     message(sprintf("ERROR: Local file not found: %s", local_file))
     return(FALSE)
   }
 
+  content_type <- s3_content_type(local_file)
+  headers <- if (!is.null(content_type)) list(`Content-Type` = content_type) else list()
+
   tryCatch({
     aws.s3::put_object(
       file = local_file,
       object = s3_key,
       bucket = bucket,
-      multipart = TRUE
+      multipart = TRUE,
+      headers = headers
     )
     message(sprintf("Uploaded to s3://%s/%s", bucket, s3_key))
     return(TRUE)
