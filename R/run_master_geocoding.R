@@ -4,11 +4,13 @@
 # Orchestrator for the Master BMF geocoding workflow. Two modes:
 #
 #   MASTER_GEOCODING_MODE <- "export"  ; source("R/run_master_geocoding.R")
-#   # ... upload batches to Urban geocoder, save outputs locally ...
+#   # ... submit batches to the automated geocoder service, retrieve outputs ...
 #   MASTER_GEOCODING_MODE <- "merge"   ; source("R/run_master_geocoding.R")
 #
-# Mirrors the per-month run_geocoding.R interface so the manual steps
-# feel familiar.
+# Mirrors the per-month run_geocoding.R interface. The middle step needs no
+# manual activation: the geocoder is an S3-event-driven service (drop batch
+# CSVs in s3://geocoding-codestar-prod/data/input-data/, poll
+# data/output-data/ for results). See docs/reference/geocoder-service.md.
 # ============================================================================
 
 if (!exists("MASTER_GEOCODING_MODE")) MASTER_GEOCODING_MODE <- "export"
