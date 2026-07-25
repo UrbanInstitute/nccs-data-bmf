@@ -37,6 +37,13 @@ wget -qO- https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc \
   | sudo tee /etc/apt/trusted.gpg.d/cran_ubuntu_key.asc >/dev/null
 echo "deb https://cloud.r-project.org/bin/linux/ubuntu $(lsb_release -cs)-cran40/" \
   | sudo tee /etc/apt/sources.list.d/cran.list >/dev/null
+
+log "Adding the r2u apt repo (prebuilt binaries for every CRAN package —
+seconds per package, no source compiles, system deps resolved by apt)"
+wget -qO- https://eddelbuettel.github.io/r2u/assets/dirk_eddelbuettel_key.asc \
+  | sudo tee /etc/apt/trusted.gpg.d/cranapt_key.asc >/dev/null
+echo "deb [arch=amd64] https://r2u.stat.illinois.edu/ubuntu $(lsb_release -cs) main" \
+  | sudo tee /etc/apt/sources.list.d/cranapt.list >/dev/null
 sudo apt-get update -qq
 
 log "Installing system libraries and R"
@@ -69,28 +76,31 @@ else
   echo "quarto ${QUARTO_VERSION} already installed"
 fi
 
-log "Installing R packages"
-# Use sudo: the system library /usr/local/lib/R/site-library is root-owned, so
-# a non-root Rscript cannot write to it. sudo is a no-op when already root, and
-# the instance-profile credentials remain reachable via IMDS for the root user.
-sudo Rscript --vanilla -e '
+log "Installing R packages (r2u binaries; minimal set by default)"
+# Lightweight by default: only what the legacy batch pipeline loads.
+# Master-rebuild extras (duckdb/DBI/dplyr) and quarto (optional HTML report
+# rendering) install only when requested:
+#   INSTALL_MASTER_DEPS=1 bash scripts/setup_ec2.sh
+BATCH_PKGS=(r-cran-data.table r-cran-arrow r-cran-aws.s3 r-cran-openxlsx \
+            r-cran-here r-cran-purrr r-cran-stringr r-cran-lubridate \
+            r-cran-jsonlite)
+MASTER_PKGS=(r-cran-duckdb r-cran-dbi r-cran-dplyr r-cran-quarto)
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "${BATCH_PKGS[@]}"
+if [[ "${INSTALL_MASTER_DEPS:-0}" == "1" ]]; then
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "${MASTER_PKGS[@]}"
+fi
+
+log "Verifying R packages load"
+Rscript --vanilla -e '
   pkgs <- c("data.table","arrow","aws.s3","openxlsx","here",
-            "purrr","stringr","lubridate","jsonlite","quarto",
-            "duckdb","DBI","dplyr")
-  to_install <- setdiff(pkgs, rownames(installed.packages()))
-  if (length(to_install) > 0) {
-    # Posit Package Manager serves prebuilt Linux binaries — installs in
-    # minutes instead of the ~1h source compile of arrow + duckdb.
-    codename <- system("lsb_release -cs", intern = TRUE)
-    repo <- sprintf("https://packagemanager.posit.co/cran/__linux__/%s/latest", codename)
-    install.packages(to_install, repos = c(repo, "https://cloud.r-project.org"),
-                     Ncpus = max(1, parallel::detectCores() - 1))
+            "purrr","stringr","lubridate","jsonlite")
+  if (nzchar(Sys.getenv("INSTALL_MASTER_DEPS")) &&
+      Sys.getenv("INSTALL_MASTER_DEPS") == "1") {
+    pkgs <- c(pkgs, "duckdb","DBI","dplyr","quarto")
   }
   ok <- vapply(pkgs, requireNamespace, logical(1), quietly = TRUE)
-  if (!all(ok)) {
-    stop("Failed to load: ", paste(pkgs[!ok], collapse = ", "))
-  }
-  cat("All R packages installed and loadable.\n")
+  if (!all(ok)) stop("Failed to load: ", paste(pkgs[!ok], collapse = ", "))
+  cat("All required R packages installed and loadable.\n")
 '
 
 log "Verifying AWS access"
