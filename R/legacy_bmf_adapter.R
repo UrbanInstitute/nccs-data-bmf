@@ -91,6 +91,25 @@ load_crosswalk_v2 <- function(path = here::here("data", "crosswalks", "XWALK-BMF
     ))
   }
 
+  # Guardrail (issue #29): a legacy column that aliases a current-schema
+  # concept must be renamed to it, never dropped. The one drop+alias row we
+  # ever had (ADDRESS, "redundant with STREET") silently destroyed the only
+  # street source in 58 vintages, because no legacy file actually has a
+  # STREET column. A genuine within-file duplicate needs its own
+  # subcategory with a machine-checkable target, not "alias".
+  if ("subcategory" %in% names(xw)) {
+    bad <- xw[disposition == "drop" & subcategory == "alias"]
+    if (nrow(bad) > 0) {
+      log_error(sprintf(
+        paste0("Crosswalk has %d drop+alias row(s): %s. An alias of a ",
+               "current-schema column must use disposition 'rename' (see ",
+               "issue #29 — dropping ADDRESS as 'redundant with STREET' ",
+               "silently lost all legacy street data)."),
+        nrow(bad), paste(bad$legacy_name_upper, collapse = ", ")
+      ))
+    }
+  }
+
   data.table::setkey(xw, legacy_name_upper)
   xw
 }
