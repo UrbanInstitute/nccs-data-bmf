@@ -30,6 +30,15 @@ log() { printf '\n=== %s ===\n' "$*"; }
 log "Updating apt"
 sudo apt-get update -y
 
+log "Adding the CRAN apt repo (Ubuntu's stock R is too old: current CRAN
+arrow/duckdb require R >= 4.2, while jammy ships 4.1 — this rotted the
+bootstrap on 2026-07-24, see issue #29 batch notes)"
+wget -qO- https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc \
+  | sudo tee /etc/apt/trusted.gpg.d/cran_ubuntu_key.asc >/dev/null
+echo "deb https://cloud.r-project.org/bin/linux/ubuntu $(lsb_release -cs)-cran40/" \
+  | sudo tee /etc/apt/sources.list.d/cran.list >/dev/null
+sudo apt-get update -qq
+
 log "Installing system libraries and R"
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
   r-base r-base-dev git pandoc cmake \
@@ -70,7 +79,11 @@ sudo Rscript --vanilla -e '
             "duckdb","DBI","dplyr")
   to_install <- setdiff(pkgs, rownames(installed.packages()))
   if (length(to_install) > 0) {
-    install.packages(to_install, repos = "https://cloud.r-project.org",
+    # Posit Package Manager serves prebuilt Linux binaries — installs in
+    # minutes instead of the ~1h source compile of arrow + duckdb.
+    codename <- system("lsb_release -cs", intern = TRUE)
+    repo <- sprintf("https://packagemanager.posit.co/cran/__linux__/%s/latest", codename)
+    install.packages(to_install, repos = c(repo, "https://cloud.r-project.org"),
                      Ncpus = max(1, parallel::detectCores() - 1))
   }
   ok <- vapply(pkgs, requireNamespace, logical(1), quietly = TRUE)
