@@ -49,20 +49,46 @@ generate_master_quality_report <- function(con, inputs) {
       FROM bmf_master
   ")
 
-  # Per-column completeness on the master table.
+  # Per-column completeness on the master table — overall AND split by
+  # bmf_source. The split is the tripwire ADR 0041 §5 added after the
+  # legacy street-address loss (issue #29): a column that is fully NULL on
+  # one source can still look healthy at the master grain because the
+  # other source dilutes it (org_addr_street sat at 100% missing across
+  # 1.48M legacy rows while the blended number looked fine).
   col_names <- DBI::dbListFields(con, "bmf_master")
-  completeness <- vapply(col_names, function(col) {
+  completeness_rows <- lapply(col_names, function(col) {
+    qcol <- DBI::dbQuoteIdentifier(con, col)
     sql <- sprintf(
-      "SELECT 100.0 * SUM(CASE WHEN %s IS NULL THEN 0 ELSE 1 END) / COUNT(*) AS pct FROM bmf_master",
-      DBI::dbQuoteIdentifier(con, col)
+      "SELECT
+         100.0 * COUNT(%s) / COUNT(*) AS pct,
+         100.0 * COUNT(%s) FILTER (WHERE bmf_source = 'current')
+               / NULLIF(COUNT(*) FILTER (WHERE bmf_source = 'current'), 0) AS pct_current,
+         100.0 * COUNT(%s) FILTER (WHERE bmf_source = 'legacy')
+               / NULLIF(COUNT(*) FILTER (WHERE bmf_source = 'legacy'), 0) AS pct_legacy
+       FROM bmf_master", qcol, qcol, qcol
     )
-    q(sql)$pct
-  }, numeric(1))
+    q(sql)
+  })
   completeness_dt <- data.table::data.table(
     column = col_names,
-    pct_non_null = round(as.numeric(completeness), 2)
+    pct_non_null = round(vapply(completeness_rows, function(r) as.numeric(r$pct), numeric(1)), 2),
+    pct_current  = round(vapply(completeness_rows, function(r) as.numeric(r$pct_current), numeric(1)), 2),
+    pct_legacy   = round(vapply(completeness_rows, function(r) as.numeric(r$pct_legacy), numeric(1)), 2)
   )
   data.table::setorder(completeness_dt, -pct_non_null)
+
+  # Tripwire: near-total outage on one source while the other is
+  # substantially populated is the signature of a mapping defect, not of
+  # genuine sparsity. WARN-only by design — some columns are legitimately
+  # one-sided (streets stay absent for orgs whose only vintages predate
+  # 2009; geocode columns skew current), so a hard gate would either cry
+  # wolf every rebuild or need its own bit-rotting exception list.
+  flag_threshold_dead  <- 1.0   # <=1% non-null on one source
+  flag_threshold_alive <- 50.0  # while >=50% non-null on the other
+  source_completeness_flags <- completeness_dt[
+    (pct_current <= flag_threshold_dead & pct_legacy >= flag_threshold_alive) |
+    (pct_legacy  <= flag_threshold_dead & pct_current >= flag_threshold_alive)
+  ]
 
   # Pre-condition checks.
   ein_unique <- (total_rows == distinct_eins)
@@ -85,7 +111,8 @@ generate_master_quality_report <- function(con, inputs) {
     year_range       = as.list(year_range),
     vintages_observed = as.list(vintages_observed),
     vintage_histogram = vintage_hist,
-    completeness     = completeness_dt
+    completeness     = completeness_dt,
+    source_completeness_flags = source_completeness_flags
   )
 }
 
@@ -109,6 +136,19 @@ print_master_quality_report <- function(report) {
   print(report$vintages_observed)
   message("Top 20 most-complete columns:")
   print(head(report$completeness, 20))
+  n_flagged <- nrow(report$source_completeness_flags)
+  if (n_flagged > 0) {
+    message(sprintf(
+      "WARNING: %d column(s) near-dead on one bmf_source while healthy on the other",
+      n_flagged
+    ))
+    message("(<=1%% non-null on one source, >=50%% on the other — the issue #29")
+    message("signature; expected-one-sided columns are fine, anything else is")
+    message("likely a mapping defect):")
+    print(report$source_completeness_flags)
+  } else {
+    message("Source-split completeness tripwire: no columns flagged.")
+  }
   message("===========================================================")
 }
 
