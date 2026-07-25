@@ -26,10 +26,15 @@
 # Pipeline Configuration
 # ============================================================================
 
-ENABLE_CHECKPOINTS <- TRUE
-CHECKPOINT_DIR <- "data/checkpoints"
-STRICT_QUALITY_GATES <- TRUE
-ENABLE_S3_UPLOAD <- TRUE  # Uploads to s3://nccsdata/{intermediate,processed}/bmf-legacy/YYYY_MM/
+# Control flags. exists()-guarded so callers can pre-set them before
+# source(), same as the LEGACY_BMF_* source configuration below. Previously
+# ENABLE_S3_UPLOAD was assigned unconditionally, which clobbered a caller's
+# ENABLE_S3_UPLOAD <- FALSE and let a local validation run attempt writes to
+# the production S3 prefixes (issue #29 validation, 2026-07-24).
+if (!exists("ENABLE_CHECKPOINTS"))     ENABLE_CHECKPOINTS <- TRUE
+if (!exists("CHECKPOINT_DIR"))         CHECKPOINT_DIR <- "data/checkpoints"
+if (!exists("STRICT_QUALITY_GATES"))   STRICT_QUALITY_GATES <- TRUE
+if (!exists("ENABLE_S3_UPLOAD"))       ENABLE_S3_UPLOAD <- TRUE  # Uploads to s3://nccsdata/{intermediate,processed}/bmf-legacy/YYYY_MM/
 
 # Legacy source configuration - set before sourcing to override defaults.
 #   LEGACY_BMF_FILE  : explicit local path (skips S3 download)
@@ -377,9 +382,15 @@ if (ENABLE_S3_UPLOAD) {
   )
   legacy_manifest_key <- sprintf("%s%s/_manifest.json",
                                  BMF_S3_LEGACY_PROCESSED_PREFIX, legacy_vintage)
-  upload_to_s3(mw_legacy$path, legacy_manifest_key, bucket = BMF_S3_BUCKET)
-  log_info(sprintf("Uploaded legacy _manifest.json to s3://%s/%s",
-                   BMF_S3_BUCKET, legacy_manifest_key))
+  manifest_uploaded <- upload_to_s3(mw_legacy$path, legacy_manifest_key,
+                                    bucket = BMF_S3_BUCKET)
+  if (isTRUE(manifest_uploaded)) {
+    log_info(sprintf("Uploaded legacy _manifest.json to s3://%s/%s",
+                     BMF_S3_BUCKET, legacy_manifest_key))
+  } else {
+    log_error(sprintf("Legacy _manifest.json upload FAILED for s3://%s/%s",
+                      BMF_S3_BUCKET, legacy_manifest_key))
+  }
 }
 
 # ============================================================================

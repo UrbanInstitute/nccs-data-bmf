@@ -59,7 +59,7 @@ NAICS,NAICS,,drop,other,73,1989-06,2016-08,NAICS,Character,6,NAICS Code,NAICS co
 ORGTYPCD,ORGTYPCD,,drop,single-year,1,1989-06,1989-06,Org. type,Character,3,"Org.type (F=private foundation, C=charity, T=trust, O=other exempt org.)",Organization type code (1989-only); not propagated to later dictionaries
 V_ERRORCD,v_errorCd,,drop,single-year,1,1989-06,1989-06,Possible error code,Character,1,Code for possible error,Possible error code (1989-only NCCS validation flag)
 ZIP,ZIP,,drop,single-year,1,1989-06,1989-06,Zip Code,Character,10,ZIP code.,Full ZIP from 1989-only dictionary; superseded by zip5 in later years
-ADDRESS,ADDRESS,,drop,alias,0,,,,,,,Discovered in raw 2013-07 file (not in scraped dictionaries); concatenated street address redundant with STREET
+ADDRESS,ADDRESS,STREET,rename,alias,0,,,,,,,"Discovered in raw 2013-07 file (not in scraped dictionaries); mailing delivery line (street or PO box). Present 2009-01 and 2009-10 through 2022-08; sole street source in legacy files (no legacy file has a STREET column). Previously mis-dropped as redundant-with-STREET; fixed per issue #29."
 EPOST,EPOST,,drop,nccs-flag,0,,,,,,,Discovered in raw 2013-07 file (not in scraped dictionaries); NCCS e-postcard (990-N) status flag
 FISYR_IMAGE,FISYR_IMAGE,,drop,nccs-curated,0,,,,,,,Discovered in raw 2013-07 file (not in scraped dictionaries); NCCS fiscal year of 990 image (post-2006)
 IRS990N,IRS990n,,drop,nccs-flag,0,,,,,,,Discovered in raw 2013-07 file (not in scraped dictionaries); 990-N filer indicator (0/1)
