@@ -1,32 +1,30 @@
 # ============================================================================
 # build_address_resolved_crosswalk.R
 #
-# Builds the address-resolved crosswalk: one row per EIN with its mailing
-# address resolved across EVERY vintage (current monthly + legacy), so
-# consumers can recover address history for longitudinal work (the motivating
-# request: reconstructing organizations' reported addresses by year, which the
-# one-row-per-EIN Unified BMF cannot carry). See nccs-contracts ADR 0041 §4;
-# design copies the NTEE-resolved pattern (ADR 0034): expose all resolutions,
-# no opinionated pick, separate join layer keyed on `ein` (ADR 0016).
+# Builds the address-resolved crosswalk: a LONG-FORMAT address log, one row
+# per (EIN, address spell), ordered by recency, so consumers get each
+# organization's current and prior mailing addresses across EVERY vintage of
+# both BMF pipelines. Shape ratified by nccs-contracts ADR 0042 Decision B
+# (supersedes the ADR 0041 §4 wide/views sketch); motivating request:
+# longitudinal address research the one-row-per-EIN Unified BMF cannot serve.
 #
 # Design:
-#   * Aggregate the RAW address fields (org_addr_{street,city,state,zip}_raw).
-#     Raw is verbatim source and vintage-invariant — independent of which
-#     cleaner version processed the vintage — so no reprocessing is needed
-#     beyond the ADR 0041 legacy street re-publish this depends on.
-#   * Street coverage begins at the 2009 legacy vintages (earlier legacy files
-#     never carried streets — ADR 0041). Observations with a NULL street but a
-#     real city/state/zip still count as addresses; consumers see the street
-#     gap honestly instead of losing the whole early history.
-#   * Tuples are normalized only for grouping (upper + trim + empty->NULL);
-#     the exposed component values keep that normalized form.
-#   * "Expose all, no single pick": addr_current (may be NULL for EINs absent
-#     from the current pipeline), addr_most_recent, addr_first, plus the full
-#     per-address distribution with vintage spans.
+#   * Aggregate the RAW address fields (org_addr_{street,city,state,zip}_raw):
+#     verbatim source, vintage-invariant, no cleaner dependency.
+#   * One row per (EIN, distinct address tuple); spell_rank 0 = most recent
+#     (greatest last_vintage, ties to higher observation count).
+#   * ZIP is normalized to 5 digits for the spell key: current raw ZIPs are
+#     ZIP+4 while legacy are 5-digit, and without this the same address
+#     splits into two spells on format alone (caught by quality stats on the
+#     first full build: zero cross-source 'both' spells).
+#   * Street coverage begins at the 2009 legacy vintages (ADR 0041); earlier
+#     observations carry NULL street with real city/state/zip, kept honestly.
+#   * Keyed on EIN2 per the maintainer's spec, with canonical ein and
+#     ein_prefixed alongside (ADR 0036).
 #
-# Requirements: DuckDB + httpfs, AWS creds reachable by DuckDB's credential
-# chain. Sized for the EC2 batch box (address columns are a much fatter
-# projection than ntee_code_raw); locally set DUCKDB_MEMORY_LIMIT/THREADS down.
+# Requirements: DuckDB + httpfs, AWS creds via credential chain. The address
+# projection is fatter than ntee-resolved's single column; on a laptop set
+# DUCKDB_MEMORY_LIMIT/DUCKDB_THREADS down and expect the S3 scan to dominate.
 #   eval "$(aws configure export-credentials --profile thiya --format env)"
 #   Rscript scripts/build_address_resolved_crosswalk.R
 # ============================================================================
@@ -99,7 +97,7 @@ obs_sql <- function(glob, src, eincol) sprintf("
          %s     AS street,
          %s     AS city,
          %s     AS state,
-         %s     AS zip
+         substr(%s, 1, 5) AS zip5
   FROM read_parquet('%s', filename = true, union_by_name = true)",
   eincol, src,
   norm("org_addr_street_raw"), norm("org_addr_city_raw"),
@@ -110,102 +108,65 @@ dbExecute(con, sprintf("CREATE OR REPLACE TEMP VIEW obs AS %s UNION ALL BY NAME 
                        obs_sql(CUR_GLOB, "current", ein_cur),
                        obs_sql(LEG_GLOB, "legacy",  ein_leg)))
 
-log_info("Aggregating per (ein, src, address tuple)")
-cnt <- as.data.table(dbGetQuery(con, "
-  SELECT ein, src, street, city, state, zip,
-         COUNT(*)        AS n,
-         MIN(vintage_ym) AS first_vintage,
-         MAX(vintage_ym) AS last_vintage
-  FROM obs
-  WHERE ein IS NOT NULL AND (street IS NOT NULL OR city IS NOT NULL)
-  GROUP BY ein, src, street, city, state, zip"))
+log_info("Aggregating per (ein, address tuple) across sources")
+spells <- as.data.table(dbGetQuery(con, "
+  SELECT ein, street, city, state, zip5,
+         SUM(cnt)                            AS n_vintages,
+         MIN(first_v)                        AS first_vintage,
+         MAX(last_v)                         AS last_vintage,
+         CASE WHEN COUNT(DISTINCT src) > 1 THEN 'both' ELSE MIN(src) END AS source
+  FROM (
+    SELECT ein, src, street, city, state, zip5,
+           COUNT(*) AS cnt, MIN(vintage_ym) AS first_v, MAX(vintage_ym) AS last_v
+    FROM obs
+    WHERE ein IS NOT NULL AND (street IS NOT NULL OR city IS NOT NULL)
+    GROUP BY ein, src, street, city, state, zip5
+  )
+  GROUP BY ein, street, city, state, zip5"))
 
-log_info("Computing latest-current tuple per EIN (may be NULL)")
-cur <- as.data.table(dbGetQuery(con, "
-  SELECT ein,
-         arg_max(street, vintage_ym) AS addr_current_street,
-         arg_max(city,   vintage_ym) AS addr_current_city,
-         arg_max(state,  vintage_ym) AS addr_current_state,
-         arg_max(zip,    vintage_ym) AS addr_current_zip,
-         max(vintage_ym)             AS addr_current_vintage
-  FROM obs
-  WHERE src = 'current' AND ein IS NOT NULL
-  GROUP BY ein"))
-
-log_info(sprintf("Observed: %s (ein,src,tuple) rows | %s EINs seen in current",
-                 format(nrow(cnt), big.mark = ","), format(nrow(cur), big.mark = ",")))
+log_info(sprintf("Spells: %s rows across %s EINs",
+                 format(nrow(spells), big.mark = ","),
+                 format(uniqueN(spells$ein), big.mark = ",")))
 
 # ---------------------------------------------------------------------------
-# 3. Resolve per EIN — most-recent / first / distribution (no single pick).
+# 3. Rank spells per EIN: 0 = most recent (last_vintage desc, n desc).
 # ---------------------------------------------------------------------------
-log_info("Resolving per-EIN fields")
+setorder(spells, ein, -last_vintage, -n_vintages, street, na.last = TRUE)
+spells[, spell_rank := seq_len(.N) - 1L, by = ein]
+spells[, n_distinct_addresses := .N, by = ein]
 
-addr_cols <- c("street", "city", "state", "zip")
+# ADR 0036 renderings; EIN2 leads per the maintainer's key spec.
+spells[, ein_prefixed := ein_to_prefixed(ein)]
+spells[, EIN2         := ein_to_ein2(ein)]
 
-# most-recent: greatest last_vintage (tie -> higher count)
-setorder(cnt, ein, -last_vintage, -n)
-most_recent <- cnt[, .SD[1L], by = ein,
-  .SDcols = c(addr_cols, "last_vintage", "src")]
-setnames(most_recent,
-  c(addr_cols, "last_vintage", "src"),
-  c(paste0("addr_most_recent_", addr_cols), "addr_most_recent_vintage",
-    "addr_most_recent_source"))
-
-# first: smallest first_vintage (tie -> higher count)
-setorder(cnt, ein, first_vintage, -n)
-first_addr <- cnt[, .SD[1L], by = ein,
-  .SDcols = c(addr_cols, "first_vintage", "src")]
-setnames(first_addr,
-  c(addr_cols, "first_vintage", "src"),
-  c(paste0("addr_first_", addr_cols), "addr_first_vintage", "addr_first_source"))
-
-# distribution (JSON keyed on the concatenated one-line address) + metadata
-cnt[, addr_line := paste(fcoalesce(street, ""), fcoalesce(city, ""),
-                         fcoalesce(state, ""), fcoalesce(zip, ""), sep = " | ")]
-dist <- cnt[, .(n = sum(n), first = min(first_vintage), last = max(last_vintage)),
-            by = .(ein, addr_line)]
-dist_json <- dist[, .(
-  addr_distribution = toJSON(setNames(
-    lapply(seq_len(.N), function(i) list(n = n[i], first = first[i], last = last[i])),
-    addr_line), auto_unbox = TRUE),
-  n_distinct_addresses = uniqueN(addr_line),
-  n_vintages_with_address = sum(n)
-), by = ein]
+setcolorder(spells, c("EIN2", "ein", "ein_prefixed", "spell_rank",
+  "street", "city", "state", "zip5",
+  "first_vintage", "last_vintage", "n_vintages", "source",
+  "n_distinct_addresses"))
 
 # ---------------------------------------------------------------------------
-# 4. Assemble one row per EIN (universe = any EIN with >=1 address observed).
+# 4. Write parquet + csv + quality JSON
+#    (publish via R/publish_address_resolved_crosswalk.R)
 # ---------------------------------------------------------------------------
-xwalk <- Reduce(function(a, b) merge(a, b, by = "ein", all = TRUE),
-                list(most_recent, first_addr, dist_json, cur))
+arrow::write_parquet(spells, paste0(OUT_STEM, ".parquet"), compression = "zstd")
+data.table::fwrite(spells, paste0(OUT_STEM, ".csv"))
 
-xwalk[, addr_agreement := fifelse(n_vintages_with_address == 1L, "single",
-                          fifelse(n_distinct_addresses == 1L, "unanimous", "mixed"))]
-
-# ADR 0036: additive coercion-safe EIN renderings alongside the canonical ein.
-xwalk[, ein_prefixed := ein_to_prefixed(ein)]
-xwalk[, EIN2         := ein_to_ein2(ein)]
-
-setcolorder(xwalk, c("ein", "ein_prefixed", "EIN2",
-  paste0("addr_current_", addr_cols), "addr_current_vintage",
-  paste0("addr_most_recent_", addr_cols), "addr_most_recent_vintage", "addr_most_recent_source",
-  paste0("addr_first_", addr_cols), "addr_first_vintage", "addr_first_source",
-  "addr_distribution", "n_distinct_addresses", "n_vintages_with_address",
-  "addr_agreement"))
-
-log_info(sprintf("Resolved crosswalk: %s EINs", format(nrow(xwalk), big.mark = ",")))
-
-# ---------------------------------------------------------------------------
-# 5. Write parquet + csv (publish via R/publish_address_resolved_crosswalk.R)
-# ---------------------------------------------------------------------------
-arrow::write_parquet(xwalk, paste0(OUT_STEM, ".parquet"), compression = "zstd")
-data.table::fwrite(xwalk, paste0(OUT_STEM, ".csv"))
-log_info(sprintf("Wrote %s.{parquet,csv}", OUT_STEM))
-
-# Sanity: an EIN observed only in legacy should still resolve (addr_current
-# NULL, most-recent from legacy), and post-ADR-0041 its street should be
-# non-NULL for 2009+ vintages.
-leg_only <- xwalk[is.na(addr_current_vintage)][1L]
-if (nrow(leg_only)) log_info(sprintf(
-  "legacy-only spot check: ein=%s most_recent=%s (%s, %s) vintage=%s",
-  leg_only$ein, leg_only$addr_most_recent_street, leg_only$addr_most_recent_city,
-  leg_only$addr_most_recent_state, leg_only$addr_most_recent_vintage))
+quality <- list(
+  timestamp            = format(Sys.time(), "%Y-%m-%dT%H:%M:%S%z"),
+  total_spell_rows     = nrow(spells),
+  distinct_eins        = uniqueN(spells$ein),
+  spells_per_ein_mean  = round(nrow(spells) / uniqueN(spells$ein), 3),
+  spells_per_ein_max   = spells[, max(n_distinct_addresses)],
+  pct_eins_multi_addr  = round(100 * uniqueN(spells[n_distinct_addresses > 1L, ein]) /
+                               uniqueN(spells$ein), 2),
+  street_null_spells   = spells[is.na(street), .N],
+  source_counts        = as.list(table(spells$source)),
+  current_spells       = spells[spell_rank == 0L, .N]
+)
+jsonlite::write_json(quality, paste0(OUT_STEM, "_quality.json"),
+                     auto_unbox = TRUE, pretty = TRUE)
+log_info(sprintf("Wrote %s.{parquet,csv,_quality.json}", OUT_STEM))
+log_info(sprintf("Quality: %s spells | %s EINs | %.2f%% multi-address | max spells %d",
+                 format(quality$total_spell_rows, big.mark = ","),
+                 format(quality$distinct_eins, big.mark = ","),
+                 quality$pct_eins_multi_addr, quality$spells_per_ein_max))
