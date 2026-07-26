@@ -129,6 +129,28 @@ log_info(sprintf("Spells: %s rows across %s EINs",
                  format(uniqueN(spells$ein), big.mark = ",")))
 
 # ---------------------------------------------------------------------------
+# 2b. Hard invariants (systematized from the 2026-07-26 zip-format incident:
+#     a broken cross-pipeline join key produces impossible statistics, so we
+#     fail the build on them rather than hoping someone reads the quality
+#     JSON). Production-scale thresholds only apply to full runs so local
+#     fixtures stay testable.
+# ---------------------------------------------------------------------------
+if (any(nchar(spells$zip5) > 5, na.rm = TRUE)) {
+  stop("Invariant violated: zip5 values longer than 5 chars (normalization broken)")
+}
+if (nrow(spells) > 1e6) {
+  both_share <- spells[source == "both", .N] / nrow(spells)
+  if (both_share < 0.01) {
+    stop(sprintf(
+      paste0("Invariant violated: cross-source ('both') spells are %.3f%% of the ",
+             "table. Organizations alive across the pipeline transition MUST ",
+             "produce matching tuples; a near-zero share means the spell key is ",
+             "format-splitting (2026-07-26 incident: raw ZIP+4 vs 5-digit)."),
+      100 * both_share))
+  }
+}
+
+# ---------------------------------------------------------------------------
 # 3. Rank spells per EIN: 0 = most recent (last_vintage desc, n desc).
 # ---------------------------------------------------------------------------
 setorder(spells, ein, -last_vintage, -n_vintages, street, na.last = TRUE)
@@ -138,6 +160,8 @@ spells[, n_distinct_addresses := .N, by = ein]
 # ADR 0036 renderings; EIN2 leads per the maintainer's key spec.
 spells[, ein_prefixed := ein_to_prefixed(ein)]
 spells[, EIN2         := ein_to_ein2(ein)]
+
+stopifnot(spells[, max(spell_rank) + 1L == .N, by = ein][, all(V1)])  # ranks contiguous per EIN
 
 setcolorder(spells, c("EIN2", "ein", "ein_prefixed", "spell_rank",
   "street", "city", "state", "zip5",
