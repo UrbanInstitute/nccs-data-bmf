@@ -102,3 +102,51 @@ durable progress ledger, and checkpoint continuously:
    the service's locator/engine version changes (record engine metadata
    from `data/log-data/*.json` in the ledger) and schedule an occasional
    full refresh regardless, since the street network itself improves.
+
+## Stall detection and crash recovery (added 2026-07-26 after a live incident)
+
+The engine has NO failure alarm: if the geocoding task crashes mid-job,
+the instance idles indefinitely (it cannot self-stop: shutdown is the
+task's own final step), no output or log-data JSON ever appears, and no
+one is notified. Incident: batch 3/3 of the 2026-07 cycle crashed ~1 h
+in; the box sat idle at 0.11% CPU for 4+ hours before we checked.
+
+**Poll for crashes during every bulk run** (alongside the output poll):
+
+1. **Expected-duration alarm.** Batches process FIFO at a measurable
+   rate (2026-07: ~65-75 min per 900k addresses). No output after ~2x
+   the established per-batch pace -> investigate; do not wait politely.
+2. **CPU telemetry is the decisive check.** CloudWatch CPUUtilization on
+   the engine instance: ~7-8% sustained = geocoding; flat ~0.1% while
+   the queue is non-empty = the task is dead:
+
+   ```sh
+   aws cloudwatch get-metric-statistics --namespace AWS/EC2 \
+     --metric-name CPUUtilization \
+     --dimensions Name=InstanceId,Value=<engine-instance-id> \
+     --start-time <2h-ago> --end-time <now> --period 1800 \
+     --statistics Average
+   ```
+3. Corroborate: engine `running` far longer than the queue justifies;
+   no `data/log-data/<stem>.json` for the pending stem (the log JSON is
+   written only at completion).
+
+**Recovery procedure** (verified live 2026-07-26):
+
+1. `aws ec2 stop-instances` on the engine and WAIT for `stopped`. The
+   worker only runs as a Windows scheduled task ON STARTUP, and the
+   spinup Lambda no-ops while the instance is `running` -- a new upload
+   alone will NOT restart a wedged engine.
+2. Re-copy the pending batch CSV onto its OWN input-data key (same
+   stem). The fresh ObjectCreated event fires the spinup Lambda; the
+   startup task drains the queue. Same stem = no duplicate work, ledger
+   untouched.
+3. Verify the instance returns to `running` and CPU ramps to working
+   levels within ~15 minutes.
+4. Second crash at the same point = poison-row signature (likely in
+   legacy-heavy batches): split the batch into quarters to isolate, and
+   scrub non-ASCII from `f_address` before resubmitting.
+
+Report every occurrence to the geocoder service owners
+(`UI-Research/techforms-geocoding`): the missing crash alarm is a
+service-side gap, not something bulk clients can fix.
