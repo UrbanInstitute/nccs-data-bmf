@@ -38,12 +38,20 @@ Control flags in `run_pipeline.R`:
 - `CHECKPOINT_DIR` - Directory for checkpoints (default: "data/checkpoints")
 
 ### Run the Geocoding Workflow
+
+The geocoder is Urban's **automated, S3-event-driven service**: submitting a
+batch means putting a CSV (with a single-line `f_address` column) plus a form
+JSON in `s3://geocoding-codestar-prod/data/input-data/` and `data/form-data/`;
+a Lambda auto-starts the ArcGIS engine instance, results appear under
+`data/output-data/` (FIFO), and the instance shuts itself down. No manual
+activation anywhere. Full mechanics: `docs/reference/geocoder-service.md`.
+
 ```r
 # Phase 1: Export address batches for geocoding
 GEOCODING_MODE <- "export"
 source("R/run_geocoding.R")
 
-# ... upload to Urban Institute geocoder, download results ...
+# ... submit batches to the geocoder service, retrieve outputs (see above) ...
 
 # Phase 2: Merge geocoded results back into BMF
 GEOCODING_MODE <- "merge"
