@@ -62,3 +62,27 @@ DataSync hop to the Y drive); BMF never uses it.
 - Anything that changes the geocoder itself is owned by the Urban tech team
   via `techforms-geocoding` / `geocoding-arcpy-scripts`; this repo is a
   client only.
+
+## Bulk-run etiquette (mandatory for pipeline-scale jobs; maintainer directive 2026-07-25)
+
+The engine is a single shared instance serving all of Urban through one
+FIFO queue. Bulk NCCS runs therefore submit in a controlled window, keep a
+durable progress ledger, and checkpoint continuously:
+
+1. **Batched queries.** Never submit one giant file; export in batches
+   (`GEOCODER_BATCH_SIZE`) and treat the batch as the unit of submission,
+   progress, and retry.
+2. **Submission window.** At most **3 batches in flight** at a time;
+   submit the next only after one completes. This keeps the shared queue
+   usable for other teams and bounds the blast radius of any failure.
+3. **Progress ledger.** Every transition appends to a
+   `geocode_ledger.tsv` (batch id, service stem, address count,
+   submitted_at, output_seen_at, downloaded_at, status), synced to the
+   `nccsdata` geocoding prefix so progress survives any machine.
+4. **Checkpoints / resume.** Downloaded outputs plus the ledger are the
+   checkpoint; a restarted run resumes from the ledger and never
+   resubmits a stem that is submitted-but-pending (duplicate stems would
+   double-load the queue).
+5. **Stall alarm, not blind retry.** If a batch shows no output after a
+   generous window (hours, queue-dependent), flag it for a human;
+   resubmission is a manual decision.
