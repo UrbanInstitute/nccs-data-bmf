@@ -86,3 +86,19 @@ durable progress ledger, and checkpoint continuously:
 5. **Stall alarm, not blind retry.** If a batch shows no output after a
    generous window (hours, queue-dependent), flag it for a human;
    resubmission is a manual decision.
+
+## Run retention and delta geocoding (adopted 2026-07-26, effective next cycle)
+
+6. **Run-stamped staging.** Each cycle's raw service outputs live under
+   `geocoding/bmf-master/runs/{run_id}/` and are retained (they are the
+   expensive-to-reproduce intermediate: re-merges are then free, and
+   locator-version drift is auditable). Never reuse flat output keys
+   across runs: the 2026-07 cycle nearly merged June outputs left at the
+   same names.
+7. **Delta geocoding via a persistent address cache.** Maintain an
+   address -> geocode cache keyed on the normalized `f_address`; submit
+   only addresses absent from the cache. The 2026-07 cycle would have
+   shrunk from 2.59M to ~0.75M submissions. Invalidate wholesale when
+   the service's locator/engine version changes (record engine metadata
+   from `data/log-data/*.json` in the ledger) and schedule an occasional
+   full refresh regardless, since the street network itself improves.
