@@ -272,6 +272,10 @@ save_checkpoint(bmf, "07_filing")
 
 log_phase_start("POST-TRANSFORMATION VALIDATION")
 
+# Destructive-transform gate: halts here, before Phases 10-11 write and upload,
+# so a cleaner that turned populated input into NA cannot reach S3.
+assert_zip_integrity(bmf, strict = STRICT_QUALITY_GATES)
+
 # Generate quality report
 quality_report <- generate_quality_report(
   bmf,

@@ -297,6 +297,24 @@ ADDRESS_OUTPUT_COLS <- c(
   # Remove all non-numeric characters except dash
   clean <- stringr::str_replace_all(raw, "[^0-9\\-]", "")
 
+  # Restore leading zeros the legacy BMF files lost. Those files went through a
+  # numeric round-trip that dropped them, so a Boston ZIP arrives as "2138"
+  # instead of "02138". The `^\d{5}` extraction below cannot match a 4-digit
+  # string and returns NA, which used to wipe out org_addr_zip5, org_addr_zip
+  # and the ZIP portion of org_addr_full for 100% of legacy rows in every
+  # 0-prefix state (ME, NH, VT, MA, RI, CT, NJ, PR, VI) and sent those
+  # addresses to the geocoder with no ZIP at all.
+  #
+  # Only 3-4 digit values are padded: a US ZIP has at most two leading zeros
+  # (00501 is the lowest in use), so a 1-2 digit value cannot be a stripped ZIP
+  # and is left to fail rather than be invented into a plausible-looking one.
+  # ZIP integrity is gated in R/quality/post_checks.R.
+  digits_only <- stringr::str_replace_all(clean, "[^0-9]", "")
+  clean <- data.table::fifelse(
+    !is.na(digits_only) & nchar(digits_only) %in% 3:4,
+    stringr::str_pad(digits_only, width = 5, side = "left", pad = "0"),
+    clean)
+
   # Extract ZIP5 (first 5 digits)
   zip5 <- stringr::str_extract(clean, "^\\d{5}")
 
