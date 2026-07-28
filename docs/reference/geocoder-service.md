@@ -62,3 +62,95 @@ DataSync hop to the Y drive); BMF never uses it.
 - Anything that changes the geocoder itself is owned by the Urban tech team
   via `techforms-geocoding` / `geocoding-arcpy-scripts`; this repo is a
   client only.
+
+## Bulk-run etiquette (mandatory for pipeline-scale jobs; maintainer directive 2026-07-25)
+
+The engine is a single shared instance serving all of Urban through one
+FIFO queue. Bulk NCCS runs therefore submit in a controlled window, keep a
+durable progress ledger, and checkpoint continuously:
+
+1. **Batched queries.** Never submit one giant file; export in batches
+   (`GEOCODER_BATCH_SIZE`) and treat the batch as the unit of submission,
+   progress, and retry.
+2. **Submission window.** At most **3 batches in flight** at a time;
+   submit the next only after one completes. This keeps the shared queue
+   usable for other teams and bounds the blast radius of any failure.
+3. **Progress ledger.** Every transition appends to a
+   `geocode_ledger.tsv` (batch id, service stem, address count,
+   submitted_at, output_seen_at, downloaded_at, status), synced to the
+   `nccsdata` geocoding prefix so progress survives any machine.
+4. **Checkpoints / resume.** Downloaded outputs plus the ledger are the
+   checkpoint; a restarted run resumes from the ledger and never
+   resubmits a stem that is submitted-but-pending (duplicate stems would
+   double-load the queue).
+5. **Stall alarm, not blind retry.** If a batch shows no output after a
+   generous window (hours, queue-dependent), flag it for a human;
+   resubmission is a manual decision.
+
+## Run retention and delta geocoding (adopted 2026-07-26, effective next cycle)
+
+Continuing the rule list above:
+
+6. **Run-stamped staging.** Each cycle's raw service outputs live under
+   `geocoding/unified-bmf/runs/{run_id}/` (ADR 0039 naming; the older
+   `geocoding/bmf-master/` prefix is the compatibility path, not a target
+   for new writes) and are retained (they are the
+   expensive-to-reproduce intermediate: re-merges are then free, and
+   locator-version drift is auditable). Never reuse flat output keys
+   across runs: the 2026-07 cycle nearly merged June outputs left at the
+   same names.
+7. **Delta geocoding via a persistent address cache.** Maintain an
+   address -> geocode cache keyed on the normalized `f_address`; submit
+   only addresses absent from the cache. The 2026-07 cycle would have
+   shrunk from 2.59M to ~0.75M submissions. Invalidate wholesale when
+   the service's locator/engine version changes (record engine metadata
+   from `data/log-data/*.json` in the ledger) and schedule an occasional
+   full refresh regardless, since the street network itself improves.
+
+## Stall detection and crash recovery (added 2026-07-26 after a live incident)
+
+The engine has NO failure alarm: if the geocoding task crashes mid-job,
+the instance idles indefinitely (it cannot self-stop: shutdown is the
+task's own final step), no output or log-data JSON ever appears, and no
+one is notified. Incident: batch 3/3 of the 2026-07 cycle crashed ~1 h
+in; the box sat idle at 0.11% CPU for 4+ hours before we checked.
+
+**Poll for crashes during every bulk run** (alongside the output poll):
+
+1. **Expected-duration alarm.** Batches process FIFO at a measurable
+   rate (2026-07: ~65-75 min per 900k addresses). No output after ~2x
+   the established per-batch pace -> investigate; do not wait politely.
+2. **CPU telemetry is the decisive check.** CloudWatch CPUUtilization on
+   the engine instance: ~7-8% sustained = geocoding; flat ~0.1% while
+   the queue is non-empty = the task is dead:
+
+   ```sh
+   aws cloudwatch get-metric-statistics --namespace AWS/EC2 \
+     --metric-name CPUUtilization \
+     --dimensions Name=InstanceId,Value=<engine-instance-id> \
+     --start-time <2h-ago> --end-time <now> --period 1800 \
+     --statistics Average
+   ```
+3. Corroborate: engine `running` far longer than the queue justifies;
+   no `data/log-data/<stem>.json` for the pending stem (the log JSON is
+   written only at completion).
+
+**Recovery procedure** (verified live 2026-07-26):
+
+1. `aws ec2 stop-instances` on the engine and WAIT for `stopped`. The
+   worker only runs as a Windows scheduled task ON STARTUP, and the
+   spinup Lambda no-ops while the instance is `running` -- a new upload
+   alone will NOT restart a wedged engine.
+2. Re-copy the pending batch CSV onto its OWN input-data key (same
+   stem). The fresh ObjectCreated event fires the spinup Lambda; the
+   startup task drains the queue. Same stem = no duplicate work, ledger
+   untouched.
+3. Verify the instance returns to `running` and CPU ramps to working
+   levels within ~15 minutes.
+4. Second crash at the same point = poison-row signature (likely in
+   legacy-heavy batches): split the batch into quarters to isolate, and
+   scrub non-ASCII from `f_address` before resubmitting.
+
+Report every occurrence to the geocoder service owners
+(`UI-Research/techforms-geocoding`): the missing crash alarm is a
+service-side gap, not something bulk clients can fix.
