@@ -78,7 +78,10 @@ write_manifest <- function(vintage, out_dir, outputs, inputs = list(),
     drop_null(list(
       file        = basename(o$path),
       sha256      = digest::digest(file = o$path, algo = "sha256"),
-      bytes       = as.integer(file.size(o$path)),
+      # as.numeric, not as.integer: files over 2^31-1 bytes (e.g. the 3.05 GB
+      # unified CSV) overflow R's 32-bit integer and land as "NA" in the
+      # published manifest (observed 2026-07-25 build; ADR 0041 batch notes).
+      bytes       = as.numeric(file.size(o$path)),
       row_count   = if (!is.null(o$row_count))   as.integer(o$row_count) else NULL,
       columns     = if (!is.null(o$columns))     as.list(o$columns)      else NULL,
       year_counts = if (!is.null(o$year_counts)) as.list(o$year_counts)  else NULL
