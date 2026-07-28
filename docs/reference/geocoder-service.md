@@ -89,8 +89,12 @@ durable progress ledger, and checkpoint continuously:
 
 ## Run retention and delta geocoding (adopted 2026-07-26, effective next cycle)
 
+Continuing the rule list above:
+
 6. **Run-stamped staging.** Each cycle's raw service outputs live under
-   `geocoding/bmf-master/runs/{run_id}/` and are retained (they are the
+   `geocoding/unified-bmf/runs/{run_id}/` (ADR 0039 naming; the older
+   `geocoding/bmf-master/` prefix is the compatibility path, not a target
+   for new writes) and are retained (they are the
    expensive-to-reproduce intermediate: re-merges are then free, and
    locator-version drift is auditable). Never reuse flat output keys
    across runs: the 2026-07 cycle nearly merged June outputs left at the
