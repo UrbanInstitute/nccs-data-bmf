@@ -10,10 +10,11 @@
 # against its RAW source file (the stronger standard):
 #
 #   V1 rows      : processed row count == raw data row count
-#   V2 columns   : processed column set == the deterministic expectation
-#                  derived from the raw header via the crosswalk +
-#                  RAW_TO_OUTPUT_MAP (+ derived columns when all backing
-#                  inputs are populated)
+#   V2 columns   : the processed CSV's OWN header == the deterministic
+#                  expectation derived from the raw header via the
+#                  crosswalk + RAW_TO_OUTPUT_MAP (+ derived columns when
+#                  all backing inputs are populated); the data dictionary
+#                  is checked against that header as a separate claim
 #   V3 street    : org_addr_street_raw non-null count == raw ADDRESS
 #                  non-empty count (exact)
 #   V4 coercion  : for every vintage, raw non-empty counts == processed
@@ -83,6 +84,13 @@ validate_one_vintage <- function(raw_file_path) {
                                   showProgress = FALSE)
   dictionary <- data.table::fread(dictionary_csv_path)
 
+  # Ground truth for the output column set is the processed CSV's own
+  # header (nrows = 0 reads just that row), NOT the dictionary: the
+  # dictionary is itself pipeline-derived and could drift from the data.
+  # The dictionary is instead checked against the header as its own claim.
+  actual_output_columns <- names(data.table::fread(processed_csv_path, nrows = 0))
+  dictionary_matches    <- setequal(dictionary$column_name, actual_output_columns)
+
   # V2: deterministic column expectation. Raw header names (upper-cased) ->
   # crosswalk rename rows -> populated current-schema columns ->
   # compute_legacy_output_columns() gives the exact output set the slim
@@ -128,7 +136,7 @@ validate_one_vintage <- function(raw_file_path) {
   street_expected <- "ADDRESS" %in% names(raw_data)
   street_present  <- "org_addr_street_raw" %in% actual_output_columns
 
-  vintage_passed <- rows_match &&
+  vintage_passed <- rows_match && dictionary_matches &&
     length(missing_columns) == 0L && length(unexpected_columns) == 0L &&
     length(value_mismatches) == 0L && (street_expected == street_present)
 
@@ -145,6 +153,7 @@ validate_one_vintage <- function(raw_file_path) {
     cols_missing = paste(missing_columns, collapse = ";"),
     cols_extra = paste(unexpected_columns, collapse = ";"),
     street_expected = street_expected, street_present = street_present,
+    dictionary_matches = dictionary_matches,
     value_mismatches = paste(value_mismatches, collapse = ";"),
     passed = vintage_passed
   )
