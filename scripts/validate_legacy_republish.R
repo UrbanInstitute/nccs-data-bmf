@@ -22,6 +22,11 @@
 # Run on the batch box from the repo root after run_all_legacy.sh:
 #   Rscript scripts/validate_legacy_republish.R
 # Writes logs/legacy/validation_gate.tsv and exits nonzero on any failure.
+#
+# Style per workspace CODE_CONVENTIONS.md: verbose names, explicit
+# namespacing, purrr::map over loops. data.table::fread is retained for the
+# reads (the processed CSVs run to 1.4M+ rows each; fread is well beyond the
+# conventions' 1.5x performance threshold vs the tidyverse readers here).
 # ============================================================================
 
 suppressPackageStartupMessages(library(data.table))
@@ -29,81 +34,134 @@ library(here)
 source(here::here("R", "utils", "logging.R"))
 source(here::here("R", "legacy_bmf_adapter.R"))
 
-RAW_DIR  <- here::here("data", "raw", "legacy")
-PROC_DIR <- here::here("data", "processed")
-OUT_TSV  <- here::here("logs", "legacy", "validation_gate.tsv")
+raw_legacy_dir      <- here::here("data", "raw", "legacy")
+processed_dir       <- here::here("data", "processed")
+output_tsv_path     <- here::here("logs", "legacy", "validation_gate.tsv")
 
-xw <- load_crosswalk_v2()
+crosswalk <- load_crosswalk_v2()
 
-raw_files <- list.files(RAW_DIR, pattern = "^BMF-\\d{4}-\\d{2}-501CX", full.names = TRUE)
-if (length(raw_files) == 0L) stop("No raw legacy files found under ", RAW_DIR)
-
-# value-level checks: raw source column -> processed raw-passthrough column
-VAL_MAP <- c(CITY = "org_addr_city_raw", STATE = "org_addr_state_raw",
-             ZIP5 = "org_addr_zip_raw",  NAME  = "org_name_raw",
-             ADDRESS = "org_addr_street_raw")
-
-results <- list()
-for (rf in raw_files) {
-  vym  <- regmatches(basename(rf), regexpr("\\d{4}-\\d{2}", basename(rf)))
-  vtag <- gsub("-", "_", vym)
-  proc_csv <- file.path(PROC_DIR, sprintf("bmf_legacy_%s_processed.csv", vtag))
-  dict_csv <- file.path(PROC_DIR, sprintf("bmf_legacy_%s_data_dictionary.csv", vtag))
-  if (!file.exists(proc_csv)) next   # vintage not part of this batch
-
-  raw  <- fread(rf, colClasses = "character", showProgress = FALSE)
-  dict <- fread(dict_csv)
-
-  # V2: deterministic column expectation from the raw header
-  upper <- toupper(names(raw))
-  renames <- xw[disposition == "rename" & legacy_name_upper %in% upper]
-  populated <- unique(renames$current_name)
-  expected <- compute_legacy_output_columns(populated)
-  actual <- dict$column_name
-  miss  <- setdiff(expected, actual)
-  extra <- setdiff(actual, expected)
-
-  # read only the processed columns needed for value checks
-  need <- intersect(unname(VAL_MAP), actual)
-  proc <- fread(proc_csv, select = need, colClasses = "character", showProgress = FALSE)
-
-  # V1: row parity
-  rows_ok <- nrow(proc) == nrow(raw)
-
-  # V3 + V4: per-column non-empty parity (raw) vs non-null (processed)
-  val_fail <- character(0)
-  for (src in names(VAL_MAP)) {
-    dst <- VAL_MAP[[src]]
-    if (!src %in% names(raw) || !dst %in% names(proc)) next
-    n_raw  <- sum(!is.na(raw[[src]]) & trimws(raw[[src]]) != "")
-    n_proc <- sum(!is.na(proc[[dst]]) & proc[[dst]] != "")
-    if (n_raw != n_proc) val_fail <- c(val_fail, sprintf("%s:%d!=%d", src, n_raw, n_proc))
-  }
-
-  street_expected <- "ADDRESS" %in% names(raw)
-  street_present  <- "org_addr_street_raw" %in% actual
-
-  ok <- rows_ok && length(miss) == 0L && length(extra) == 0L &&
-        length(val_fail) == 0L && (street_expected == street_present)
-
-  results[[vtag]] <- data.table(
-    vintage = vtag, rows_raw = nrow(raw), rows_proc = nrow(proc),
-    rows_ok = rows_ok, cols_missing = paste(miss, collapse = ";"),
-    cols_extra = paste(extra, collapse = ";"),
-    street_expected = street_expected, street_present = street_present,
-    value_mismatches = paste(val_fail, collapse = ";"),
-    passed = ok
-  )
-  log_info(sprintf("%s: %s (rows %d/%d, value checks %s)",
-                   vtag, ifelse(ok, "PASS", "FAIL"), nrow(proc), nrow(raw),
-                   ifelse(length(val_fail), paste(val_fail, collapse = ","), "clean")))
-  rm(raw, proc); gc(verbose = FALSE)
+raw_file_paths <- list.files(raw_legacy_dir,
+                             pattern = "^BMF-\\d{4}-\\d{2}-501CX",
+                             full.names = TRUE)
+if (length(raw_file_paths) == 0L) {
+  stop("No raw legacy files found under ", raw_legacy_dir)
 }
 
-res <- rbindlist(results)
-dir.create(dirname(OUT_TSV), recursive = TRUE, showWarnings = FALSE)
-fwrite(res, OUT_TSV, sep = "\t")
-n_fail <- res[passed == FALSE, .N]
+# Value-level checks: raw source column -> processed raw-passthrough column.
+value_check_map <- c(CITY = "org_addr_city_raw", STATE = "org_addr_state_raw",
+                     ZIP5 = "org_addr_zip_raw",  NAME  = "org_name_raw",
+                     ADDRESS = "org_addr_street_raw")
+
+#' Count values that are neither NA nor empty/whitespace-only.
+count_nonempty <- function(values) {
+  sum(!is.na(values) & trimws(values) != "")
+}
+
+#' Validate one re-published vintage against its raw source file.
+#' Returns a one-row data.table of check results, or NULL when the vintage
+#' was not part of this batch (no processed CSV present).
+validate_one_vintage <- function(raw_file_path) {
+  # Extract the vintage stamp from the filename: basename() drops the
+  # directory, regexpr() locates the first YYYY-MM digit pattern, and
+  # regmatches() pulls that substring out (basename -> regexpr -> regmatches).
+  # The list.files() pattern above guarantees exactly one match.
+  vintage_year_month <- regmatches(
+    basename(raw_file_path),
+    regexpr("\\d{4}-\\d{2}", basename(raw_file_path))
+  )
+  vintage_tag <- gsub("-", "_", vintage_year_month)
+
+  processed_csv_path  <- file.path(
+    processed_dir, sprintf("bmf_legacy_%s_processed.csv", vintage_tag))
+  dictionary_csv_path <- file.path(
+    processed_dir, sprintf("bmf_legacy_%s_data_dictionary.csv", vintage_tag))
+  if (!file.exists(processed_csv_path)) {
+    return(NULL)   # vintage not part of this batch
+  }
+
+  raw_data   <- data.table::fread(raw_file_path, colClasses = "character",
+                                  showProgress = FALSE)
+  dictionary <- data.table::fread(dictionary_csv_path)
+
+  # V2: deterministic column expectation. Raw header names (upper-cased) ->
+  # crosswalk rename rows -> populated current-schema columns ->
+  # compute_legacy_output_columns() gives the exact output set the slim
+  # Phase 11 schema must produce for this vintage.
+  raw_column_names_upper   <- toupper(names(raw_data))
+  rename_rows              <- crosswalk[disposition == "rename" &
+                                        legacy_name_upper %in% raw_column_names_upper]
+  populated_current_columns <- unique(rename_rows$current_name)
+  expected_output_columns   <- compute_legacy_output_columns(populated_current_columns)
+  actual_output_columns     <- dictionary$column_name
+  missing_columns    <- setdiff(expected_output_columns, actual_output_columns)
+  unexpected_columns <- setdiff(actual_output_columns, expected_output_columns)
+
+  # Read only the processed columns the value checks need.
+  value_check_columns <- intersect(unname(value_check_map), actual_output_columns)
+  processed_data <- data.table::fread(processed_csv_path,
+                                      select = value_check_columns,
+                                      colClasses = "character",
+                                      showProgress = FALSE)
+
+  # V1: row parity.
+  rows_match <- nrow(processed_data) == nrow(raw_data)
+
+  # V3 + V4: per-column non-empty parity, raw vs processed. Each source
+  # column maps to its processed passthrough (value_check_map: raw ->
+  # processed); a count mismatch means values were coerced or dropped.
+  value_mismatches <- purrr::map(names(value_check_map), function(source_column) {
+    processed_column <- value_check_map[[source_column]]
+    if (!source_column %in% names(raw_data) ||
+        !processed_column %in% names(processed_data)) {
+      return(NULL)
+    }
+    n_nonempty_raw       <- count_nonempty(raw_data[[source_column]])
+    n_nonempty_processed <- count_nonempty(processed_data[[processed_column]])
+    if (n_nonempty_raw != n_nonempty_processed) {
+      sprintf("%s:%d!=%d", source_column, n_nonempty_raw, n_nonempty_processed)
+    } else {
+      NULL
+    }
+  })
+  value_mismatches <- unlist(value_mismatches)
+
+  street_expected <- "ADDRESS" %in% names(raw_data)
+  street_present  <- "org_addr_street_raw" %in% actual_output_columns
+
+  vintage_passed <- rows_match &&
+    length(missing_columns) == 0L && length(unexpected_columns) == 0L &&
+    length(value_mismatches) == 0L && (street_expected == street_present)
+
+  log_info(sprintf("%s: %s (rows %d/%d, value checks %s)",
+                   vintage_tag, ifelse(vintage_passed, "PASS", "FAIL"),
+                   nrow(processed_data), nrow(raw_data),
+                   ifelse(length(value_mismatches) > 0L,
+                          paste(value_mismatches, collapse = ","), "clean")))
+
+  data.table::data.table(
+    vintage = vintage_tag,
+    rows_raw = nrow(raw_data), rows_proc = nrow(processed_data),
+    rows_ok = rows_match,
+    cols_missing = paste(missing_columns, collapse = ";"),
+    cols_extra = paste(unexpected_columns, collapse = ";"),
+    street_expected = street_expected, street_present = street_present,
+    value_mismatches = paste(value_mismatches, collapse = ";"),
+    passed = vintage_passed
+  )
+}
+
+# One result row per batch vintage: raw file paths -> per-vintage check rows
+# -> single results table (NULLs from out-of-batch vintages drop out in
+# rbindlist).
+results_table <- data.table::rbindlist(
+  purrr::map(raw_file_paths, validate_one_vintage)
+)
+
+dir.create(dirname(output_tsv_path), recursive = TRUE, showWarnings = FALSE)
+data.table::fwrite(results_table, output_tsv_path, sep = "\t")
+n_failed <- results_table[passed == FALSE, .N]
 log_info(sprintf("Validation gate: %d vintages checked, %d failed. TSV: %s",
-                 nrow(res), n_fail, OUT_TSV))
-if (n_fail > 0L) quit(status = 1L)
+                 nrow(results_table), n_failed, output_tsv_path))
+if (n_failed > 0L) {
+  quit(status = 1L)
+}
