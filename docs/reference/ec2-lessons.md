@@ -62,3 +62,33 @@ why, and the rules that now prevent it. Complements `setup_ec2.sh` and
 - Validate re-publishes against RAW sources: the bucket has no object
   versioning, so priors are gone the moment you overwrite
   (`scripts/validate_legacy_republish.R` is the standing gate).
+
+## The expensive one: a transform that quietly emptied a column
+
+The campaign's costliest defect was not a crash. `.clean_zip()` extracted
+`^\d{5}`, legacy ZIPs had lost their leading zeros upstream (`02138` stored
+as `2138`), and the extraction returned NA. All 55 vintages published with
+no ZIP for 100% of legacy rows in the nine 0-prefix states, and ~124k
+organizations were geocoded on street, city and state alone. Nobody noticed
+for four days. Three lessons, in the order they would have caught it:
+
+- **Post-transformation checks were advisory and nothing read them.**
+  `generate_quality_report()` sets `report$passed`, and neither pipeline
+  ever looked at it: `STRICT_QUALITY_GATES` was wired only to the
+  *pre*-checks. A transform could destroy a column and the run would still
+  write, upload and report success, 55 times in a row. A metric nobody gates
+  on is a comment. `assert_zip_integrity()` in `R/quality/post_checks.R` now
+  halts the run before Phases 10-11 write.
+- **A destroyed column is invisible in a completeness percentage.** Losing
+  every ZIP in nine states moved national ZIP completeness by a few points,
+  which reads as ordinary data messiness. The detectable signal is not
+  "how full is this column" but "did populated input become NA output", so
+  compare against the input rather than against a threshold.
+- **An aggregate gate cannot see a stratified failure.** The address-log
+  build had a cross-source match floor precisely to catch broken join keys.
+  It passed at 14.32% national while MA, CT, RI, NJ, ME and NH each sat at
+  exactly 0.00%. Any national threshold over a country-wide dataset needs a
+  per-stratum twin, and the stratum here (state) was the obvious one.
+
+The general form: when a defect class is found, leave behind a fast
+detector, and make sure something actually fails when it fires.

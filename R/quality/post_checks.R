@@ -4,6 +4,85 @@
 # ============================================================================
 
 # ============================================================================
+# Destructive-transform gates
+#
+# A transform that turns populated input into NA output is the defect class
+# these gates exist to stop. It is invisible in a completeness percentage
+# (the column simply looks emptier), it survives every downstream stage, and
+# it reaches S3 and the geocoder before anyone notices. Unlike the advisory
+# metrics in generate_quality_report(), these HALT the run under
+# STRICT_QUALITY_GATES.
+#
+# Precedent: the ZIP gate below was written after the leading-zero incident
+# (2026-07-28), where .clean_zip() silently returned NA for every ZIP in the
+# 0-prefix states across all 55 legacy vintages, publishing them and geocoding
+# ~124k organizations with no ZIP in their address string.
+# ============================================================================
+
+#' Assert the ZIP cleaner did not destroy populated ZIP values.
+#'
+#' @description
+#' Compares the raw ZIP against the cleaned output row by row. A raw value
+#' holding at least 3 digits is a recoverable ZIP (see .clean_zip()), so a NA
+#' or non-5-digit result for such a row means the cleaner dropped real data.
+#' Reports the damage by state, because this defect class is stratified: it
+#' hits whole states at 100% while the national completeness figure barely
+#' moves, which is exactly how it went unnoticed.
+#'
+#' @param dt data.table with org_addr_zip_raw and org_addr_zip5
+#' @param strict logical; if TRUE (default) a violation aborts the run
+#'
+#' @return Invisibly, a list of the violation counts.
+#' @export
+assert_zip_integrity <- function(dt, strict = TRUE) {
+  required_columns <- c("org_addr_zip_raw", "org_addr_zip5")
+  if (!all(required_columns %in% names(dt))) {
+    return(invisible(list(skipped = TRUE)))
+  }
+
+  # raw ZIP -> digit count -> rows that SHOULD have produced a clean 5-digit
+  # ZIP. Mirrors .clean_zip(): 3-4 digits pad to a ZIP5, 5 is a ZIP5, 8 pads
+  # to a ZIP+4, 9 is a ZIP+4. Lengths 1-2, 6-7 and 10+ have no unambiguous
+  # repair, clean to NA by design, and are not violations.
+  raw_digit_count <- nchar(gsub("[^0-9]", "", as.character(dt$org_addr_zip_raw)))
+  is_recoverable  <- !is.na(dt$org_addr_zip_raw) &
+    raw_digit_count %in% c(3L, 4L, 5L, 8L, 9L)
+
+  dropped_rows   <- which(is_recoverable & is.na(dt$org_addr_zip5))
+  malformed_rows <- which(!is.na(dt$org_addr_zip5) & nchar(dt$org_addr_zip5) != 5L)
+  violations     <- list(dropped = length(dropped_rows),
+                         malformed = length(malformed_rows))
+
+  if (violations$dropped == 0L && violations$malformed == 0L) {
+    log_info(sprintf("ZIP integrity: PASS (%s recoverable raw ZIPs, all cleaned to 5 digits)",
+                     format(sum(is_recoverable), big.mark = ",")))
+    return(invisible(violations))
+  }
+
+  # Damage by state, so a stratified failure is legible at a glance.
+  state_column  <- if ("org_addr_state" %in% names(dt)) "org_addr_state" else NULL
+  damage_detail <- if (!is.null(state_column)) {
+    affected_states <- sort(table(dt[[state_column]][c(dropped_rows, malformed_rows)]),
+                            decreasing = TRUE)
+    paste(sprintf("%s=%s", names(affected_states), format(as.integer(affected_states),
+                                                          big.mark = ",")),
+          collapse = " ")
+  } else "state column unavailable"
+
+  violation_message <- sprintf(
+    paste0("ZIP integrity FAILED: %s populated raw ZIPs cleaned to NA, %s cleaned to a ",
+           "non-5-digit value. By state: %s. A populated ZIP must never clean to NA; ",
+           "see .clean_zip() in R/address.R and ",
+           "docs/reference/address-data-invariants.md."),
+    format(violations$dropped, big.mark = ","),
+    format(violations$malformed, big.mark = ","),
+    damage_detail)
+
+  if (isTRUE(strict)) stop(violation_message) else warning(violation_message)
+  invisible(violations)
+}
+
+# ============================================================================
 # Module Constants
 # ============================================================================
 
