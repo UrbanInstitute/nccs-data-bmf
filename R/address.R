@@ -305,15 +305,23 @@ ADDRESS_OUTPUT_COLS <- c(
   # 0-prefix state (ME, NH, VT, MA, RI, CT, NJ, PR, VI) and sent those
   # addresses to the geocoder with no ZIP at all.
   #
-  # Only 3-4 digit values are padded: a US ZIP has at most two leading zeros
-  # (00501 is the lowest in use), so a 1-2 digit value cannot be a stripped ZIP
-  # and is left to fail rather than be invented into a plausible-looking one.
+  # Only 3-4 digit values are padded to 5, and 8-digit values to 9: a US ZIP
+  # has at most two leading zeros (00501 is the lowest in use), so a 1-2 digit
+  # value cannot be a stripped ZIP, and an 8-digit undashed value can only be
+  # a ZIP+4 that lost its leading zero ("02138-1234" stored as "21381234").
+  # Without the 8->9 pad the `^\d{5}` extraction below would return "21381",
+  # a wrong-but-plausible ZIP the integrity gate cannot detect. Lengths 6, 7
+  # and 10+ have no unambiguous repair and are forced to NA rather than
+  # letting the extraction invent a plausible prefix.
   # ZIP integrity is gated in R/quality/post_checks.R.
   digits_only <- stringr::str_replace_all(clean, "[^0-9]", "")
-  clean <- data.table::fifelse(
-    !is.na(digits_only) & nchar(digits_only) %in% 3:4,
-    stringr::str_pad(digits_only, width = 5, side = "left", pad = "0"),
-    clean)
+  n_digits <- nchar(digits_only)
+  clean <- data.table::fcase(
+    is.na(digits_only), clean,
+    n_digits %in% 3:4, stringr::str_pad(digits_only, width = 5, side = "left", pad = "0"),
+    n_digits == 8L, stringr::str_pad(digits_only, width = 9, side = "left", pad = "0"),
+    n_digits %in% c(6L, 7L) | n_digits >= 10L, NA_character_,
+    default = clean)
 
   # Extract ZIP5 (first 5 digits)
   zip5 <- stringr::str_extract(clean, "^\\d{5}")

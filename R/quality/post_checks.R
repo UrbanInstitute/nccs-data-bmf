@@ -40,9 +40,13 @@ assert_zip_integrity <- function(dt, strict = TRUE) {
     return(invisible(list(skipped = TRUE)))
   }
 
-  # raw ZIP -> digit count -> rows that SHOULD have produced a clean 5-digit ZIP
+  # raw ZIP -> digit count -> rows that SHOULD have produced a clean 5-digit
+  # ZIP. Mirrors .clean_zip(): 3-4 digits pad to a ZIP5, 5 is a ZIP5, 8 pads
+  # to a ZIP+4, 9 is a ZIP+4. Lengths 1-2, 6-7 and 10+ have no unambiguous
+  # repair, clean to NA by design, and are not violations.
   raw_digit_count <- nchar(gsub("[^0-9]", "", as.character(dt$org_addr_zip_raw)))
-  is_recoverable  <- !is.na(dt$org_addr_zip_raw) & raw_digit_count >= 3L
+  is_recoverable  <- !is.na(dt$org_addr_zip_raw) &
+    raw_digit_count %in% c(3L, 4L, 5L, 8L, 9L)
 
   dropped_rows   <- which(is_recoverable & is.na(dt$org_addr_zip5))
   malformed_rows <- which(!is.na(dt$org_addr_zip5) & nchar(dt$org_addr_zip5) != 5L)
