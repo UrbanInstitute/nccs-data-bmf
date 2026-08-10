@@ -22,33 +22,40 @@
 #' @param bucket       S3 bucket.
 #' @param dry_run      If TRUE, build the manifest and print the upload plan
 #'                     (one S3 HEAD for the existing manifest) but write nothing.
+#' @param include_csv  If FALSE, publish the parquet + manifest only (ADR 0042
+#'                     Decision A: vintage folders retain parquet only).
 #' @return Invisibly `list(manifest, uploaded, skipped)`.
 #' @export
 publish_crosswalk <- function(parquet_path, s3_prefix, inputs = list(),
-                              vintage, bucket = BMF_S3_BUCKET, dry_run = FALSE) {
+                              vintage, bucket = BMF_S3_BUCKET, dry_run = FALSE,
+                              include_csv = TRUE) {
   csv_path <- sub("\\.parquet$", ".csv", parquet_path)
-  stopifnot(file.exists(parquet_path), file.exists(csv_path), endsWith(s3_prefix, "/"))
+  stopifnot(file.exists(parquet_path), endsWith(s3_prefix, "/"))
+  if (include_csv) stopifnot(file.exists(csv_path))
   if (!requireNamespace("digest",   quietly = TRUE)) stop("Package 'digest' required.")
   if (!requireNamespace("jsonlite", quietly = TRUE)) stop("Package 'jsonlite' required.")
 
   df      <- arrow::read_parquet(parquet_path)
   out_dir <- dirname(parquet_path)
   outputs <- list(
-    list(path = parquet_path, row_count = nrow(df), columns = names(df)),
-    list(path = csv_path,     row_count = nrow(df), columns = names(df)))
-
-  mw   <- write_manifest(vintage = vintage, out_dir = out_dir,
-                         outputs = outputs, inputs = inputs)
-  manifest      <- mw$manifest
-  manifest_path <- mw$path
-  files <- c(basename(parquet_path), basename(csv_path))
+    list(path = parquet_path, row_count = nrow(df), columns = names(df)))
+  if (include_csv) {
+    outputs <- c(outputs,
+      list(list(path = csv_path, row_count = nrow(df), columns = names(df))))
+  }
+  local_paths <- vapply(outputs, `[[`, character(1), "path")
+  manifest_result <- write_manifest(vintage = vintage, out_dir = out_dir,
+                                    outputs = outputs, inputs = inputs)
+  manifest      <- manifest_result$manifest
+  manifest_path <- manifest_result$path
+  files <- basename(local_paths)
   shas  <- vapply(files, function(f) manifest$files[[f]]$sha256, character(1))
 
   message(sprintf("Built manifest for %d rows (vintage=%s): %s",
                   nrow(df), vintage, paste(files, collapse = ", ")))
 
   remote <- read_existing_manifest(paste0(s3_prefix, "_manifest.json"), bucket)
-  put_one <- function(local, key, dry) {
+  upload_if_changed <- function(local, key, dry) {
     if (manifest_unchanged(remote, key, shas[[key]])) {
       message(sprintf("SKIP (unchanged): s3://%s/%s%s", bucket, s3_prefix, key)); return("skip")
     }
@@ -59,12 +66,13 @@ publish_crosswalk <- function(parquet_path, s3_prefix, inputs = list(),
 
   if (dry_run) {
     message("DRY RUN: target s3://", bucket, "/", s3_prefix)
-    Map(function(l, k) put_one(l, k, TRUE), c(parquet_path, csv_path), files)
+    Map(function(l, k) upload_if_changed(l, k, TRUE), local_paths, files)
     message(sprintf("  PUT  %s_manifest.json", s3_prefix))
     return(invisible(list(manifest = manifest, uploaded = character(), skipped = character())))
   }
-
-  acts <- Map(function(l, k) put_one(l, k, FALSE), c(parquet_path, csv_path), files)
+  # Pair each local path with its S3 basename, upload-or-skip each, and keep
+  # the put/skip outcomes for the summary; the manifest uploads separately.
+  acts <- Map(function(l, k) upload_if_changed(l, k, FALSE), local_paths, files)
   upload_to_s3(manifest_path, paste0(s3_prefix, "_manifest.json"), bucket = bucket)
 
   uploaded <- files[unlist(acts) == "put"]; skipped <- files[unlist(acts) == "skip"]

@@ -319,9 +319,10 @@ merge_master_geocoded_results <- function(
                           big.mark = ",")))
 
   # ---------------------------------------------------------------- write
-  # ADR 0039: renamed stem bmf_master_geocoded -> bmf_unified_geocoded,
-  # dual-written below to the new unified/ prefix and the old bmf-master/
-  # prefix (unchanged old filenames) for the 90-day deprecation window.
+  # ADR 0039: renamed stem bmf_master_geocoded -> bmf_unified_geocoded.
+  # ADR 0042: published as v{YYYY_MM}/ (parquet only) + latest/ (full set),
+  # with the flat merged/ key and the old bmf-master/ prefix (unchanged old
+  # filenames) dual-written as deprecated aliases through their windows.
   parquet_path <- file.path(merged_dir, "bmf_unified_geocoded.parquet")
   csv_path     <- file.path(merged_dir, "bmf_unified_geocoded.csv")
   qr_path      <- file.path(merged_dir, "bmf_unified_geocoded_quality_report.json")
@@ -350,16 +351,14 @@ merge_master_geocoded_results <- function(
   log_info(sprintf("Quality report:  %s", qr_path))
 
   if (s3_upload) {
-    # New path (ADR 0039): geocoding/unified-bmf/merged/, new stem + manifest.
-    new_prefix <- paste0(BMF_S3_UNIFIED_GEOCODING_PREFIX, "merged/")
-    upload_to_s3(parquet_path, paste0(new_prefix, basename(parquet_path)))
-    upload_to_s3(csv_path,     paste0(new_prefix, basename(csv_path)))
-    upload_to_s3(qr_path,      paste0(new_prefix, basename(qr_path)))
-    upload_to_s3(dict_path,    paste0(new_prefix, basename(dict_path)))
+    vintage <- format(Sys.time(), "%Y_%m")
 
+    # ADR 0014 manifest, built once and uploaded alongside every prefix so
+    # each copy of the artifact self-describes and re-runs are idempotent.
+    manifest_result <- NULL
     if (exists("write_manifest")) {
-      mw <- write_manifest(
-        vintage = format(Sys.time(), "%Y_%m"),
+      manifest_result <- write_manifest(
+        vintage = vintage,
         out_dir = merged_dir,
         outputs = list(
           list(path = parquet_path, row_count = nrow(master_geo)),
@@ -369,11 +368,43 @@ merge_master_geocoded_results <- function(
         ),
         inputs = list(list(uri = master_path))
       )
-      upload_to_s3(mw$path, paste0(new_prefix, basename(mw$path)))
-      log_info(sprintf("Wrote manifest: %s", mw$path))
+      log_info(sprintf("Wrote manifest: %s", manifest_result$path))
     } else {
       log_warn("write_manifest() not available -- skipping _manifest.json")
     }
+
+    # Upload one prefix's file set, skipping files whose sha256 matches the
+    # remote _manifest.json already at that prefix (same idempotency pattern
+    # as R/publish_crosswalk.R / publish_lookups.R).
+    upload_output_set <- function(prefix, local_paths, keys = basename(local_paths)) {
+      remote <- if (!is.null(manifest_result)) {
+        read_existing_manifest(paste0(prefix, "_manifest.json"), BMF_S3_BUCKET)
+      } else NULL
+      for (i in seq_along(local_paths)) {
+        sha <- if (!is.null(manifest_result)) manifest_result$manifest$files[[basename(local_paths[i])]]$sha256 else NULL
+        if (!is.null(remote) && !is.null(sha) &&
+            manifest_unchanged(remote, keys[i], sha)) {
+          log_info(sprintf("SKIP (unchanged): s3://%s/%s%s",
+                           BMF_S3_BUCKET, prefix, keys[i]))
+        } else {
+          upload_to_s3(local_paths[i], paste0(prefix, keys[i]))
+        }
+      }
+      if (!is.null(manifest_result)) upload_to_s3(manifest_result$path, paste0(prefix, "_manifest.json"))
+    }
+
+    # ADR 0042 layout: permanent per-build vintage folder (parquet only,
+    # Decision A) + a full latest/ mirror that consumer-facing links pin to.
+    vintage_prefix <- paste0(BMF_S3_UNIFIED_GEOCODING_PREFIX, "v", vintage, "/")
+    latest_prefix  <- paste0(BMF_S3_UNIFIED_GEOCODING_PREFIX, "latest/")
+    upload_output_set(vintage_prefix, parquet_path)
+    upload_output_set(latest_prefix,  c(parquet_path, csv_path, qr_path, dict_path))
+
+    # Flat merged/ key (pre-ADR-0042 rolling build key): deprecated alias,
+    # kept live for the standard 90-day window from the first versioned
+    # publish (2026-07-26), then archived per ADR 0006.
+    merged_prefix <- paste0(BMF_S3_UNIFIED_GEOCODING_PREFIX, "merged/")
+    upload_output_set(merged_prefix, c(parquet_path, csv_path, qr_path, dict_path))
 
     # Old path (pre-ADR-0039), 90-day deprecation window: same content,
     # unchanged old filenames, so pinned consumers (nccsdata::nccs_read(),
