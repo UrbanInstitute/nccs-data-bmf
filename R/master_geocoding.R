@@ -355,9 +355,9 @@ merge_master_geocoded_results <- function(
 
     # ADR 0014 manifest, built once and uploaded alongside every prefix so
     # each copy of the artifact self-describes and re-runs are idempotent.
-    mw <- NULL
+    manifest_result <- NULL
     if (exists("write_manifest")) {
-      mw <- write_manifest(
+      manifest_result <- write_manifest(
         vintage = vintage,
         out_dir = merged_dir,
         outputs = list(
@@ -368,7 +368,7 @@ merge_master_geocoded_results <- function(
         ),
         inputs = list(list(uri = master_path))
       )
-      log_info(sprintf("Wrote manifest: %s", mw$path))
+      log_info(sprintf("Wrote manifest: %s", manifest_result$path))
     } else {
       log_warn("write_manifest() not available -- skipping _manifest.json")
     }
@@ -376,12 +376,12 @@ merge_master_geocoded_results <- function(
     # Upload one prefix's file set, skipping files whose sha256 matches the
     # remote _manifest.json already at that prefix (same idempotency pattern
     # as R/publish_crosswalk.R / publish_lookups.R).
-    put_set <- function(prefix, local_paths, keys = basename(local_paths)) {
-      remote <- if (!is.null(mw)) {
+    upload_output_set <- function(prefix, local_paths, keys = basename(local_paths)) {
+      remote <- if (!is.null(manifest_result)) {
         read_existing_manifest(paste0(prefix, "_manifest.json"), BMF_S3_BUCKET)
       } else NULL
       for (i in seq_along(local_paths)) {
-        sha <- if (!is.null(mw)) mw$manifest$files[[basename(local_paths[i])]]$sha256 else NULL
+        sha <- if (!is.null(manifest_result)) manifest_result$manifest$files[[basename(local_paths[i])]]$sha256 else NULL
         if (!is.null(remote) && !is.null(sha) &&
             manifest_unchanged(remote, keys[i], sha)) {
           log_info(sprintf("SKIP (unchanged): s3://%s/%s%s",
@@ -390,21 +390,21 @@ merge_master_geocoded_results <- function(
           upload_to_s3(local_paths[i], paste0(prefix, keys[i]))
         }
       }
-      if (!is.null(mw)) upload_to_s3(mw$path, paste0(prefix, "_manifest.json"))
+      if (!is.null(manifest_result)) upload_to_s3(manifest_result$path, paste0(prefix, "_manifest.json"))
     }
 
     # ADR 0042 layout: permanent per-build vintage folder (parquet only,
     # Decision A) + a full latest/ mirror that consumer-facing links pin to.
     vintage_prefix <- paste0(BMF_S3_UNIFIED_GEOCODING_PREFIX, "v", vintage, "/")
     latest_prefix  <- paste0(BMF_S3_UNIFIED_GEOCODING_PREFIX, "latest/")
-    put_set(vintage_prefix, parquet_path)
-    put_set(latest_prefix,  c(parquet_path, csv_path, qr_path, dict_path))
+    upload_output_set(vintage_prefix, parquet_path)
+    upload_output_set(latest_prefix,  c(parquet_path, csv_path, qr_path, dict_path))
 
     # Flat merged/ key (pre-ADR-0042 rolling build key): deprecated alias,
     # kept live for the standard 90-day window from the first versioned
     # publish (2026-07-26), then archived per ADR 0006.
     merged_prefix <- paste0(BMF_S3_UNIFIED_GEOCODING_PREFIX, "merged/")
-    put_set(merged_prefix, c(parquet_path, csv_path, qr_path, dict_path))
+    upload_output_set(merged_prefix, c(parquet_path, csv_path, qr_path, dict_path))
 
     # Old path (pre-ADR-0039), 90-day deprecation window: same content,
     # unchanged old filenames, so pinned consumers (nccsdata::nccs_read(),

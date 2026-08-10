@@ -56,16 +56,16 @@ publish_address_resolved_crosswalk <- function(
   stopifnot(endsWith(s3_base_prefix, "/"))
 
   # ADR 0042: permanent parquet-only vintage folder + full latest/ mirror.
-  res_vintage <- publish_crosswalk(
+  vintage_publish_result <- publish_crosswalk(
     parquet_path = crosswalk_path,
     s3_prefix    = paste0(s3_base_prefix, "v", vintage, "/"),
     inputs = inputs, vintage = vintage,
     bucket = bucket, dry_run = dry_run, include_csv = FALSE)
-  res_latest <- publish_crosswalk(
+  latest_publish_result <- publish_crosswalk(
     parquet_path = crosswalk_path,
     s3_prefix    = paste0(s3_base_prefix, "latest/"),
     inputs = inputs, vintage = vintage,
     bucket = bucket, dry_run = dry_run)
 
-  invisible(list(vintage = res_vintage, latest = res_latest))
+  invisible(list(vintage = vintage_publish_result, latest = latest_publish_result))
 }

@@ -44,11 +44,10 @@ publish_crosswalk <- function(parquet_path, s3_prefix, inputs = list(),
       list(list(path = csv_path, row_count = nrow(df), columns = names(df))))
   }
   local_paths <- vapply(outputs, `[[`, character(1), "path")
-
-  mw   <- write_manifest(vintage = vintage, out_dir = out_dir,
-                         outputs = outputs, inputs = inputs)
-  manifest      <- mw$manifest
-  manifest_path <- mw$path
+  manifest_result <- write_manifest(vintage = vintage, out_dir = out_dir,
+                                    outputs = outputs, inputs = inputs)
+  manifest      <- manifest_result$manifest
+  manifest_path <- manifest_result$path
   files <- basename(local_paths)
   shas  <- vapply(files, function(f) manifest$files[[f]]$sha256, character(1))
 
@@ -56,7 +55,7 @@ publish_crosswalk <- function(parquet_path, s3_prefix, inputs = list(),
                   nrow(df), vintage, paste(files, collapse = ", ")))
 
   remote <- read_existing_manifest(paste0(s3_prefix, "_manifest.json"), bucket)
-  put_one <- function(local, key, dry) {
+  upload_if_changed <- function(local, key, dry) {
     if (manifest_unchanged(remote, key, shas[[key]])) {
       message(sprintf("SKIP (unchanged): s3://%s/%s%s", bucket, s3_prefix, key)); return("skip")
     }
@@ -67,12 +66,13 @@ publish_crosswalk <- function(parquet_path, s3_prefix, inputs = list(),
 
   if (dry_run) {
     message("DRY RUN: target s3://", bucket, "/", s3_prefix)
-    Map(function(l, k) put_one(l, k, TRUE), local_paths, files)
+    Map(function(l, k) upload_if_changed(l, k, TRUE), local_paths, files)
     message(sprintf("  PUT  %s_manifest.json", s3_prefix))
     return(invisible(list(manifest = manifest, uploaded = character(), skipped = character())))
   }
-
-  acts <- Map(function(l, k) put_one(l, k, FALSE), local_paths, files)
+  # Pair each local path with its S3 basename, upload-or-skip each, and keep
+  # the put/skip outcomes for the summary; the manifest uploads separately.
+  acts <- Map(function(l, k) upload_if_changed(l, k, FALSE), local_paths, files)
   upload_to_s3(manifest_path, paste0(s3_prefix, "_manifest.json"), bucket = bucket)
 
   uploaded <- files[unlist(acts) == "put"]; skipped <- files[unlist(acts) == "skip"]
