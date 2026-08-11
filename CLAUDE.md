@@ -58,33 +58,14 @@ GEOCODING_MODE <- "merge"
 source("R/run_geocoding.R")
 ```
 
-For the **Unified BMF (master) geocoding**, the default monthly workflow is
-the **delta** (R/master_geocoding_delta.R, first live run 2026-08-11):
-carry forward results for every address already in the published geocoded
-artifact and submit only new addresses (~51K vs ~2.6M on a typical month).
-It implements the bulk-run etiquette (windowed 3-in-flight submission,
-S3-synced ledger at `geocoding/unified-bmf/runs/{run_id}/`, run-stamped
-raw-output retention, ledger-driven resume that survives machine loss).
-
-```r
-# Stage + submit the delta (submit = FALSE default stages only)
-MASTER_GEOCODING_MODE <- "delta"; DELTA_SUBMIT <- TRUE
-source("R/run_master_geocoding.R")
-
-# Submit-as-window-opens, poll, archive raw outputs, download
-MASTER_GEOCODING_MODE <- "retrieve"
-source("R/run_master_geocoding.R")
-
-# Merge + publish (ADR 0042: v{YYYY_MM}/ + latest/ + dual-write aliases)
-MASTER_GEOCODING_MODE <- "merge"
-source("R/run_master_geocoding.R")
-```
-
-The full re-export (`MASTER_GEOCODING_MODE <- "export"`) remains for
-occasional full refreshes (e.g., to retry previously unmatched addresses).
-Gotcha: service form JSONs must carry ALL form keys (empty/null where
-inapplicable) -- a missing-key form wedges the Windows worker silently
-(2026-08-11 incident; the delta script emits the full schema).
+For the **Unified BMF (master) geocoding**, the default monthly workflow
+is the **delta** (submit only addresses new since the last published
+artifact; ~98% less queue load): `MASTER_GEOCODING_MODE` = `"delta"`
+(+ `DELTA_SUBMIT <- TRUE`) then `"retrieve"` then `"merge"`, via
+`source("R/run_master_geocoding.R")`. Full mechanics, run-state layout,
+recovery procedures, and the form-JSON gotcha:
+`docs/reference/geocoder-service.md` (Implementation status section).
+The full re-export (`"export"`) remains for occasional full refreshes.
 
 ### Run the Legacy BMF Pipeline
 For NCCS legacy 501CX-NONPROFIT-PX BMF files (1989–2022 vintages). These
