@@ -50,6 +50,28 @@ the entire submission step.
 There is also a confidential path (`data/input-confidential-data/...` with a
 DataSync hop to the Y drive); BMF never uses it.
 
+## Implementation status (2026-08-11)
+
+Rules 1-6 are implemented in code for the Unified BMF workflow by
+`R/master_geocoding_delta.R` (modes `delta`/`retrieve` in
+`R/run_master_geocoding.R`): windowed 3-in-flight submission; an
+S3-synced `geocode_ledger.tsv` under
+`geocoding/unified-bmf/runs/{run_id}/` with a `LATEST_RUN` pointer at
+the runs **root** (`geocoding/unified-bmf/runs/LATEST_RUN`) naming the
+current run (mirror-authoritative, fail-closed); staged-input
+mirroring; and run-stamped raw-output archival. Ledger shape: one
+CURRENT-STATE row per batch carrying every transition timestamp
+(submitted_at / output_seen_at / downloaded_at + status), rewritten and
+re-synced on each transition -- not an append-only event log. This
+satisfies rule 3's intent (every transition durably recorded) with a
+representation that is directly resumable; historical ledgers survive
+per run under their runs/{run_id}/ prefixes. Rule 7's address cache is realized as carryover from the
+published geocoded artifact (delta = addresses absent from it);
+previously unmatched addresses are only retried on a full re-export.
+First live run: delta_2026_08_11_thiya (51,330 of 2,600,573 addresses
+submitted). Form JSONs must carry ALL form keys (empty/null where
+inapplicable); a missing-key form wedges the Windows worker silently.
+
 ## What this means for this repo
 
 - `R/run_geocoding.R` / `R/run_master_geocoding.R` export batches and merge

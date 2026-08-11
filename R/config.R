@@ -294,6 +294,26 @@ upload_to_s3 <- function(local_file, s3_key, bucket = BMF_S3_BUCKET) {
   content_type <- s3_content_type(local_file)
   headers <- if (!is.null(content_type)) list(`Content-Type` = content_type) else list()
 
+  # NOTE: two upload paths below (CLI for >1 GB, aws.s3 otherwise). If you
+  # add headers/options to one, mirror them in the other -- the CLI branch
+  # currently translates Content-Type only.
+  # Large files: aws.s3::put_object readBin()s the entire file into memory
+  # even with multipart = TRUE, which OOM-kills the session on multi-GB
+  # CSVs (observed 2026-08-11 on the 3.5 GB geocoded CSV). Stream via the
+  # AWS CLI instead; it multiparts from disk at constant memory.
+  if (file.size(local_file) > 1e9) {
+    args <- c("s3", "cp", local_file,
+              sprintf("s3://%s/%s", bucket, s3_key), "--only-show-errors")
+    if (!is.null(content_type)) args <- c(args, "--content-type", content_type)
+    rc <- system2("aws", args)
+    if (rc == 0L) {
+      message(sprintf("Uploaded to s3://%s/%s (cli)", bucket, s3_key))
+      return(TRUE)
+    }
+    message(sprintf("ERROR uploading to S3 (cli rc=%d): %s", rc, s3_key))
+    return(FALSE)
+  }
+
   tryCatch({
     aws.s3::put_object(
       file = local_file,
