@@ -26,7 +26,28 @@ source(here::here("R", "manifest.R"))                        # write_manifest() 
 source(here::here("R", "master_geocoding.R"))
 source(here::here("R", "quality", "geocoding_checks.R"))
 
-if (MASTER_GEOCODING_MODE == "export") {
+if (MASTER_GEOCODING_MODE == "delta") {
+  # Delta export (Z8): carry forward results for every address already in
+  # the published geocoded artifact; submit only new addresses to the
+  # service. Set DELTA_SUBMIT <- TRUE to actually submit (default stages
+  # locally and prints the plan).
+  source(here::here("R", "master_geocoding_delta.R"))
+  log_phase_start("MASTER GEOCODING -- DELTA EXPORT")
+  prepare_master_geocoder_delta(
+    master_path   = UNIFIED_PARQUET_PATH,
+    geocoding_dir = MASTER_GEOCODING_DIR,
+    submit        = exists("DELTA_SUBMIT") && isTRUE(DELTA_SUBMIT)
+  )
+
+} else if (MASTER_GEOCODING_MODE == "retrieve") {
+  source(here::here("R", "master_geocoding_delta.R"))
+  log_phase_start("MASTER GEOCODING -- DELTA RETRIEVE")
+  retrieve_master_geocoder_delta(
+    geocoding_dir = MASTER_GEOCODING_DIR,
+    wait          = !exists("RETRIEVE_NO_WAIT") || !isTRUE(RETRIEVE_NO_WAIT)
+  )
+
+} else if (MASTER_GEOCODING_MODE == "export") {
   log_phase_start("MASTER GEOCODING -- EXPORT")
   prepare_master_geocoder_batches(
     master_path   = UNIFIED_PARQUET_PATH,
@@ -44,6 +65,6 @@ if (MASTER_GEOCODING_MODE == "export") {
   )
 
 } else {
-  stop(sprintf("Unknown MASTER_GEOCODING_MODE: '%s'. Use 'export' or 'merge'.",
+  stop(sprintf("Unknown MASTER_GEOCODING_MODE: '%s'. Use 'delta', 'retrieve', 'export' or 'merge'.",
                MASTER_GEOCODING_MODE))
 }
