@@ -14,6 +14,14 @@ This repository contains code for harmonizing IRS Business Master File (BMF) dat
 
 ## Commands
 
+### Run the tests
+```bash
+Rscript -e 'testthat::test_dir("tests/testthat")'
+```
+Introduced by ADR 0048 (NTEE-V2 x00 rule). Keep green; add a test for every
+transform rule you touch.
+
+
 ### Run the Data Pipeline
 ```r
 # In R/RStudio - runs the full BMF processing pipeline

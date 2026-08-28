@@ -26,6 +26,43 @@ COLS_TO_FIX <- c("naics_code", "ntee_code_major_group", "ntee_code_definition")
 NTEEV2_SUBSECTOR_UNIVERSITY <- c("B40", "B41", "B42", "B43", "B50")
 NTEEV2_SUBSECTOR_HOSPITAL <- c("E20", "E21", "E22", "E24")
 
+# NTEE-V2 activity slot: specialty / common codes (digits 01-19) encode the
+# ORGANIZATION TYPE, which the third slot carries; the middle slot becomes
+# x00. Anything matching this pattern in nteev2_code is a defect (ADR 0048).
+NTEEV2_SPECIALTY_PATTERN <- "^[A-Z](0[1-9]|1[0-9])$"
+
+# ============================================================================
+# NTEE-V2 Code Derivation (single derivation path, ADR 0032 + ADR 0048)
+# ============================================================================
+
+#' Derive the NTEE-V2 middle-slot code from a cleaned NTEE-CC code
+#'
+#' @description
+#' The ONLY place the V2 activity code is derived from a cleaned NTEE-CC
+#' code. Applies the x00 rule from the public NTEE-V2 specification
+#' (nccs.urban.org/nccs/resources/ntee): "specialty organizations (x01-x19)
+#' are replaced with zeroes (x00) and the common codes (01-19) have been
+#' recoded as organizational types". So \code{B11} (single-organization
+#' support) yields \code{B00}; the type \code{MS} lives in
+#' \code{nteev2_org_type}. ADR 0048 corrects the prior behaviour, which
+#' emitted \code{B11} in both slots (\code{EDU-B11-MS}).
+#'
+#' @param ntee_code_clean character vector of cleaned NTEE-CC codes
+#'   (3 characters, or the sentinels \code{INVALID} / \code{UNDEFINED}).
+#' @return character vector, same length: \code{Z99} for sentinels or NA,
+#'   \code{x00} for specialty/common codes, otherwise the input unchanged.
+#' @export
+nteev2_code_from_clean <- function(ntee_code_clean) {
+  x <- as.character(ntee_code_clean)
+  digits <- suppressWarnings(as.integer(substr(x, 2, 3)))
+  data.table::fcase(
+    is.na(x) | x %chin% c(NTEE_INVALID, NTEE_UNDEFINED), "Z99",
+    !is.na(digits) & digits >= 1L & digits <= 19L,
+      paste0(substr(x, 1, 1), "00"),
+    default = x
+  )
+}
+
 # ============================================================================
 # Input Validation Functions
 # ============================================================================
@@ -297,6 +334,11 @@ transform_ntee_code <- function(
      on = .(nteev2_subsector)]
 
   # ---------------------------------------------------------------------------
+  # NTEE-V2 invariants (ADR 0048) — hard stop, never a warning
+  # ---------------------------------------------------------------------------
+  .nteev2_invariants(dt)
+
+  # ---------------------------------------------------------------------------
   # Cleanup Helper Columns
   # ---------------------------------------------------------------------------
   dt[, (HELPER_COLUMNS) := NULL]
@@ -347,14 +389,13 @@ transform_ntee_code <- function(
 
 .nteev2_code_transform <- function(dt) {
   # NTEEV2 Code — the middle component is the cleaned, lookup-validated
-  # NTEE-CC code (e.g. "B43"); "Z99" only when the code is invalid or
-  # undefined. (ADR 0032: the prior formula keyed off raw char positions
+  # NTEE-CC code (e.g. "B43") with the x00 rule applied (ADR 0048); "Z99"
+  # only when the code is invalid or undefined. (ADR 0032: the prior formula keyed off raw char positions
   # and collapsed ~69% of records to "Z99".) Legacy 5-char rows are
   # re-derived in .apply_legacy_5char_crosswalk, which overrides .len == 5.
-  dt[, nteev2_code := data.table::fcase(
-    ntee_code_clean %chin% c(NTEE_INVALID, NTEE_UNDEFINED), "Z99",
-    default = ntee_code_clean
-  )]
+  # ADR 0048: the x00 rule (specialty/common 01-19 -> x00) is applied here,
+  # inside the single derivation path, via nteev2_code_from_clean().
+  dt[, nteev2_code := nteev2_code_from_clean(ntee_code_clean)]
 
   # NTEEV2 Subsector — University/Hospital keyed off the cleaned NTEE-CC
   # code so the B40-B43/B50 and E20-E24 sets are reachable. (ADR 0032: the
@@ -435,8 +476,10 @@ transform_ntee_code <- function(
   # Stage 2: unmatched 5-char rows — formulaic derivation of nteev2_code.
   # Subsector and org_type were already set correctly by the standard
   # fcase logic on .first / .char23. Only nteev2_code defaulted to "Z99".
+  # ADR 0048: positions 4-5 are the activity; still route through the
+  # single derivation path so a 01-19 activity can never reach the slot.
   dt[.len == 5 & is.na(.xw_matched),
-     nteev2_code := paste0(.first, substr(ntee_code_raw, 4, 5))]
+     nteev2_code := nteev2_code_from_clean(paste0(.first, substr(ntee_code_raw, 4, 5)))]
 
   matched_n   <- dt[.len == 5 & !is.na(.xw_matched), .N]
   unmatched_n <- dt[.len == 5 &  is.na(.xw_matched), .N]
@@ -458,6 +501,29 @@ transform_ntee_code <- function(
   dt[, .xw_matched := NULL]
 
   invisible(dt)
+}
+
+# .nteev2_invariants
+#
+# ADR 0048 acceptance criterion C. Stops the pipeline if any row violates:
+#   1. nteev2_code never carries a specialty/common code (01-19);
+#   2. nteev2 == paste(subsector, code, org_type, sep = "-") for every row.
+# These are properties of the derivation, so a violation is a code defect,
+# not a data-quality observation; hence stop(), not warning().
+.nteev2_invariants <- function(dt) {
+  bad_specialty <- dt[grepl(NTEEV2_SPECIALTY_PATTERN, nteev2_code), .N]
+  if (bad_specialty > 0) {
+    stop(sprintf(
+      "NTEE-V2 invariant violated: %s rows carry a specialty/common code in nteev2_code (ADR 0048).",
+      format(bad_specialty, big.mark = ",")))
+  }
+  bad_composite <- dt[nteev2 != paste(nteev2_subsector, nteev2_code, nteev2_org_type, sep = "-"), .N]
+  if (bad_composite > 0) {
+    stop(sprintf(
+      "NTEE-V2 invariant violated: %s rows where nteev2 != subsector-code-org_type.",
+      format(bad_composite, big.mark = ",")))
+  }
+  invisible(TRUE)
 }
 
 .ntee_output_validation <- function(scd) {
