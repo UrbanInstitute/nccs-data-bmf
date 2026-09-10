@@ -1,24 +1,36 @@
-# ADR 0048 acceptance criterion D: reconcile flagged-defective rows against
-# rows the fix actually changes, on a Unified BMF artifact.
+# ADR 0048 acceptance criterion D, stage 1: class-based reconciliation on a
+# Unified BMF artifact (round-2 review R2-B2/R2-B3 definition).
 #
 # Usage:
-#   Rscript scripts/check_nteev2_reconciliation.R [path/to/bmf_unified.parquet]
-# Default path: data/master/bmf_unified.parquet (next to its _manifest.json).
+#   Rscript scripts/check_nteev2_reconciliation.R [artifact.parquet] [--out path.csv]
+# Default artifact: data/master/bmf_unified.parquet. NOTHING is written unless
+# --out is given (a verification run must not dirty the worktree; R2 finding).
 #
-# Method (per the ADR): recompute via the FULL transform_ntee_code() on
-# ntee_code_raw with legacy_mode per row source — NOT via the helper on
-# ntee_code_clean, which is the wrong oracle for 5-char legacy rows resolved
-# by the vendored crosswalk. Reports:
-#   flagged   rows matching NTEEV2_SPECIALTY_PATTERN in the artifact
-#   changed   rows whose recomputed nteev2_code differs from the artifact
-#   delta     changed - flagged, split into explained classes
-# A non-zero delta is a finding to investigate before publication.
+# Definitions (all computed from ntee_code_raw via the CURRENT cleaner, never
+# from the artifact's stored ntee_code_clean, which is itself stale on
+# pre-ADR-0032 rows, e.g. raw B112 stored clean B20):
+#   new_code   full transform_ntee_code() WITH the x00 rule (this branch)
+#   old_code   same cleaning, pre-0048 derivation (identity on clean; legacy
+#              5-char: crosswalk NTEE2 middle slot, else letter+pos4-5, no x00)
+#   flagged    artifact nteev2_code matches the specialty pattern
+#   stale      artifact nteev2_code != old_code   (pre-existing drift,
+#              independent of 0048: pre-0032 vintages etc.)
+#   x00_moved  old_code != new_code               (rows the x00 rule moves)
+#   changed    artifact nteev2_code != new_code   (what the reprocess changes)
+#   cancelled  artifact == new_code but in stale-or-x00 (drift that the fix's
+#              value coincides with; explained, reported, not an error)
+# Contract asserted:  stale UNION x00_moved  ==  changed UNION cancelled,
+# with zero rows outside the classes (false positives / negatives = 0), and
+# flagged is a subset of changed.
 
 suppressMessages({library(data.table); library(duckdb)})
-source("R/config.R")             # lookup_ls (workbook + legacy crosswalk)
+`%||%` <- function(a, b) if (is.null(a)) b else a   # defined BEFORE any use
+source("R/config.R")
 source("R/transform_ntee_code.R")
 
 args <- commandArgs(trailingOnly = TRUE)
+out_path <- if (length(w <- which(args == "--out"))) args[w + 1] else NULL
+args <- setdiff(args, c("--out", out_path))
 path <- if (length(args) >= 1) args[[1]] else "data/master/bmf_unified.parquet"
 stopifnot(file.exists(path))
 man_path <- file.path(dirname(path), "_manifest.json")
@@ -27,45 +39,60 @@ if (file.exists(man_path)) {
   message(sprintf("Artifact: %s (vintage %s, git_sha %s)",
                   path, man$vintage %||% "?", man$git_sha %||% "?"))
 }
-`%||%` <- function(a, b) if (is.null(a)) b else a
 
 con <- dbConnect(duckdb(shared_home = FALSE))
 d <- setDT(dbGetQuery(con, sprintf(
-  "select ein, ntee_code_raw, ntee_code_clean, nteev2_code, nteev2,
-          nteev2_subsector, nteev2_org_type, bmf_source, last_vintage_ym
+  "select ein, ntee_code_raw, nteev2_code, bmf_source, last_vintage_ym
    from read_parquet(%s)", shQuote(path.expand(path)))))
 dbDisconnect(con, shutdown = TRUE)
-n <- nrow(d)
 
-flagged <- d[grepl(NTEEV2_SPECIALTY_PATTERN, nteev2_code)]
+xw <- lookup_ls$ntee_legacy_5char
 
-# Recompute through the full transform, split by source (legacy rows may
-# carry pre-2003 5-char codes; legacy_mode enables the vendored crosswalk).
 recompute <- function(rows, legacy) {
   inp <- data.table(ein = rows$ein, NTEE_CD = rows$ntee_code_raw)
   out <- transform_ntee_code(inp, year = format(Sys.Date(), "%Y"),
-                             path = NULL, write_scd = FALSE,
-                             legacy_mode = legacy)
-  rows[, new_code := out$nteev2_code]
+                             path = NULL, write_scd = FALSE, legacy_mode = legacy)
+  rows[, `:=`(new_code = out$nteev2_code, clean_re = out$ntee_code_clean)]
   rows
 }
 d <- rbind(recompute(d[bmf_source == "legacy"],  TRUE),
            recompute(d[bmf_source != "legacy"], FALSE))
 
-changed <- d[new_code != nteev2_code | (is.na(new_code) != is.na(nteev2_code))]
-delta <- nrow(changed) - nrow(flagged)
-
-cat(sprintf("rows %s | flagged %s (%.2f%%) | changed %s | delta %+d\n",
-            format(n, big.mark = ","), format(nrow(flagged), big.mark = ","),
-            100 * nrow(flagged) / n, format(nrow(changed), big.mark = ","), delta))
-cat("flagged-but-unchanged:", nrow(fsetdiff(flagged[, .(ein)], changed[, .(ein)])), "\n")
-extra <- changed[!ein %in% flagged$ein]
-cat("changed-but-unflagged:", nrow(extra), "(pre-0048 stale values, ADR 0048 Decision #3a)\n")
-if (nrow(extra) > 0) {
-  cat("\nchanged-but-unflagged by source and last vintage (top 15):\n")
-  print(extra[, .N, by = .(bmf_source, last_vintage_ym)][order(-N)][1:min(15, .N)])
+# Pre-0048 derivation on the RECOMPUTED clean code
+d[, old_code := fifelse(clean_re %chin% c("INVALID", "UNDEFINED"), "Z99", clean_re)]
+if (!is.null(xw)) {
+  is5 <- d[, bmf_source == "legacy" & nchar(ntee_code_raw) == 5]
+  m <- xw[d[is5], on = c(NTEE = "ntee_code_raw")]
+  d[is5, old_code := fifelse(!is.na(m$NTEE2),
+                             tstrsplit(m$NTEE2, "-", fixed = TRUE)[[2]],
+                             paste0(substr(ntee_code_raw, 1, 1), substr(ntee_code_raw, 4, 5)))]
 }
-cat("\nper-vintage changed counts (write to CSV for the ADR outcome table):\n")
-tab <- changed[, .N, by = .(bmf_source, last_vintage_ym)][order(bmf_source, last_vintage_ym)]
+
+d[, `:=`(flagged   = grepl(NTEEV2_SPECIALTY_PATTERN, nteev2_code),
+         stale     = nteev2_code != old_code,
+         x00_moved = old_code != new_code,
+         changed   = nteev2_code != new_code)]
+d[, in_union  := stale | x00_moved]
+d[, cancelled := in_union & !changed]
+
+n <- nrow(d)
+cnt <- function(col) sum(d[[col]], na.rm = TRUE)
+cat(sprintf(paste0(
+  "rows %s\nflagged   %s (%.2f%%)\nstale     %s\nx00_moved %s\n",
+  "changed   %s\ncancelled %s (drift coinciding with the corrected value)\n"),
+  format(n, big.mark = ","), format(cnt("flagged"), big.mark = ","), 100 * cnt("flagged") / n,
+  format(cnt("stale"), big.mark = ","), format(cnt("x00_moved"), big.mark = ","),
+  format(cnt("changed"), big.mark = ","), format(cnt("cancelled"), big.mark = ",")))
+
+fp <- d[changed & !in_union, .N]          # changed but in no defect class
+fn <- d[flagged & !changed, .N]           # flagged-defective yet untouched
+cat(sprintf("false positives (changed outside classes): %d\nfalse negatives (flagged but unchanged): %d\n", fp, fn))
+ok <- fp == 0L && fn == 0L
+cat(sprintf("set equation stale+x00 == changed+cancelled: %s\n",
+            if (ok) "HOLDS" else "VIOLATED — investigate before publication"))
+
+tab <- d[changed == TRUE, .N, by = .(bmf_source, last_vintage_ym)][order(bmf_source, last_vintage_ym)]
+cat("\nchanged rows by Unified-BMF winning source/vintage (context only — the\nauthoritative per-processed-vintage check is scripts/check_nteev2_vintage_diff.R):\n")
 print(tab, nrows = 200)
-fwrite(tab, "data/crosswalks/nteev2_reconciliation_by_vintage.csv")
+if (!is.null(out_path)) { fwrite(tab, out_path); cat("written:", out_path, "\n") }
+if (!ok) quit(status = 1)

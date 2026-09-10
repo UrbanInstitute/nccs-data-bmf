@@ -70,36 +70,39 @@ test_that("A: the raw code A115 cleans to A11 and renders A00 / MS", {
 # ---------------------------------------------------------------------------
 # B. Oracle: every 3-char code in the vendored legacy crosswalk
 # ---------------------------------------------------------------------------
-test_that("B: 3-char codes in ntee_legacy_5char_lookup.csv reproduce NTEE2, residuals explained", {
+test_that("B: 3-char oracle, two populations exactly as amended criterion B defines", {
   three <- legacy_xw[nchar(NTEE) == 3]
   expect_gt(nrow(three), 500)
   out <- run_transform(three$NTEE)
   expect_equal(out$ntee_code_raw, three$NTEE)   # row order preserved
-  three[, `:=`(got = out$nteev2, clean = out$ntee_code_clean,
-               got_code = out$nteev2_code, got_sub = out$nteev2_subsector)]
+  three[, `:=`(got_code = out$nteev2_code, got_type = out$nteev2_org_type,
+               got_sub = out$nteev2_subsector, clean = out$ntee_code_clean)]
   three[, exp_sub  := sub("-.*$", "", NTEE2)]
   three[, exp_code := sub("^[A-Z]{3}-([A-Z0-9]{3})-.*$", "\\1", NTEE2)]
-  mism <- three[got != NTEE2]
+  three[, exp_type := sub("^.*-", "", NTEE2)]
 
-  # Residual class 1 (EXPECTED, not a defect): the crosswalk predates the
-  # UNI / HOS subsectors that the public NTEE-V2 spec carves out of EDU / HEL
-  # (nccs/_resources/ntee.md). Middle slot and org_type must still agree.
-  cls_uni_hos <- mism[got_sub %in% c("UNI", "HOS") & exp_sub %in% c("EDU", "HEL") & got_code == exp_code]
-  expect_setequal(cls_uni_hos$NTEE, c(NTEEV2_SUBSECTOR_UNIVERSITY, NTEEV2_SUBSECTOR_HOSPITAL))
+  # Population 2: the 12 named lookup gaps (BACKLOG Z18). This pinned list may
+  # only SHRINK: a lookup update makes the expectation here fail loudly.
+  gaps <- c("B29", "E6A", "F31", "K2A", "K2B", "K2C", "L4A", "L4B", "M99", "P76", "P7A", "P83")
+  pop2 <- three[NTEE %in% gaps]
+  expect_setequal(pop2$NTEE, gaps)
+  expect_true(all(pop2$clean == NTEE_INVALID))
+  expect_true(all(pop2$got_code == "Z99" & pop2$got_sub == "UNU" & pop2$got_type == "RG"))
+  expect_false(any(gaps %in% lk$ntee_code$ntee_code))
 
-  # Residual class 2 (KNOWN GAP, out of scope for ADR 0048): codes present in
-  # the NODC crosswalk but absent from data/lookup/bmf_code_lookup.xlsx
-  # sheet ntee_code, so they clean to INVALID -> Z99. Listed by name so a
-  # lookup update makes this test fail loudly and the list gets shortened.
-  cls_missing <- mism[clean == NTEE_INVALID]
-  expect_setequal(cls_missing$NTEE,
-                  c("B29", "E6A", "F31", "K2A", "K2B", "K2C", "L4A", "L4B", "M99", "P76", "P7A", "P83"))
-  expect_false(any(cls_missing$NTEE %in% lk$ntee_code$ntee_code))
+  # Population 1: every remaining row is lookup-valid; middle slot and
+  # org-type must match the crosswalk EXACTLY. Expected mismatches: 0.
+  pop1 <- three[!NTEE %in% gaps]
+  expect_equal(pop1[got_code != exp_code, .N], 0,
+               info = paste(capture.output(print(pop1[got_code != exp_code])), collapse = "\n"))
+  expect_equal(pop1[got_type != exp_type, .N], 0)
 
-  # Nothing else may differ. In particular no residual may involve the x00 rule.
-  unexplained <- mism[!NTEE %in% c(cls_uni_hos$NTEE, cls_missing$NTEE)]
-  expect_equal(nrow(unexplained), 0,
-               info = paste(capture.output(print(unexplained[, .(NTEE, expected = NTEE2, got)])), collapse = "\n"))
+  # Subsector: exact except the UNI/HOS carve-out our spec mandates.
+  carve <- c(NTEEV2_SUBSECTOR_UNIVERSITY, NTEEV2_SUBSECTOR_HOSPITAL)
+  expect_true(all(pop1[NTEE %in% NTEEV2_SUBSECTOR_UNIVERSITY, got_sub] == "UNI"))
+  expect_true(all(pop1[NTEE %in% NTEEV2_SUBSECTOR_HOSPITAL,   got_sub] == "HOS"))
+  expect_equal(pop1[!NTEE %in% carve & got_sub != exp_sub, .N], 0)
+
   expect_false(any(grepl(NTEEV2_SPECIALTY_PATTERN, three$got_code)))
 })
 
@@ -122,7 +125,7 @@ test_that("C: no specialty code ever reaches nteev2_code; composite is consisten
   expect_equal(out$nteev2_org_type != "RG", common)
 })
 
-test_that("C: subsector and org_type are unaffected by the x00 rule", {
+test_that("C: subsector/org_type DERIVATIONS are unchanged (byte identity of artifacts is a criterion-D obligation, not proven here)", {
   codes <- lk$ntee_code$ntee_code
   out <- run_transform(codes)
   # Recompute subsector/org_type the pre-ADR-0048 way (they never depended on nteev2_code)
