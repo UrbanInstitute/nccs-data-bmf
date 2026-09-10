@@ -87,8 +87,10 @@ cat(sprintf(paste0(
 fp <- d[changed & !in_union, .N]          # changed but in no defect class
 fn <- d[flagged & !changed, .N]           # flagged-defective yet untouched
 cat(sprintf("false positives (changed outside classes): %d\nfalse negatives (flagged but unchanged): %d\n", fp, fn))
-ok <- fp == 0L && fn == 0L
-cat(sprintf("set equation stale+x00 == changed+cancelled: %s\n",
+n_union <- d[in_union == TRUE, .N]; n_cc <- cnt("changed") + cnt("cancelled")
+ok <- fp == 0L && fn == 0L && n_union == n_cc
+cat(sprintf("set equation |stale UNION x00_moved| = %s vs |changed| + |cancelled| = %s: %s\n",
+            format(n_union, big.mark = ","), format(n_cc, big.mark = ","),
             if (ok) "HOLDS" else "VIOLATED — investigate before publication"))
 
 tab <- d[changed == TRUE, .N, by = .(bmf_source, last_vintage_ym)][order(bmf_source, last_vintage_ym)]

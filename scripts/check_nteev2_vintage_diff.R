@@ -20,11 +20,29 @@ label <- if (length(args) >= 3) args[[3]] else basename(args[[1]])
 rd <- function(p) if (grepl("[.]parquet$", p)) setDT(arrow::read_parquet(p)) else fread(p)
 b <- rd(args[[1]]); a <- rd(args[[2]])
 
+# Schema must be IDENTICAL as a set (R3-B1): a column added or removed is a
+# failure, not a silent exclusion. Only the two named columns may change values.
+missing_after <- setdiff(names(b), names(a))
+added_after   <- setdiff(names(a), names(b))
+schema_ok <- length(missing_after) == 0 && length(added_after) == 0
+if (!schema_ok) {
+  cat(sprintf("%s|SCHEMA-DRIFT|missing_after=%s|added_after=%s\n", label,
+              paste(missing_after, collapse = ","), paste(added_after, collapse = ",")))
+}
+
+# EINs must be unique within each file: with duplicates, sort-by-EIN row
+# alignment is ambiguous and identical() comparisons are meaningless.
+if (anyDuplicated(b$ein) || anyDuplicated(a$ein)) {
+  cat(sprintf("%s|DUPLICATE-EINS|before=%d|after=%d\n", label,
+              sum(duplicated(b$ein)), sum(duplicated(a$ein))))
+  quit(status = 1)
+}
+
 ein_ok  <- identical(sort(b$ein), sort(a$ein))
 setkey(b, ein); setkey(a, ein)
-common <- intersect(names(b), names(a))
 allowed <- c("nteev2_code", "nteev2")
-diff_cols <- Filter(function(cl) !identical(b[[cl]], a[[cl]]), setdiff(common, allowed))
+diff_cols <- Filter(function(cl) !identical(b[[cl]], a[[cl]]),
+                    setdiff(intersect(names(b), names(a)), allowed))
 flag_b <- sum(grepl(NTEEV2_SPECIALTY_PATTERN, b$nteev2_code), na.rm = TRUE)
 flag_a <- sum(grepl(NTEEV2_SPECIALTY_PATTERN, a$nteev2_code), na.rm = TRUE)
 changed <- sum(b$nteev2_code != a$nteev2_code |
@@ -33,4 +51,4 @@ changed <- sum(b$nteev2_code != a$nteev2_code |
 cat(sprintf("%s|%d|%d|%s|%d|%d|%d|%s|%s\n", label, nrow(b), nrow(a), ein_ok,
             flag_b, changed, flag_a, length(diff_cols) == 0,
             paste(diff_cols, collapse = ",")))
-if (!ein_ok || nrow(b) != nrow(a) || flag_a > 0 || length(diff_cols) > 0) quit(status = 1)
+if (!schema_ok || !ein_ok || nrow(b) != nrow(a) || flag_a > 0 || length(diff_cols) > 0) quit(status = 1)
