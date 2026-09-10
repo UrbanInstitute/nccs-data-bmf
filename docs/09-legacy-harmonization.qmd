@@ -168,7 +168,8 @@ Modern NTEE-CC is at most 4 chars, so the validator in
    override `nteev2_subsector`, `nteev2_code`, and `nteev2_org_type`
    directly.
 3. Unmatched 5-char codes (~5 % long-tail) fall back to formulaic
-   derivation: `nteev2_code = paste0(major_group, substr(raw, 4, 5))`
+   derivation: `nteev2_code = nteev2_code_from_clean(paste0(major_group, substr(raw, 4, 5)))`
+   (positions 4-5 are the activity; the x00 rule still applies, ADR 0048)
    (e.g. `A1120` → `A20`). Subsector and org_type are still resolved
    correctly by the standard fcase logic on `.first` / `.char23`.
 
