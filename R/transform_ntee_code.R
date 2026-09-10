@@ -517,7 +517,18 @@ transform_ntee_code <- function(
       "NTEE-V2 invariant violated: %s rows carry a specialty/common code in nteev2_code (ADR 0048).",
       format(bad_specialty, big.mark = ",")))
   }
-  bad_composite <- dt[nteev2 != paste(nteev2_subsector, nteev2_code, nteev2_org_type, sep = "-"), .N]
+  # NA-safety (ADR 0048 round-1 review, finding B-4): data.table row filters
+  # drop NA predicates, so NA must be tested explicitly, and paste() renders
+  # an NA component as the literal string "NA" inside the composite.
+  bad_na <- dt[is.na(nteev2_code) | is.na(nteev2) |
+               is.na(nteev2_subsector) | is.na(nteev2_org_type), .N]
+  if (bad_na > 0) {
+    stop(sprintf(
+      "NTEE-V2 invariant violated: %s rows have NA in nteev2 components (ADR 0048).",
+      format(bad_na, big.mark = ",")))
+  }
+  bad_composite <- dt[nteev2 != paste(nteev2_subsector, nteev2_code, nteev2_org_type, sep = "-") |
+                      grepl("(^|-)NA(-|$)", nteev2), .N]
   if (bad_composite > 0) {
     stop(sprintf(
       "NTEE-V2 invariant violated: %s rows where nteev2 != subsector-code-org_type.",
@@ -527,6 +538,16 @@ transform_ntee_code <- function(
 }
 
 .ntee_output_validation <- function(scd) {
+  # ADR 0048 belt-and-braces: re-check the specialty pattern on the SCD
+  # projection (the primary, composite-inclusive guard runs at derivation
+  # time in transform_ntee_code(); the SCD does not carry `nteev2`).
+  scd_specialty <- scd[grepl(NTEEV2_SPECIALTY_PATTERN, nteev2_code) %in% TRUE, .N]
+  if (scd_specialty > 0) {
+    stop(sprintf(
+      "NTEE-V2 invariant violated in SCD output: %s rows carry a specialty/common code in nteev2_code (ADR 0048).",
+      format(scd_specialty, big.mark = ",")))
+  }
+
   total_rows <- nrow(scd)
   undefined_count <- nrow(scd[ntee_code_clean == NTEE_UNDEFINED])
   invalid_count <- nrow(scd[ntee_code_clean == NTEE_INVALID])

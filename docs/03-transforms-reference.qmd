@@ -529,7 +529,9 @@ organization — `B430 → B43`, not `B40` or `B00`. This matters because
 `nteev2_subsector` is keyed off the cleaned code (`ntee_code_clean`):
 real universities (`B41`/`B42`/`B43`) reach the `UNI` subsector and
 hospitals (`E20`–`E24`) reach `HOS`, rather than collapsing to `Z99`.
-`nteev2_code` is the cleaned NTEE-CC code, falling back to `Z99` only
+`nteev2_code` is the cleaned NTEE-CC code with the NTEE-V2 x00 rule
+applied (ADR 0048: specialty/common codes 01-19 collapse to `x00`, the
+organization type living in `nteev2_org_type`), falling back to `Z99` only
 when the source code is invalid or undefined. Codes that fail validation
 (`INVALID`/`UNDEFINED`) map `nteev2_subsector` to `UNU` — they do **not**
 inherit a subsector from the raw first letter. The regression guard

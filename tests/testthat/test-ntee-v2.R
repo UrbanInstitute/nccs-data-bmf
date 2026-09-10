@@ -138,3 +138,48 @@ test_that("C: the invariant guard stops the pipeline on a violation", {
   bad <- data.table::data.table(nteev2_code = "B11", nteev2_subsector = "EDU", nteev2_org_type = "MS", nteev2 = "EDU-B11-MS")
   expect_error(.nteev2_invariants(bad), "specialty/common code")
 })
+
+# ---------------------------------------------------------------------------
+# Round-1 review additions (response matrix N-5, B-4)
+# ---------------------------------------------------------------------------
+test_that("N5: every value 01-19 collapses; 00 and 20 are boundaries; helper is idempotent", {
+  digits <- sprintf("%02d", 1:19)
+  expect_equal(nteev2_code_from_clean(paste0("B", digits)), rep("B00", 19))
+  expect_equal(nteev2_code_from_clean(c("B00", "B20", "B99")), c("B00", "B20", "B99"))
+  v <- c("B11", "B00", "B20", "Z99", "INVALID", NA)
+  once <- nteev2_code_from_clean(v)
+  expect_equal(nteev2_code_from_clean(once), once)     # idempotent
+  expect_length(once, length(v))                       # length preserved
+})
+
+test_that("N5: NA, empty, malformed, lowercase, whitespace through the FULL transform", {
+  out <- run_transform(c(NA, "", "??", "9X", "b11", " B11 ", "B1"))
+  expect_equal(out$nteev2[1:4], rep("UNU-Z99-RG", 4))
+  expect_equal(out$nteev2[5:6], rep("EDU-B00-MS", 2))  # raw prep upcases/trims
+  # "B1" pads to "B10", which is NOT an NTEE-CC lookup code, so it cleans to
+  # INVALID -> Z99 (lookup validation runs BEFORE the x00 rule; the helper
+  # never sees it). Pinned so this ordering cannot silently change.
+  expect_equal(out$nteev2_code[7], "Z99")
+  expect_false(any(grepl(NTEEV2_SPECIALTY_PATTERN, out$nteev2_code)))
+})
+
+test_that("N5: unmatched 5-char legacy fallback routes positions 4-5 through the x00 rule", {
+  # A0004 is not in the vendored crosswalk; positions 4-5 = "04" (in-range,
+  # unused by NTEE-CC) must still collapse to A00 per the spec's x01-x19 rule.
+  out <- run_transform(c("A0004", "S0241"), legacy_mode = TRUE)
+  expect_equal(out$nteev2_code, c("A00", "S41"))
+})
+
+test_that("B4: the invariant guard is NA-safe and catches literal-NA composites", {
+  na_row <- data.table::data.table(nteev2_code = NA_character_, nteev2_subsector = "EDU",
+                                   nteev2_org_type = "RG", nteev2 = NA_character_)
+  expect_error(.nteev2_invariants(na_row), "NA in nteev2 components")
+  lit <- data.table::data.table(nteev2_code = "B20", nteev2_subsector = "EDU",
+                                nteev2_org_type = "RG", nteev2 = "EDU-NA-RG")
+  expect_error(.nteev2_invariants(lit))
+})
+
+test_that("B3: .ntee_output_validation re-checks the specialty pattern on the SCD", {
+  scd <- data.table::data.table(ntee_code_clean = "B11", nteev2_code = "B11")
+  expect_error(.ntee_output_validation(scd), "SCD output")
+})
