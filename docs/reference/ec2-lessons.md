@@ -28,9 +28,25 @@ why, and the rules that now prevent it. Complements `setup_ec2.sh` and
 - **Minimal install sets only**: the nine packages the legacy pipeline
   loads; master-rebuild extras behind `INSTALL_MASTER_DEPS=1`.
 - **`aws.s3` (R) cannot see instance-role credentials without
-  `aws.ec2metadata` installed.** The CLI works either way, which makes
-  this failure look like a bucket-policy problem. Symptom: R gets
-  AccessDenied while `aws s3 ls` succeeds.
+  `aws.ec2metadata` installed, AND the CRAN build (0.2.0) cannot speak
+  IMDSv2.** On a box launched with `HttpTokens=required` (2026-09-14 ADR
+  0048 reprocess) R got 403 on every private prefix while the CLI worked.
+  `setup_ec2.sh` now installs the GitHub build (0.2.2) and sets
+  `USE_IMDS_TOKEN=TRUE` in `Renviron.site`; `Rscript --vanilla` ignores
+  Renviron files, so runner scripts must `export USE_IMDS_TOKEN=TRUE`
+  themselves. Do not downgrade the instance to IMDSv1 to get around it.
+- **The `nccs-bmf-batch` role can only touch `nccsdata`.** The geocoder
+  delta `retrieve` step writes to `geocoding-codestar-prod` (form JSON +
+  batch CSV) and heads `output-data/`, so it cannot run under that role.
+  On 2026-09-15 the delta was submitted from the maintainer's laptop and the
+  run ledger edited by hand. Either grant the role put/head/get on that
+  bucket or keep running `retrieve` from a laptop.
+- **Publishing lookups standalone needs `R/manifest.R` sourced.** The
+  master pipeline sources it; a bespoke publish script did not, and
+  `publish_bmf_lookups()` died on `manifest_input_repo`. Now guarded.
+- **Quarto render of the unified quality report failed on the box**
+  (`quarto` CLI error surfaced as a warning; JSON report unaffected). Not
+  diagnosed; the HTML on `unified/bmf/` is stale until the next render.
 - **A partially upgraded R leaves ABI landmines.** Packages compiled
   under the old R in `/usr/local/lib/R/site-library` shadow good ones
   and fail with `undefined symbol: SETLENGTH`. Wipe that library after

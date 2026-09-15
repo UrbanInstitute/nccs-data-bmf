@@ -46,7 +46,7 @@
 # See docs/11-master-bmf.qmd for the full sizing guide.
 # ============================================================================
 
-ENABLE_S3_UPLOAD     <- TRUE
+if (!exists("ENABLE_S3_UPLOAD")) ENABLE_S3_UPLOAD <- TRUE  # exists()-guarded: a caller may set FALSE for a local verification build (ec2-lessons rule)
 DUCKDB_MEMORY_LIMIT  <- "100GB"   # c5.18xlarge has 144 GB; leave headroom
 DUCKDB_THREADS       <- NULL      # NULL = use all cores
 DUCKDB_DB_PATH       <- NULL      # NULL = in-memory; set a path for debugging

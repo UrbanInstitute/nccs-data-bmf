@@ -124,10 +124,29 @@ if [[ "${INSTALL_MASTER_DEPS:-0}" == "1" ]]; then
   sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "${MASTER_PKGS[@]}"
 fi
 
+log "Installing aws.ec2metadata from GitHub (IMDSv2 support)"
+# CRAN aws.ec2metadata (0.2.0) only speaks IMDSv1. On an instance launched
+# with HttpTokens=required (the account default for new boxes, and what the
+# ADR 0048 reprocess box used) R therefore sees no instance-role credentials
+# and every aws.s3 call 403s while the CLI works. The GitHub build (0.2.2)
+# adds token support, gated on USE_IMDS_TOKEN=TRUE, which is exported below
+# and by every runner script. Do NOT weaken the instance to IMDSv1 instead.
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y r-cran-curl r-cran-jsonlite
+ec2md_tmp="$(mktemp -d)"
+curl -sSL https://github.com/cloudyr/aws.ec2metadata/archive/refs/heads/master.tar.gz \
+  | tar xz -C "$ec2md_tmp"
+sudo R CMD INSTALL --no-docs "$ec2md_tmp"/aws.ec2metadata-* >/dev/null
+rm -rf "$ec2md_tmp"
+if ! grep -q '^USE_IMDS_TOKEN=' /etc/R/Renviron.site 2>/dev/null; then
+  echo 'USE_IMDS_TOKEN=TRUE' | sudo tee -a /etc/R/Renviron.site >/dev/null
+fi
+export USE_IMDS_TOKEN=TRUE
+
 log "Verifying R packages load"
 Rscript --vanilla -e '
   pkgs <- c("data.table","arrow","aws.s3","openxlsx","here",
-            "purrr","stringr","lubridate","jsonlite","digest")
+            "purrr","stringr","lubridate","jsonlite","digest",
+            "aws.ec2metadata")
   if (nzchar(Sys.getenv("INSTALL_MASTER_DEPS")) &&
       Sys.getenv("INSTALL_MASTER_DEPS") == "1") {
     pkgs <- c(pkgs, "duckdb","DBI","dplyr","quarto")
@@ -145,6 +164,17 @@ if aws sts get-caller-identity >/dev/null 2>&1; then
     echo "S3 read access to s3://nccsdata/legacy/bmf/ OK"
   else
     echo "WARNING: cannot list s3://nccsdata/legacy/bmf/, check IAM permissions" >&2
+  fi
+  # The same check from R: this is what actually fails when the metadata
+  # client cannot reach IMDSv2 (CLI fine, R 403). Fail loudly here, not
+  # 20 minutes into a batch.
+  if USE_IMDS_TOKEN=TRUE Rscript --vanilla -e \
+       'invisible(aws.s3::get_bucket("nccsdata", prefix = "legacy/bmf/", max = 1))' \
+       >/dev/null 2>&1; then
+    echo "S3 read access from R (aws.s3 via instance role) OK"
+  else
+    echo "WARNING: R cannot list s3://nccsdata/legacy/bmf/ (aws.s3 403 while CLI works?" \
+         "check aws.ec2metadata + USE_IMDS_TOKEN)" >&2
   fi
 else
   cat >&2 <<'EOF'
