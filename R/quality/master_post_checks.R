@@ -198,7 +198,10 @@ render_master_quality_report <- function(report, output_path) {
       output_format  = "html",
       output_file    = output_file,
       execute_params = list(report_data_path = temp_rds),
-      quiet          = TRUE
+      # Not quiet: with quiet = TRUE the CLI's own error (which chunk, which
+      # R error) is swallowed and the log only says "System command 'quarto'
+      # failed"; that cost a separate diagnosis on 2026-09-15 (issue #48).
+      quiet          = FALSE
     )
     rendered_file <- file.path(dirname(template_path), output_file)
     if (!file.exists(rendered_file)) {

@@ -127,18 +127,42 @@ if (!is.null(hist_df) && nrow(hist_df) > 0) {
 Top 30 most-complete columns (highest non-null fraction):
 
 ```{r}
+# The completeness table carries an overall non-null share plus one share per
+# source (current-monthly vs legacy rows). Label every column it has; a
+# mismatch between the table and col.names aborts kable() and with it the
+# whole render (that is what silently stopped the HTML on 2026-09-15).
 comp <- as.data.table(report$completeness)
+comp_cols <- intersect(c("column", "pct_non_null", "pct_current", "pct_legacy"),
+                       names(comp))
+comp <- comp[, ..comp_cols]
+comp_names <- c(column = "Column", pct_non_null = "Non-null %",
+                pct_current = "Current rows %", pct_legacy = "Legacy rows %")[comp_cols]
 setorder(comp, -pct_non_null)
-kable(head(comp, 30), format = "html",
-      col.names = c("Column", "Non-null %"))
+kable(head(comp, 30), format = "html", col.names = unname(comp_names))
 ```
 
 Bottom 30 least-complete columns:
 
 ```{r}
 setorder(comp, pct_non_null)
-kable(head(comp, 30), format = "html",
-      col.names = c("Column", "Non-null %"))
+kable(head(comp, 30), format = "html", col.names = unname(comp_names))
+```
+
+# Columns populated by only one source
+
+Columns that are well populated in one pipeline's rows and empty in the
+other's. These are expected where a field exists in only one source (for
+example fields the legacy extracts never carried), and worth a look where
+it does not.
+
+```{r}
+flags <- report$source_completeness_flags
+if (!is.null(flags) && nrow(flags) > 0) {
+  flags <- as.data.table(flags)[, ..comp_cols]
+  kable(flags, format = "html", col.names = unname(comp_names))
+} else {
+  cat("None.")
+}
 ```
 
 # Notes
