@@ -15,7 +15,7 @@
 
 if (!exists("MASTER_GEOCODING_MODE")) MASTER_GEOCODING_MODE <- "export"
 
-ENABLE_S3_UPLOAD     <- TRUE
+if (!exists("ENABLE_S3_UPLOAD")) ENABLE_S3_UPLOAD <- TRUE  # default TRUE unless the caller set it first, so a verification build can run with uploads off without editing this file
 UNIFIED_PARQUET_PATH <- here::here("data", "master", "bmf_unified.parquet")
 MASTER_GEOCODING_DIR <- here::here("data", "geocoding", "master")
 

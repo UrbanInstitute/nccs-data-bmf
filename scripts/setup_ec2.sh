@@ -124,10 +124,38 @@ if [[ "${INSTALL_MASTER_DEPS:-0}" == "1" ]]; then
   sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "${MASTER_PKGS[@]}"
 fi
 
+log "Installing aws.ec2metadata from GitHub (IMDSv2 support)"
+# Why this package, and why not from CRAN:
+#   - R's S3 client (aws.s3) cannot read the instance's own AWS credentials
+#     by itself; it needs the helper package aws.ec2metadata to fetch them
+#     from the instance metadata service.
+#   - New instances in this account require the token-based version of that
+#     service (IMDSv2, HttpTokens=required). The CRAN release of the helper
+#     (0.2.0, 2019) predates IMDSv2 and never sends the token, so R ends up
+#     with no credentials and every private S3 call is refused (403) while
+#     the AWS CLI on the same box works. This bit the 2026-09-14 ADR 0048
+#     reprocess box.
+#   - The fix exists in the package's GitHub repository (0.2.2, enabled by
+#     USE_IMDS_TOKEN=TRUE) but has not been released to CRAN, so apt/r2u
+#     cannot supply it. Until it is, install from GitHub.
+#   - Do NOT switch the instance to IMDSv1 to avoid this: that weakens the
+#     box and goes against the account's security default.
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y r-cran-curl r-cran-jsonlite
+ec2md_tmp="$(mktemp -d)"
+curl -sSL https://github.com/cloudyr/aws.ec2metadata/archive/refs/heads/master.tar.gz \
+  | tar xz -C "$ec2md_tmp"
+sudo R CMD INSTALL --no-docs "$ec2md_tmp"/aws.ec2metadata-* >/dev/null
+rm -rf "$ec2md_tmp"
+if ! grep -q '^USE_IMDS_TOKEN=' /etc/R/Renviron.site 2>/dev/null; then
+  echo 'USE_IMDS_TOKEN=TRUE' | sudo tee -a /etc/R/Renviron.site >/dev/null
+fi
+export USE_IMDS_TOKEN=TRUE
+
 log "Verifying R packages load"
 Rscript --vanilla -e '
   pkgs <- c("data.table","arrow","aws.s3","openxlsx","here",
-            "purrr","stringr","lubridate","jsonlite","digest")
+            "purrr","stringr","lubridate","jsonlite","digest",
+            "aws.ec2metadata")
   if (nzchar(Sys.getenv("INSTALL_MASTER_DEPS")) &&
       Sys.getenv("INSTALL_MASTER_DEPS") == "1") {
     pkgs <- c(pkgs, "duckdb","DBI","dplyr","quarto")
@@ -145,6 +173,17 @@ if aws sts get-caller-identity >/dev/null 2>&1; then
     echo "S3 read access to s3://nccsdata/legacy/bmf/ OK"
   else
     echo "WARNING: cannot list s3://nccsdata/legacy/bmf/, check IAM permissions" >&2
+  fi
+  # The same check from R: this is what actually fails when the metadata
+  # client cannot reach IMDSv2 (CLI fine, R 403). Fail loudly here, not
+  # 20 minutes into a batch.
+  if USE_IMDS_TOKEN=TRUE Rscript --vanilla -e \
+       'invisible(aws.s3::get_bucket("nccsdata", prefix = "legacy/bmf/", max = 1))' \
+       >/dev/null 2>&1; then
+    echo "S3 read access from R (aws.s3 via instance role) OK"
+  else
+    echo "WARNING: R cannot list s3://nccsdata/legacy/bmf/ (aws.s3 403 while CLI works?" \
+         "check aws.ec2metadata + USE_IMDS_TOKEN)" >&2
   fi
 else
   cat >&2 <<'EOF'

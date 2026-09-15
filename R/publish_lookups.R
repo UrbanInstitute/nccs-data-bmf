@@ -8,6 +8,11 @@
 #   data/lookup/bmf_code_lookup.xlsx (all sheets) +
 #   data/lookup/ntee_legacy_5char_lookup.csv
 #
+# Depends on R/manifest.R for manifest_input_repo() (records one repo file's
+# path and sha256 as an input entry in the provenance manifest) and
+# write_manifest(). Loaded below if the caller has not loaded it, so a
+# standalone publish does not fail on "could not find function" (2026-09-15).
+#
 # Output:
 #   s3://nccsdata/lookups/bmf/{YYYY_MM}/{name}.csv
 #   s3://nccsdata/lookups/bmf/{YYYY_MM}/_manifest.json   (ADR 0014 shape)
@@ -51,6 +56,8 @@
 #' @return Invisibly: a list with `manifest`, `vintage`, `uploaded`, `skipped`.
 #'
 #' @export
+if (!exists("manifest_input_repo")) source(here::here("R", "manifest.R"))
+
 publish_bmf_lookups <- function(lookups    = lookup_ls,
                                 vintage    = format(Sys.Date(), "%Y_%m"),
                                 lookup_dir = here::here("data", "lookup", "published"),
