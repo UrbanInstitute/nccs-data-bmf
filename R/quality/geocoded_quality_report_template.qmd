@@ -1,0 +1,67 @@
+---
+title: "Geocoded Unified BMF Quality Report"
+format:
+  html:
+    theme: cosmo
+    embed-resources: true
+params:
+  report_data_path: ""
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r setup}
+suppressPackageStartupMessages(library(knitr))
+if (!file.exists(params$report_data_path)) stop("Report data file not found: ", params$report_data_path)
+r <- readRDS(params$report_data_path)
+fmt_int <- function(x) format(as.integer(x), big.mark = ",")
+pct <- function(a, b) sprintf("%.2f %%", 100 * as.numeric(a) / as.numeric(b))
+```
+
+::: {.callout-note appearance="simple"}
+**Generated:** `r r$timestamp`
+**Data set:** `geocoding/unified-bmf/latest/bmf_unified_geocoded.parquet` (the Unified BMF with coordinates attached)
+:::
+
+# What this report covers
+
+The geocoded Unified BMF has exactly the rows of the Unified BMF plus
+location columns. Coordinates are attached by matching each organization's
+mailing address against the Urban Institute geocoder. Rows without a usable
+mailing address (for example, no street and no city) cannot be sent to the
+geocoder and keep empty location columns.
+
+# Coverage
+
+```{r}
+tbl <- data.frame(
+  Measure = c("Unified BMF rows (one per EIN)",
+              "Rows with a usable mailing address (sent to the geocoder)",
+              "Distinct addresses geocoded",
+              "Rows with latitude and longitude",
+              "Share of all rows with coordinates",
+              "Share of geocodable rows with coordinates",
+              "Geocoder match rate on distinct addresses"),
+  Value = c(fmt_int(r$total_master_rows),
+            fmt_int(r$geocodable_rows),
+            fmt_int(r$unique_addresses_geocoded),
+            fmt_int(r$rows_with_lat_lon),
+            pct(r$rows_with_lat_lon, r$total_master_rows),
+            pct(r$rows_with_lat_lon, r$geocodable_rows),
+            sprintf("%.2f %%", as.numeric(r$geocoder_match_rate_pct))),
+  stringsAsFactors = FALSE)
+kable(tbl, format = "html")
+```
+
+# How to read it
+
+- Rows without coordinates are almost all rows without a usable mailing
+  address, not geocoder failures. The gap between "rows" and "rows with a
+  usable mailing address" is that group.
+- The geocoder returns a match score per address; the published columns
+  carry the score, match type and address type so users can apply their own
+  threshold. This report counts any returned coordinate as geocoded.
+- For column-level completeness of the non-location columns, see the
+  Unified BMF quality report; the geocoded file inherits them unchanged.
