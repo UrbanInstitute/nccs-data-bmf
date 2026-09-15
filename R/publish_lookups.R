@@ -8,9 +8,10 @@
 #   data/lookup/bmf_code_lookup.xlsx (all sheets) +
 #   data/lookup/ntee_legacy_5char_lookup.csv
 #
-# Requires R/manifest.R (manifest_input_repo, write_manifest) to be sourced
-# first; sourced here defensively so a standalone call does not fail on
-# `could not find function "manifest_input_repo"` (ADR 0048 publish, 2026-09-15).
+# Depends on R/manifest.R for manifest_input_repo() (records one repo file's
+# path and sha256 as an input entry in the provenance manifest) and
+# write_manifest(). Loaded below if the caller has not loaded it, so a
+# standalone publish does not fail on "could not find function" (2026-09-15).
 #
 # Output:
 #   s3://nccsdata/lookups/bmf/{YYYY_MM}/{name}.csv

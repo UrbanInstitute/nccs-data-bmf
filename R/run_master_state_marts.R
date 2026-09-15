@@ -9,7 +9,7 @@
 #   source("R/run_master_state_marts.R")
 # ============================================================================
 
-if (!exists("ENABLE_S3_UPLOAD")) ENABLE_S3_UPLOAD <- TRUE  # exists()-guarded: a caller may set FALSE for a local verification build (ec2-lessons rule)
+if (!exists("ENABLE_S3_UPLOAD")) ENABLE_S3_UPLOAD <- TRUE  # default TRUE unless the caller set it first, so a verification build can run with uploads off without editing this file
 
 GEOCODED_MASTER_PATH <- here::here("data", "geocoding", "master", "merged",
                                    "bmf_unified_geocoded.parquet")

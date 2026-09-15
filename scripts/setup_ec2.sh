@@ -125,12 +125,21 @@ if [[ "${INSTALL_MASTER_DEPS:-0}" == "1" ]]; then
 fi
 
 log "Installing aws.ec2metadata from GitHub (IMDSv2 support)"
-# CRAN aws.ec2metadata (0.2.0) only speaks IMDSv1. On an instance launched
-# with HttpTokens=required (the account default for new boxes, and what the
-# ADR 0048 reprocess box used) R therefore sees no instance-role credentials
-# and every aws.s3 call 403s while the CLI works. The GitHub build (0.2.2)
-# adds token support, gated on USE_IMDS_TOKEN=TRUE, which is exported below
-# and by every runner script. Do NOT weaken the instance to IMDSv1 instead.
+# Why this package, and why not from CRAN:
+#   - R's S3 client (aws.s3) cannot read the instance's own AWS credentials
+#     by itself; it needs the helper package aws.ec2metadata to fetch them
+#     from the instance metadata service.
+#   - New instances in this account require the token-based version of that
+#     service (IMDSv2, HttpTokens=required). The CRAN release of the helper
+#     (0.2.0, 2019) predates IMDSv2 and never sends the token, so R ends up
+#     with no credentials and every private S3 call is refused (403) while
+#     the AWS CLI on the same box works. This bit the 2026-09-14 ADR 0048
+#     reprocess box.
+#   - The fix exists in the package's GitHub repository (0.2.2, enabled by
+#     USE_IMDS_TOKEN=TRUE) but has not been released to CRAN, so apt/r2u
+#     cannot supply it. Until it is, install from GitHub.
+#   - Do NOT switch the instance to IMDSv1 to avoid this: that weakens the
+#     box and goes against the account's security default.
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y r-cran-curl r-cran-jsonlite
 ec2md_tmp="$(mktemp -d)"
 curl -sSL https://github.com/cloudyr/aws.ec2metadata/archive/refs/heads/master.tar.gz \
