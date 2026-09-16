@@ -16,8 +16,8 @@
 # S3 (if enabled), dual-written for the ADR 0039 90-day deprecation window:
 #   s3://nccsdata/unified/bmf/state_marts/parquet/state=XX/...   (current)
 #   s3://nccsdata/unified/bmf/state_marts/csv/bmf_unified_XX.csv (current; ADR 0039 file name, first published 2026-09-16)
-#   s3://nccsdata/unified/bmf/state_marts/csv/bmf_master_XX.csv  (old file name, written as a copy until STATE_MART_OLD_STEM_CUTOVER)
-#   s3://nccsdata/master/bmf/state_marts/...                     (old folder, written until the ADR 0037 cutover 2026-09-28)
+#   s3://nccsdata/unified/bmf/state_marts/csv/bmf_master_XX.csv  (old file name, written as a copy through STATE_MART_OLD_STEM_CUTOVER)
+#   s3://nccsdata/master/bmf/state_marts/...                     (old folder, written through STATE_MART_OLD_PREFIX_CUTOVER)
 # ============================================================================
 
 #' Build per-state data marts from the geocoded Unified BMF
@@ -28,11 +28,21 @@
 #' @param missing_state_bucket  Bucket name for rows with NA state (default: "ZZ")
 #' @return Invisibly: data.table of per-state row counts and paths
 #' @export
-# The per-state CSV was published as bmf_master_XX.csv until 2026-09-16 even
-# though the contract (ADR 0039) names it bmf_unified_XX.csv. Both names are
-# written for 90 days from 2026-09-16 so existing links keep working; after
-# the cutover only bmf_unified_XX.csv is written. Backlog Z19.
-STATE_MART_OLD_STEM_CUTOVER <- "2026-12-15"
+# Two retirement dates (ADR 0033: 90 days each), both inclusive:
+#
+# STATE_MART_OLD_PREFIX_CUTOVER: the old folder master/bmf/state_marts/ was
+#   given its own 90-day clock from 2026-07-02 (ADR 0039), so it is written
+#   through 2026-09-30 and not from 2026-10-01. (The plain Unified BMF's
+#   master/bmf/ date is 2026-09-28; that is a different clock.)
+#
+# STATE_MART_OLD_STEM_CUTOVER: the per-state CSV was published as
+#   bmf_master_XX.csv until 2026-09-16 even though the contract (ADR 0039)
+#   names it bmf_unified_XX.csv. Both names are written through 2026-12-15
+#   so existing links keep working; from 2026-12-16 only bmf_unified_XX.csv
+#   is written. Backlog Z19. If the one-time copy of the live files to the
+#   new name lands after 2026-09-16, move this date to 90 days after it.
+STATE_MART_OLD_PREFIX_CUTOVER <- "2026-09-30"
+STATE_MART_OLD_STEM_CUTOVER   <- "2026-12-15"
 
 #' File name of the per-state CSV for one state code
 #' @param state Two-letter state / territory code (or "ZZ")
@@ -42,10 +52,22 @@ state_mart_csv_name <- function(state, old = FALSE) {
   sprintf(if (old) "bmf_master_%s.csv" else "bmf_unified_%s.csv", state)
 }
 
-#' Should the old bmf_master_XX.csv copy still be written?
+#' Should the old bmf_master_XX.csv copy still be written? (TRUE through the cutover date)
 #' @noRd
 state_mart_write_old_stem <- function(today = Sys.Date()) {
   as.Date(today) <= as.Date(STATE_MART_OLD_STEM_CUTOVER)
+}
+
+#' S3 folders the marts are uploaded to on a given date
+#' @return Character vector: always unified/bmf/state_marts; plus the old
+#'   master/bmf/state_marts through STATE_MART_OLD_PREFIX_CUTOVER.
+#' @noRd
+state_mart_s3_roots <- function(today = Sys.Date()) {
+  roots <- "unified/bmf/state_marts"
+  if (as.Date(today) <= as.Date(STATE_MART_OLD_PREFIX_CUTOVER)) {
+    roots <- c(roots, "master/bmf/state_marts")
+  }
+  roots
 }
 
 build_master_state_marts <- function(
@@ -115,12 +137,14 @@ build_master_state_marts <- function(
   # --------------------------------------------------------------------------
   if (s3_upload) {
     log_info("Uploading state marts to S3")
-    # ADR 0039 dual-write: new unified/ prefix + old master/ prefix
-    # (unchanged), same 90-day deprecation window as the geocoded merge.
-    s3_roots <- c("unified/bmf/state_marts", "master/bmf/state_marts")
+    # ADR 0039: the old master/ folder is written only through its
+    # retirement date; the old file name only through its own (see the
+    # constants above).
+    s3_roots <- state_mart_s3_roots()
     write_old_stem <- state_mart_write_old_stem()
+    log_info(sprintf("Uploading to: %s", paste(s3_roots, collapse = ", ")))
     if (write_old_stem) {
-      log_info(sprintf("Also writing the old bmf_master_XX.csv file name (until %s)",
+      log_info(sprintf("Also writing the old bmf_master_XX.csv file name (through %s)",
                        STATE_MART_OLD_STEM_CUTOVER))
     }
 

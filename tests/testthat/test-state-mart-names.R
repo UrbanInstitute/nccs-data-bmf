@@ -18,3 +18,13 @@ test_that("old file name is written through the cutover and not after", {
   expect_true(state_mart_write_old_stem(as.Date(STATE_MART_OLD_STEM_CUTOVER)))
   expect_false(state_mart_write_old_stem(as.Date(STATE_MART_OLD_STEM_CUTOVER) + 1))
 })
+
+test_that("old master/ folder is written through 2026-09-30 and not after", {
+  expect_equal(state_mart_s3_roots(as.Date("2026-09-16")),
+               c("unified/bmf/state_marts", "master/bmf/state_marts"))
+  expect_equal(state_mart_s3_roots(as.Date(STATE_MART_OLD_PREFIX_CUTOVER)),
+               c("unified/bmf/state_marts", "master/bmf/state_marts"))
+  expect_equal(state_mart_s3_roots(as.Date(STATE_MART_OLD_PREFIX_CUTOVER) + 1),
+               "unified/bmf/state_marts")
+  expect_equal(STATE_MART_OLD_PREFIX_CUTOVER, "2026-09-30")
+})
