@@ -28,6 +28,9 @@ BMF_LEGACY_MIN_COLUMNS <- c(
 # ============================================================================
 # Pre-Check Functions
 # ============================================================================
+# Shared column-count helper (backlog Z9); lets this file be sourced alone.
+source(here::here("R", "quality", "column_counts.R"))
+
 
 #' Validate Raw BMF Structure
 #'

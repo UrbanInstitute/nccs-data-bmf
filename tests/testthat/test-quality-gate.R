@@ -3,8 +3,10 @@
 # was already empty (old legacy months lack many IRS fields).
 
 library(data.table)
-source(here::here("R", "quality", "post_checks.R"))
+# pre_checks.R first and alone: it must work without post_checks.R (review of PR #53)
 source(here::here("R", "quality", "pre_checks.R"))
+stopifnot(exists("count_nonempty_values"))
+source(here::here("R", "quality", "post_checks.R"))
 
 raw <- data.table(
   EIN    = c("010000001", "010000002", "010000003"),
@@ -37,6 +39,25 @@ test_that("nothing is flagged when every populated source keeps values", {
   out <- data.table(ein = c("01-0000001", "01-0000002", "01-0000003"),
                     org_addr_zip5 = c("02138", "02139", "02140"))
   expect_equal(find_emptied_columns(out, count_nonempty_values(raw)), character(0))
+})
+
+test_that("optional derivations are never flagged even when empty", {
+  # Five-digit ZIPs have no ZIP+4; a suffix, parent name, or definition column
+  # can be empty for a whole file without anything being wrong.
+  out <- data.table(
+    ein = c("01-0000001", "01-0000002", "01-0000003"),
+    org_addr_zip5 = c("02138", "90210", "02140"),
+    org_addr_zip4 = c(NA_character_, NA_character_, NA_character_),
+    org_parent_name = c(NA_character_, NA_character_, NA_character_),
+    org_legal_suffix = c(NA_character_, NA_character_, NA_character_),
+    org_addr_is_po_box = c(FALSE, FALSE, TRUE)
+  )
+  expect_equal(find_emptied_columns(out, count_nonempty_values(raw)), character(0))
+})
+
+test_that("only listed columns are checked", {
+  out <- data.table(org_addr_zip5 = c(NA_character_, NA_character_, NA_character_))
+  expect_equal(find_emptied_columns(out, count_nonempty_values(raw), preserved = "ein"), character(0))
 })
 
 test_that("the check is skipped without source counts", {

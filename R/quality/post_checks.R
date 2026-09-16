@@ -311,39 +311,53 @@ CRITICAL_FIELDS <- c(
   "ein"
 )
 
-#' Number of non-missing values in every column of a table
-#'
-#' A value is missing when it is NA, or an empty string for character columns.
-#' @param dt data.table or data.frame
-#' @return named integer vector, one entry per column
-#' @export
-count_nonempty_values <- function(dt) {
-  vapply(names(dt), function(col) {
-    x <- dt[[col]]
-    if (is.character(x)) sum(!is.na(x) & x != "") else sum(!is.na(x))
-  }, integer(1))
-}
+# Shared column-count helper (backlog Z9); lets this file be sourced alone.
+source(here::here("R", "quality", "column_counts.R"))
+
+# Output columns that must carry a value whenever their source column does
+# (backlog Z9). These are pass-through copies of a source field, the cleaned
+# address parts, the identifier, and the money amounts: for each of them a
+# populated source that yields a completely empty output can only mean a
+# transform destroyed the values (the shape of the July 2026 ZIP defect, which
+# emptied org_addr_zip5). Deliberately NOT listed: optional derivations that
+# are legitimately empty for whole files (org_addr_zip4 when every ZIP is five
+# digits, org_parent_name, org_legal_suffix, the *_definition and *_is_*
+# columns, and the date strings, whose sources can be populated with values
+# the cleaner rightly rejects).
+PRESERVED_OUTPUT_COLUMNS <- c(
+  "ein", "ein_raw",
+  "org_name_raw", "org_name_join", "org_name_display",
+  "dba_name_raw", "in_care_of_name_raw", "group_exemption_number_raw",
+  "org_addr_street_raw", "org_addr_city_raw", "org_addr_state_raw", "org_addr_zip_raw",
+  "org_addr_street", "org_addr_city", "org_addr_state", "org_addr_zip5", "org_addr_zip",
+  "org_addr_full",
+  "asset_amount", "income_amount", "revenue_amount"
+)
 
 #' Output columns that a transformation emptied
 #'
-#' Compares each output column with the source column(s) it is derived from
-#' (SOURCE_COLUMN_MAP). An output column is "emptied" when it holds no values
-#' at all while at least one of its source columns held values before
-#' transformation. Columns whose sources were already empty (common for old
-#' legacy months, which lack many IRS fields) are not flagged, and output
-#' columns with no known source are skipped.
+#' For each column in PRESERVED_OUTPUT_COLUMNS, compares the output with the
+#' source column(s) it is derived from (SOURCE_COLUMN_MAP). A column is
+#' "emptied" when it holds no values at all while at least one of its source
+#' columns held values before transformation. Columns whose sources were
+#' already empty (common for old legacy months, which lack many IRS fields)
+#' are not flagged; columns outside the preserved list are never flagged.
 #'
 #' @param dt transformed data.table
 #' @param source_nonempty named integer vector from count_nonempty_values()
 #'   on the pre-transformation table (pre_check_results$nonempty_counts)
 #' @param map list: output column -> source column name(s)
+#' @param preserved character vector of output columns subject to the check
 #' @return character vector of emptied output column names (empty if none)
 #' @export
-find_emptied_columns <- function(dt, source_nonempty, map = SOURCE_COLUMN_MAP) {
+find_emptied_columns <- function(dt, source_nonempty, map = SOURCE_COLUMN_MAP,
+                                 preserved = PRESERVED_OUTPUT_COLUMNS) {
   if (is.null(source_nonempty) || length(source_nonempty) == 0) return(character(0))
-  out_nonempty <- count_nonempty_values(dt)
+  candidates <- intersect(intersect(preserved, names(map)), names(dt))
+  if (length(candidates) == 0) return(character(0))
+  out_nonempty <- count_nonempty_values(dt[, candidates, with = FALSE])
   emptied <- character(0)
-  for (col in intersect(names(map), names(dt))) {
+  for (col in candidates) {
     sources <- intersect(map[[col]], names(source_nonempty))
     if (length(sources) == 0) next
     if (sum(source_nonempty[sources]) > 0 && out_nonempty[[col]] == 0) {
