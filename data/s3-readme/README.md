@@ -6,7 +6,7 @@ The BMF contains records for ~1.9 million tax-exempt organizations.
 ## Data Flow
 
 ```
-raw/bmf/          intermediate/bmf/       processed/bmf/         geocoding/bmf/
+raw/bmf/          intermediate/bmf/       processed/bmf/         geocoding/unified-bmf/
 (IRS source) ---> (all columns,      ---> (transformed only, --> (with lat/lon,
                    parquet)                 CSV)                  parquet + CSV)
                   [BMF Pipeline]           [BMF Pipeline]        [Geocoding Workflow]
@@ -24,29 +24,30 @@ raw/bmf/          intermediate/bmf/       processed/bmf/         geocoding/bmf/
 | `raw/bmf/` | Source | CSV | Monthly IRS BMF extracts, ingested by Lambda |
 | `intermediate/bmf/YYYY_MM/` | After transform | Parquet | All columns (raw + transformed) for auditing |
 | `processed/bmf/YYYY_MM/` | Final output | CSV | Transformed columns only (~77 columns) |
-| `geocoding/bmf/YYYY_MM/` | Enrichment | Parquet + CSV | Geocoded BMF with latitude/longitude |
 | `legacy/bmf/` | Source (historical) | CSV | NCCS-curated 501CX-NONPROFIT-PX BMF, 1989-2022 |
 | `intermediate/bmf-legacy/YYYY_MM/` | After transform | Parquet | Harmonized legacy BMF, full schema |
 | `processed/bmf-legacy/YYYY_MM/` | Final output | CSV | Harmonized legacy BMF, slim per-vintage schema |
-| `master/bmf/` | Consolidated | Parquet + CSV | One row per EIN across all current+legacy vintages |
-| `unified/bmf/state_marts/` | Distribution | Parquet + CSV | Geocoded Unified BMF split into one file per state (also at `master/bmf/state_marts/` through 2026-09-30) |
+| `unified/bmf/` | Consolidated | Parquet + CSV | Unified BMF: one row per EIN across all current+legacy vintages |
+| `geocoding/unified-bmf/` | Consolidated + geocoded | Parquet + CSV | Unified BMF with latitude/longitude |
+| `unified/bmf/state_marts/` | Distribution | Parquet + CSV | Geocoded Unified BMF split into one file per state |
 
 ## Which Dataset Should I Use?
 
 - **`processed/bmf/`** -- For most analysis of recent BMF. Contains ~77 cleaned and
   transformed columns with human-readable code definitions. CSV format.
-- **`master/bmf/`** -- For "every nonprofit ever observed" workloads (historical
+- **`unified/bmf/`** -- For "every nonprofit ever observed" workloads (historical
   geocoding, longitudinal coverage, EIN registry). One row per EIN, drawn from the
   most-recent vintage in which the EIN appears across both current and legacy
   pipelines. Includes `first_year_in_bmf` / `last_year_in_bmf` markers.
 - **`unified/bmf/state_marts/`** -- If you only need a single state or a handful of
-  states, pull from here instead of downloading the full ~3 GB geocoded master.
-  Same content as the geocoded master, partitioned on `org_addr_state`.
+  states, pull from here instead of downloading the full ~3 GB geocoded Unified BMF.
+  Same content as the geocoded Unified BMF, partitioned on `org_addr_state`.
 - **`processed/bmf-legacy/`** -- For historical analysis on a specific NCCS legacy
   vintage (1989-2022). Slim per-vintage schema -- only columns whose underlying
   input was populated in that file.
-- **`geocoding/bmf/.../merged/`** -- If you need geographic coordinates (latitude,
-  longitude, match quality). Builds on processed data.
+- **`geocoding/unified-bmf/latest/`** -- If you need geographic coordinates (latitude,
+  longitude, match quality) for every organization. This is the recommended
+  starting point for most users.
 - **`intermediate/bmf/`** -- Only if you need raw IRS column values alongside
   transformed columns, e.g., for auditing transformations. Parquet format.
 - **`raw/bmf/`** -- Original IRS extracts. Use only if you need completely
@@ -85,22 +86,24 @@ Final pipeline output with only transformed columns. This is the primary dataset
 - **Example:** `processed/bmf/2026_03/bmf_2026_03_processed.csv`
 - **Input:** `intermediate/bmf/YYYY_MM/` (same pipeline run)
 
-### `geocoding/bmf/YYYY_MM/`
+### `geocoding/unified-bmf/`
 
-Geocoded BMF data enriched with geographic coordinates. Produced by a separate manual
-workflow (`R/run_geocoding.R`) that sends addresses to the Urban Institute geocoder.
+The Unified BMF (see `unified/bmf/` below) with geographic coordinates added by
+the Urban Institute geocoder. Produced by `R/run_master_geocoding.R`.
 
 - **Sub-folders:**
-  - `input/` -- Address batches exported for geocoding
-  - `output/` -- Raw geocoder results (uploaded manually after geocoding)
-  - `merged/` -- Final geocoded BMF (merged geocoder output back into processed BMF)
-- **Files in `merged/`:**
-  - `bmf_YYYY_MM_geocoded.parquet` -- Full geocoded dataset
-  - `bmf_YYYY_MM_geocoded.csv` -- CSV version
-  - `bmf_YYYY_MM_geocoding_quality_report.json` -- Match rates and quality metrics
-  - `bmf_YYYY_MM_geocoding_data_dictionary.csv` -- Column metadata
-- **Example:** `geocoding/bmf/2026_03/merged/bmf_2026_03_geocoded.parquet`
-- **Input:** `processed/bmf/YYYY_MM/bmf_YYYY_MM_processed.csv`
+  - `latest/` -- Always the newest data set. Read from here.
+  - `vYYYY_MM/` -- A dated copy of each data set, kept permanently (first: `v2026_07/`)
+  - `merged/` -- The pipeline's working folder while it builds; not meant for readers
+  - `input/` -- Address batches sent to the geocoder
+- **Files in `latest/`:**
+  - `bmf_unified_geocoded.parquet` -- Full geocoded dataset
+  - `bmf_unified_geocoded.csv` -- CSV version
+  - `bmf_unified_geocoded_data_dictionary.csv` -- Column metadata
+  - `bmf_unified_geocoded_quality_report.json` / `.html` -- Match rates and quality metrics
+  - `_manifest.json` -- Build record (git commit, input checksums, row counts)
+- **Example:** `geocoding/unified-bmf/latest/bmf_unified_geocoded.parquet`
+- **Input:** `unified/bmf/bmf_unified.parquet` plus the geocoder output
 
 ### `legacy/bmf/`
 
@@ -129,9 +132,9 @@ for audit.
 - **Example:** `processed/bmf-legacy/2010_07/bmf_legacy_2010_07_processed.csv`
 - **Input:** `legacy/bmf/BMF-YYYY-MM-501CX-NONPROFIT-PX.csv`
 
-### `master/bmf/`
+### `unified/bmf/`
 
-Master BMF: one row per EIN across all current and legacy vintages. Each row
+Unified BMF: one row per EIN across all current and legacy vintages. Each row
 carries the most-recent vintage's contents plus first/last vintage markers
 (`first_vintage_ym`, `last_vintage_ym`, `first_year_in_bmf`,
 `last_year_in_bmf`, `bmf_vintages_observed`, `bmf_source`). Built by
@@ -139,20 +142,20 @@ carries the most-recent vintage's contents plus first/last vintage markers
 `processed/bmf/` and `processed/bmf-legacy/` CSVs. Current pipeline wins on
 `vintage_ym` ties.
 
-- **Files (single living artifact, overwritten on each rebuild):**
-  - `bmf_master.parquet` -- Full schema, zstd-compressed
-  - `bmf_master.csv` -- Same rows as CSV
-  - `bmf_master_data_dictionary.csv` -- Column metadata
-  - `bmf_master_quality_report.json` -- EIN-uniqueness gate, source coverage,
+- **Files (refreshed on each rebuild; a dated copy of each build is kept under `vYYYY_MM/`, and `latest/` always holds the newest):**
+  - `bmf_unified.parquet` -- Full schema, zstd-compressed
+  - `bmf_unified.csv` -- Same rows as CSV
+  - `bmf_unified_data_dictionary.csv` -- Column metadata
+  - `bmf_unified_quality_report.json` / `.html` -- EIN-uniqueness gate, source coverage,
     vintage histogram, completeness
-- **Example:** `master/bmf/bmf_master.parquet`
+  - `_manifest.json` -- Build record (git commit, input checksums, row counts)
+- **Example:** `unified/bmf/bmf_unified.parquet`
 - **Inputs:** `processed/bmf/*/...` and `processed/bmf-legacy/*/...`
 
 ### `unified/bmf/state_marts/`
 
 Per-state data marts derived from the geocoded Unified BMF
-(`geocoding/unified-bmf/latest/bmf_unified_geocoded.parquet`). Also written
-to the old `master/bmf/state_marts/` folder through 2026-09-30. Built so end
+(`geocoding/unified-bmf/latest/bmf_unified_geocoded.parquet`). Built so end
 users can pull only the state(s) they need instead of the full ~3 GB
 unified file. Partition key is `org_addr_state` (cleaned mailing
 state); rows with missing state are bucketed into `ZZ`. Built by
@@ -168,7 +171,7 @@ state); rows with missing state are bucketed into `ZZ`. Built by
   APO/FPO codes (AA, AE, AP), Compact-of-Free-Association codes (FM,
   MH, PW), and a `ZZ` missing-state bucket
 - **Example:** `unified/bmf/state_marts/csv/bmf_unified_NY.csv`
-- **Input:** `geocoding/bmf-master/merged/bmf_master_geocoded.parquet`
+- **Input:** `geocoding/unified-bmf/latest/bmf_unified_geocoded.parquet`
 
 ## Documentation
 

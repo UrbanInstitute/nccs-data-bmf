@@ -28,6 +28,10 @@
 #' @param missing_state_bucket  Bucket name for rows with NA state (default: "ZZ")
 #' @return Invisibly: data.table of per-state row counts and paths
 #' @export
+# TEMPORARY (backlog Z19): remove this block, state_mart_s3_roots(),
+# state_mart_write_old_stem(), the retired_name argument and the matching
+# upload lines once both dates below have passed (from 2026-12-16).
+#
 # Two retirement dates (ADR 0033: 90 days each), both inclusive:
 #
 # STATE_MART_OLD_PREFIX_CUTOVER: the old folder master/bmf/state_marts/ was
@@ -46,10 +50,11 @@ STATE_MART_OLD_STEM_CUTOVER   <- "2026-12-15"
 
 #' File name of the per-state CSV for one state code
 #' @param state Two-letter state / territory code (or "ZZ")
-#' @param old   TRUE returns the pre-2026-09-16 name (bmf_master_XX.csv)
+#' @param retired_name TRUE returns the retired name (bmf_master_XX.csv),
+#'   used only while the old name is still written. TEMPORARY, see above.
 #' @noRd
-state_mart_csv_name <- function(state, old = FALSE) {
-  sprintf(if (old) "bmf_master_%s.csv" else "bmf_unified_%s.csv", state)
+state_mart_csv_name <- function(state, retired_name = FALSE) {
+  sprintf(if (retired_name) "bmf_master_%s.csv" else "bmf_unified_%s.csv", state)
 }
 
 #' Should the old bmf_master_XX.csv copy still be written? (TRUE through the cutover date)
@@ -137,9 +142,10 @@ build_master_state_marts <- function(
   # --------------------------------------------------------------------------
   if (s3_upload) {
     log_info("Uploading state marts to S3")
-    # ADR 0039: the old master/ folder is written only through its
-    # retirement date; the old file name only through its own (see the
-    # constants above).
+    # TEMPORARY (backlog Z19, remove from 2026-12-16): the old master/
+    # folder is written only through its retirement date and the old file
+    # name only through its own; after that, upload only to
+    # unified/bmf/state_marts with the bmf_unified_XX.csv name.
     s3_roots <- state_mart_s3_roots()
     write_old_stem <- state_mart_write_old_stem()
     log_info(sprintf("Uploading to: %s", paste(s3_roots, collapse = ", ")))
@@ -160,9 +166,10 @@ build_master_state_marts <- function(
         if (s3_root == "unified/bmf/state_marts") {
           upload_to_s3(cf, file.path(s3_root, "csv", state_mart_csv_name(st)))
         }
-        # Old file name: kept under both folders while each is still written.
+        # TEMPORARY (backlog Z19): old file name, kept under both folders
+        # while each is still written.
         if (write_old_stem) {
-          upload_to_s3(cf, file.path(s3_root, "csv", state_mart_csv_name(st, old = TRUE)))
+          upload_to_s3(cf, file.path(s3_root, "csv", state_mart_csv_name(st, retired_name = TRUE)))
         }
       }
     }

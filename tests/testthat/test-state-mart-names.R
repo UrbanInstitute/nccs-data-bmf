@@ -10,7 +10,7 @@ test_that("state mart CSV name matches the contract", {
 })
 
 test_that("old file name is available only as an explicit alias", {
-  expect_equal(state_mart_csv_name("NY", old = TRUE), "bmf_master_NY.csv")
+  expect_equal(state_mart_csv_name("NY", retired_name = TRUE), "bmf_master_NY.csv")
 })
 
 test_that("old file name is written through the cutover and not after", {
