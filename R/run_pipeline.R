@@ -13,10 +13,10 @@ ENABLE_CHECKPOINTS <- TRUE
 CHECKPOINT_DIR <- "data/checkpoints"
 
 # Enable strict quality gates (stops on validation failures)
-STRICT_QUALITY_GATES <- TRUE
+if (!exists("STRICT_QUALITY_GATES")) STRICT_QUALITY_GATES <- TRUE  # a caller may set FALSE for a deliberate override (see the hard gate below)
 
 # Enable S3 upload of processed data and quality report
-ENABLE_S3_UPLOAD <- TRUE
+if (!exists("ENABLE_S3_UPLOAD")) ENABLE_S3_UPLOAD <- TRUE  # a caller may set FALSE for a local run (same guard as run_legacy_pipeline.R)
 
 # BMF source configuration - set these before sourcing to override defaults
 # If not set, downloads most recent BMF file from S3
@@ -288,6 +288,31 @@ save_quality_report(
   quality_report,
   sprintf("data/quality/bmf_%s_%s_quality_report.json", PROCESSING_YEAR, PROCESSING_MONTH)
 )
+
+# ----------------------------------------------------------------------------
+# HARD QUALITY GATE (backlog Z9). Until 2026-09-16 the report's pass/fail was
+# printed and then ignored, so a run that emptied a column or lost rows still
+# uploaded. Now a failed report stops the run here, before any upload. Set
+# STRICT_QUALITY_GATES <- FALSE (deliberately, for a known case) to continue
+# with a warning instead. The report JSON above is already saved locally so
+# the failure can be inspected.
+# ----------------------------------------------------------------------------
+if (!quality_report$passed) {
+  gate_msg <- sprintf(
+    "Quality report FAILED for %s_%s (row_preservation=%s; critical_field_issues=%s; emptied_columns=%s)",
+    PROCESSING_YEAR, PROCESSING_MONTH,
+    quality_report$row_preservation,
+    if (length(quality_report$critical_field_issues) == 0) "none" else
+      paste(names(quality_report$critical_field_issues),
+            unlist(quality_report$critical_field_issues), sep = "=", collapse = ", "),
+    if (length(quality_report$emptied_columns) == 0) "none" else
+      paste(quality_report$emptied_columns, collapse = ", ")
+  )
+  if (STRICT_QUALITY_GATES) {
+    stop(gate_msg, " -- nothing uploaded. Fix the cause, or set STRICT_QUALITY_GATES <- FALSE to override.")
+  }
+  log_warn(paste(gate_msg, "-- STRICT_QUALITY_GATES is FALSE, continuing."))
+}
 
 # Render quality report to HTML for GitHub Pages
 quality_html_dir <- here::here("docs", "quality-reports")

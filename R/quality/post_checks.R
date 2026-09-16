@@ -311,6 +311,76 @@ CRITICAL_FIELDS <- c(
   "ein"
 )
 
+# Shared column-count helper (backlog Z9); lets this file be sourced alone.
+source(here::here("R", "quality", "column_counts.R"))
+
+# Output columns that must carry a value whenever their source column does
+# (backlog Z9). These are pass-through copies of a source field, the cleaned
+# address parts, the identifier, and the money amounts: for each of them a
+# populated source that yields a completely empty output can only mean a
+# transform destroyed the values (the shape of the July 2026 ZIP defect, which
+# emptied org_addr_zip5). Deliberately NOT listed: optional derivations that
+# are legitimately empty for whole files (org_addr_zip4 when every ZIP is five
+# digits, org_parent_name, org_legal_suffix, the *_definition and *_is_*
+# columns, and the date strings, whose sources can be populated with values
+# the cleaner rightly rejects).
+PRESERVED_OUTPUT_COLUMNS <- c(
+  "ein", "ein_raw",
+  "org_name_raw", "org_name_join", "org_name_display",
+  "dba_name_raw", "in_care_of_name_raw", "group_exemption_number_raw",
+  "org_addr_street_raw", "org_addr_city_raw", "org_addr_state_raw", "org_addr_zip_raw",
+  "org_addr_street", "org_addr_city", "org_addr_state", "org_addr_zip5", "org_addr_zip",
+  "org_addr_full",
+  "asset_amount", "income_amount", "revenue_amount"
+)
+
+#' Output columns that a transformation emptied
+#'
+#' For each column in PRESERVED_OUTPUT_COLUMNS, compares the output with the
+#' source column(s) it is derived from (SOURCE_COLUMN_MAP). A column is
+#' "emptied" when it holds no values at all while at least one of its source
+#' columns held values before transformation. Columns whose sources were
+#' already empty (common for old legacy months, which lack many IRS fields)
+#' are not flagged; columns outside the preserved list are never flagged.
+#'
+#' @param dt transformed data.table
+#' @param source_nonempty named integer vector from count_nonempty_values()
+#'   on the pre-transformation table (pre_check_results$nonempty_counts)
+#' @param map list: output column -> source column name(s)
+#' @param preserved character vector of output columns subject to the check
+#' @return character vector of emptied output column names (empty if none)
+#' @export
+find_emptied_columns <- function(dt, source_nonempty, map = SOURCE_COLUMN_MAP,
+                                 preserved = PRESERVED_OUTPUT_COLUMNS) {
+
+  # No source counts means nothing to compare against: skip the check.
+  if (length(source_nonempty) == 0) {
+    return(character(0))
+  }
+
+  # Only preserved columns that have a known source and exist in the output.
+  candidates <- preserved |>
+    intersect(names(map)) |>
+    intersect(names(dt))
+
+  if (length(candidates) == 0) {
+    return(character(0))
+  }
+
+  output_counts <- count_nonempty_values(dt[, candidates, with = FALSE])
+
+  source_had_values <- function(col) {
+    sources <- intersect(map[[col]], names(source_nonempty))
+    length(sources) > 0 && sum(source_nonempty[sources]) > 0
+  }
+
+  is_emptied <- function(col) {
+    output_counts[[col]] == 0 && source_had_values(col)
+  }
+
+  purrr::keep(candidates, is_emptied)
+}
+
 # Mapping of output columns to their source BMF columns
 SOURCE_COLUMN_MAP <- list(
   # Identity
@@ -810,6 +880,7 @@ generate_quality_report <- function(dt,
     extra_columns = character(0),
     overall_completeness = 0,
     critical_field_issues = list(),
+    emptied_columns = character(0),
     category_reports = list(),
     summary_stats = list()
   )
@@ -846,6 +917,20 @@ generate_quality_report <- function(dt,
         report$critical_field_issues[[field]] <- null_count
         report$passed <- FALSE
       }
+    }
+  }
+
+  # ---------------------------------------------------------------------------
+  # Check 3b (backlog Z9): no transformation may empty a populated column
+  # ---------------------------------------------------------------------------
+  if (!is.null(pre_check_results$nonempty_counts)) {
+    report$emptied_columns <- find_emptied_columns(dt, pre_check_results$nonempty_counts)
+    if (length(report$emptied_columns) > 0) {
+      report$passed <- FALSE
+      warning(sprintf(
+        "Transformation emptied column(s) whose source had values: %s",
+        paste(report$emptied_columns, collapse = ", ")
+      ))
     }
   }
 
@@ -1182,6 +1267,10 @@ print_quality_report <- function(report, verbose = FALSE) {
     }
   }
 
+  if (length(report$emptied_columns) > 0) {
+    message(sprintf("\nEMPTIED COLUMNS (source had values, output has none): %s",
+                    paste(report$emptied_columns, collapse = ", ")))
+  }
   message("")
   message("================================================================================")
   message(sprintf("OVERALL RESULT: %s", ifelse(report$passed, "PASSED", "FAILED")))
