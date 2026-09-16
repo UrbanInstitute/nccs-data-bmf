@@ -41,7 +41,7 @@ list_available_bmf_files()
 ### Pipeline Configuration
 Control flags in `run_pipeline.R`:
 - `ENABLE_CHECKPOINTS` - Save intermediate states to parquet (default: TRUE)
-- `STRICT_QUALITY_GATES` - Stop on validation failures (default: TRUE)
+- `STRICT_QUALITY_GATES` - Stop on validation failures (default: TRUE). Since 2026-09-16 (backlog Z9) this also stops the run, before any upload, when the post-transformation quality report fails: rows lost, an empty EIN, or a column emptied by a transform while its source had values. Set FALSE only for a deliberate, known case.
 - `ENABLE_S3_UPLOAD` - Upload results to S3 (default: TRUE)
 - `CHECKPOINT_DIR` - Directory for checkpoints (default: "data/checkpoints")
 
@@ -332,7 +332,7 @@ S3 (raw/bmf/YYYY-MM-BMF.csv) → Download → Transform → Validated BMF (parqu
 
 **Quality Gates:**
 - `R/quality/pre_checks.R` - Pre-transformation validation (defines `BMF_REQUIRED_COLUMNS` and `BMF_LEGACY_MIN_COLUMNS`)
-- `R/quality/post_checks.R` - Post-transformation quality reporting
+- `R/quality/post_checks.R` - Post-transformation quality reporting. `passed` is FALSE on row loss, empty critical fields (`ein`), or emptied columns (`find_emptied_columns()`, compared with the pre-check's `nonempty_counts` through `SOURCE_COLUMN_MAP`). Both runners stop on a failed report (hard gate, Z9).
 - `R/quality/legacy_pre_checks.R` - Relaxed pre-validation for legacy BMF mode
 
 **Legacy BMF Harmonization (501CX-NONPROFIT-PX, 1989–2022):**

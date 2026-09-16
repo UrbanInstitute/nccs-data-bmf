@@ -122,6 +122,13 @@ validate_raw_bmf_structure <- function(dt,
     sum(is.na(dt[[col]]) | dt[[col]] == "")
   })
 
+  # Check 5 (backlog Z9): how many values every source column carries before
+  # any transformation. generate_quality_report() compares this with the
+  # output columns so that a cleaner which empties a populated column is
+  # caught (the July 2026 ZIP defect emptied org_addr_zip5 across 55 legacy
+  # months and the report still said PASSED).
+  results$nonempty_counts <- count_nonempty_values(dt)
+
   # Log results
   message("========================================")
   message("PRE-TRANSFORMATION VALIDATION RESULTS")

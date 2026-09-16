@@ -264,6 +264,31 @@ save_quality_report(
   sprintf("data/quality/bmf_legacy_%s_%s_quality_report.json", PROCESSING_YEAR, PROCESSING_MONTH)
 )
 
+# ----------------------------------------------------------------------------
+# HARD QUALITY GATE (backlog Z9). Until 2026-09-16 the report's pass/fail was
+# printed and then ignored, so a run that emptied a column or lost rows still
+# uploaded. Now a failed report stops the run here, before any upload. Set
+# STRICT_QUALITY_GATES <- FALSE (deliberately, for a known case) to continue
+# with a warning instead. The report JSON above is already saved locally so
+# the failure can be inspected.
+# ----------------------------------------------------------------------------
+if (!quality_report$passed) {
+  gate_msg <- sprintf(
+    "Quality report FAILED for %s_%s (row_preservation=%s; critical_field_issues=%s; emptied_columns=%s)",
+    PROCESSING_YEAR, PROCESSING_MONTH,
+    quality_report$row_preservation,
+    if (length(quality_report$critical_field_issues) == 0) "none" else
+      paste(names(quality_report$critical_field_issues),
+            unlist(quality_report$critical_field_issues), sep = "=", collapse = ", "),
+    if (length(quality_report$emptied_columns) == 0) "none" else
+      paste(quality_report$emptied_columns, collapse = ", ")
+  )
+  if (STRICT_QUALITY_GATES) {
+    stop(gate_msg, " -- nothing uploaded. Fix the cause, or set STRICT_QUALITY_GATES <- FALSE to override.")
+  }
+  log_warn(paste(gate_msg, "-- STRICT_QUALITY_GATES is FALSE, continuing."))
+}
+
 quality_html_dir <- here::here("docs", "quality-reports")
 if (!dir.exists(quality_html_dir)) dir.create(quality_html_dir, recursive = TRUE)
 quality_html_path <- file.path(quality_html_dir,
