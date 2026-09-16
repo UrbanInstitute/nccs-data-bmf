@@ -28,8 +28,9 @@
 #   "0", "020" or blank; no row has a YYYYMM value. The EIN column is fine
 #   (every EIN is 9 digits; an earlier note here blaming sequence-number
 #   EINs was wrong). Without a usable tax period the rows cannot be placed
-#   in time, so these two months stay out until a source with real dates
-#   is found.
+#   in time, so these two months are not processed (maintainer decision
+#   2026-09-16). The source files stay in legacy/bmf/ because their other
+#   columns, such as addresses, may still be useful.
 #   2018-12 was on this list too but its TAXPER is normal (YYYYMM or
 #   blank). It was reprocessed under ADR 0048 on 2026-09-15 (1,499,450
 #   rows, every EIN valid, 2,960 duplicate EINs, quality check passed) and
