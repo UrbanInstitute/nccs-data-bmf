@@ -24,6 +24,13 @@
 #' processed prefixes.
 #'
 #' @return data.table with columns: bmf_source, vintage_ym, s3_uri
+#'
+#' Completeness check (backlog Z20): every month folder under each prefix
+#' must contain its processed CSV. In 2026-01 two current-month folders
+#' (2024_09, 2024_10) held only a dictionary and a quality report, and the
+#' Unified BMF was silently built without them. The build now stops when a
+#' folder has no CSV. Set ALLOW_INCOMPLETE_VINTAGES=TRUE to proceed anyway
+#' (the missing months are then logged and left out).
 discover_master_inputs <- function(bucket = BMF_S3_BUCKET) {
   log_info("Discovering current BMF processed CSVs...")
   current_objs <- aws.s3::get_bucket(
@@ -32,6 +39,12 @@ discover_master_inputs <- function(bucket = BMF_S3_BUCKET) {
   current_keys <- vapply(current_objs,
     function(o) if (!is.null(o$Key)) o$Key else NA_character_,
     character(1)
+  )
+  check_vintage_completeness(
+    current_keys,
+    folder_regex = "processed/bmf/(\\d{4}_\\d{2})/",
+    csv_regex    = "processed/bmf/(\\d{4}_\\d{2})/bmf_\\d{4}_\\d{2}_processed\\.csv$",
+    label        = "current"
   )
   current_keys <- current_keys[grepl(
     "processed/bmf/\\d{4}_\\d{2}/bmf_\\d{4}_\\d{2}_processed\\.csv$",
@@ -45,6 +58,12 @@ discover_master_inputs <- function(bucket = BMF_S3_BUCKET) {
   legacy_keys <- vapply(legacy_objs,
     function(o) if (!is.null(o$Key)) o$Key else NA_character_,
     character(1)
+  )
+  check_vintage_completeness(
+    legacy_keys,
+    folder_regex = "processed/bmf-legacy/(\\d{4}_\\d{2})/",
+    csv_regex    = "processed/bmf-legacy/(\\d{4}_\\d{2})/bmf_legacy_\\d{4}_\\d{2}_processed\\.csv$",
+    label        = "legacy"
   )
   legacy_keys <- legacy_keys[grepl(
     "processed/bmf-legacy/\\d{4}_\\d{2}/bmf_legacy_\\d{4}_\\d{2}_processed\\.csv$",
@@ -68,6 +87,38 @@ discover_master_inputs <- function(bucket = BMF_S3_BUCKET) {
   log_info(sprintf("Discovered %d current + %d legacy = %d input files",
                    nrow(current_dt), nrow(legacy_dt), nrow(inputs)))
   inputs
+}
+
+#' Stop unless every month folder in an S3 listing carries its processed CSV
+#'
+#' @param keys         Character vector of S3 keys under one processed prefix
+#' @param folder_regex Regex with one capture group for the YYYY_MM folder
+#' @param csv_regex    Regex with one capture group matching the processed CSV
+#' @param label        "current" or "legacy", for messages
+#' @param allow        TRUE downgrades the stop to a warning
+#'   (default: env var ALLOW_INCOMPLETE_VINTAGES)
+#' @return Invisibly, the character vector of month folders lacking a CSV
+check_vintage_completeness <- function(keys, folder_regex, csv_regex, label,
+                                       allow = identical(
+                                         toupper(Sys.getenv("ALLOW_INCOMPLETE_VINTAGES", "FALSE")),
+                                         "TRUE")) {
+  keys <- keys[!is.na(keys)]
+  folders <- unique(stats::na.omit(stringr::str_match(keys, folder_regex)[, 2]))
+  with_csv <- unique(stats::na.omit(stringr::str_match(keys, csv_regex)[, 2]))
+  missing <- sort(setdiff(folders, with_csv))
+  if (length(missing) > 0) {
+    msg <- sprintf(
+      "%s BMF: %d month folder(s) have no processed CSV and would be silently left out of the Unified BMF: %s",
+      label, length(missing), paste(missing, collapse = ", ")
+    )
+    if (allow) {
+      warning(msg, " (ALLOW_INCOMPLETE_VINTAGES=TRUE, continuing)", call. = FALSE)
+    } else {
+      stop(msg, ". Publish the missing CSV(s) or set ALLOW_INCOMPLETE_VINTAGES=TRUE to build without them.",
+           call. = FALSE)
+    }
+  }
+  invisible(missing)
 }
 
 #' Connect to DuckDB with sensible defaults for the master build

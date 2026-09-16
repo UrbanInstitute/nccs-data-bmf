@@ -17,16 +17,21 @@
 #   JOBS=8 bash scripts/run_all_legacy.sh           # 8 concurrent vintages
 #   SKIP_EXISTING=1 JOBS=8 bash scripts/run_all_legacy.sh
 #       # skip vintages whose processed CSV is already in S3
-#   SKIP_VINTAGES="2017-09,2017-12,2018-12" bash scripts/run_all_legacy.sh
+#   SKIP_VINTAGES="2017-09,2017-12" bash scripts/run_all_legacy.sh
 #       # skip specific vintages by YYYY-MM (comma-separated)
 #
 # Known bad vintages (skip by default — set SKIP_VINTAGES="" to override):
-#   2017-09, 2017-12, 2018-12 — these three NCCS-published files use
-#   sequence-ID values in the EIN column (e.g. "000000001") instead of
-#   real 9-digit IRS EINs, and have a non-standard TAXPER encoding.
-#   They are structurally incompatible with the harmonization pipeline
-#   and should not be processed until the upstream NCCS files are fixed
-#   or a separate pipeline is built for that schema variant.
+#   2017-09, 2017-12 — these two NCCS-published files use sequence-ID
+#   values in the EIN column (e.g. "000000001") instead of real 9-digit
+#   IRS EINs, and have a non-standard TAXPER encoding. They are
+#   structurally incompatible with the harmonization pipeline and should
+#   not be processed until the upstream NCCS files are fixed or a separate
+#   pipeline is built for that schema variant.
+#   2018-12 was on this list for the same reason but was reprocessed under
+#   ADR 0048 on 2026-09-15: the current pipeline reads its EINs correctly
+#   (1,499,450 rows, every EIN valid, 2,960 duplicate EINs, quality check
+#   passed) and the file is published. Removed from the default skip list
+#   2026-09-16 (backlog Z20).
 #
 # Recommended JOBS settings:
 #   16 GB RAM laptop      -> JOBS=1   (the default; do not parallelize)
@@ -44,7 +49,7 @@ cd "$(dirname "$0")/.."
 JOBS="${JOBS:-1}"
 # Known-bad vintages with sequence-ID EINs and non-standard TAXPER. Override
 # with SKIP_VINTAGES="" if upstream NCCS files have been fixed.
-SKIP_VINTAGES="${SKIP_VINTAGES-2017-09,2017-12,2018-12}"
+SKIP_VINTAGES="${SKIP_VINTAGES-2017-09,2017-12}"
 ORDER="oldest-first"
 if [[ "${1:-}" == "--newest-first" ]]; then ORDER="newest-first"; fi
 
