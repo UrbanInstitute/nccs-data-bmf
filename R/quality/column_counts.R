@@ -9,8 +9,15 @@
 #' @return named integer vector, one entry per column
 #' @export
 count_nonempty_values <- function(dt) {
-  vapply(names(dt), function(col) {
-    x <- dt[[col]]
-    if (is.character(x)) sum(!is.na(x) & x != "") else sum(!is.na(x))
-  }, integer(1))
+  purrr::map_int(dt, function(column) {
+
+    is_filled <- !is.na(column)
+
+    # A blank cell in these files is usually an empty string, not NA.
+    if (is.character(column)) {
+      is_filled <- is_filled & column != ""
+    }
+
+    sum(is_filled)
+  })
 }

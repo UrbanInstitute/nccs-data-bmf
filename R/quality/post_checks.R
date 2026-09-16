@@ -352,19 +352,33 @@ PRESERVED_OUTPUT_COLUMNS <- c(
 #' @export
 find_emptied_columns <- function(dt, source_nonempty, map = SOURCE_COLUMN_MAP,
                                  preserved = PRESERVED_OUTPUT_COLUMNS) {
-  if (is.null(source_nonempty) || length(source_nonempty) == 0) return(character(0))
-  candidates <- intersect(intersect(preserved, names(map)), names(dt))
-  if (length(candidates) == 0) return(character(0))
-  out_nonempty <- count_nonempty_values(dt[, candidates, with = FALSE])
-  emptied <- character(0)
-  for (col in candidates) {
-    sources <- intersect(map[[col]], names(source_nonempty))
-    if (length(sources) == 0) next
-    if (sum(source_nonempty[sources]) > 0 && out_nonempty[[col]] == 0) {
-      emptied <- c(emptied, col)
-    }
+
+  # No source counts means nothing to compare against: skip the check.
+  if (length(source_nonempty) == 0) {
+    return(character(0))
   }
-  emptied
+
+  # Only preserved columns that have a known source and exist in the output.
+  candidates <- preserved |>
+    intersect(names(map)) |>
+    intersect(names(dt))
+
+  if (length(candidates) == 0) {
+    return(character(0))
+  }
+
+  output_counts <- count_nonempty_values(dt[, candidates, with = FALSE])
+
+  source_had_values <- function(col) {
+    sources <- intersect(map[[col]], names(source_nonempty))
+    length(sources) > 0 && sum(source_nonempty[sources]) > 0
+  }
+
+  is_emptied <- function(col) {
+    output_counts[[col]] == 0 && source_had_values(col)
+  }
+
+  purrr::keep(candidates, is_emptied)
 }
 
 # Mapping of output columns to their source BMF columns
