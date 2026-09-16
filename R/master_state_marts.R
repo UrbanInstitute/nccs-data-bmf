@@ -11,13 +11,13 @@
 #
 # Outputs:
 #   data/master/state_marts/parquet/state=XX/part-0.parquet  (Hive-partitioned)
-#   data/master/state_marts/csv/bmf_master_XX.csv            (one per state)
+#   data/master/state_marts/csv/bmf_unified_XX.csv           (one per state)
 #
 # S3 (if enabled), dual-written for the ADR 0039 90-day deprecation window:
-#   s3://nccsdata/unified/bmf/state_marts/parquet/state=XX/...  (new)
-#   s3://nccsdata/unified/bmf/state_marts/csv/bmf_master_XX.csv (new)
-#   s3://nccsdata/master/bmf/state_marts/parquet/state=XX/...   (old, unchanged)
-#   s3://nccsdata/master/bmf/state_marts/csv/bmf_master_XX.csv  (old, unchanged)
+#   s3://nccsdata/unified/bmf/state_marts/parquet/state=XX/...   (current)
+#   s3://nccsdata/unified/bmf/state_marts/csv/bmf_unified_XX.csv (current; ADR 0039 file name, first published 2026-09-16)
+#   s3://nccsdata/unified/bmf/state_marts/csv/bmf_master_XX.csv  (old file name, written as a copy until STATE_MART_OLD_STEM_CUTOVER)
+#   s3://nccsdata/master/bmf/state_marts/...                     (old folder, written until the ADR 0037 cutover 2026-09-28)
 # ============================================================================
 
 #' Build per-state data marts from the geocoded Unified BMF
@@ -28,6 +28,26 @@
 #' @param missing_state_bucket  Bucket name for rows with NA state (default: "ZZ")
 #' @return Invisibly: data.table of per-state row counts and paths
 #' @export
+# The per-state CSV was published as bmf_master_XX.csv until 2026-09-16 even
+# though the contract (ADR 0039) names it bmf_unified_XX.csv. Both names are
+# written for 90 days from 2026-09-16 so existing links keep working; after
+# the cutover only bmf_unified_XX.csv is written. Backlog Z19.
+STATE_MART_OLD_STEM_CUTOVER <- "2026-12-15"
+
+#' File name of the per-state CSV for one state code
+#' @param state Two-letter state / territory code (or "ZZ")
+#' @param old   TRUE returns the pre-2026-09-16 name (bmf_master_XX.csv)
+#' @noRd
+state_mart_csv_name <- function(state, old = FALSE) {
+  sprintf(if (old) "bmf_master_%s.csv" else "bmf_unified_%s.csv", state)
+}
+
+#' Should the old bmf_master_XX.csv copy still be written?
+#' @noRd
+state_mart_write_old_stem <- function(today = Sys.Date()) {
+  as.Date(today) <= as.Date(STATE_MART_OLD_STEM_CUTOVER)
+}
+
 build_master_state_marts <- function(
     geocoded_path = here::here("data", "geocoding", "master", "merged",
                                "bmf_unified_geocoded.parquet"),
@@ -84,7 +104,7 @@ build_master_state_marts <- function(
   csv_paths <- character(nrow(state_counts))
   for (i in seq_len(nrow(state_counts))) {
     st <- state_counts$state[i]
-    csv_path <- file.path(csv_dir, sprintf("bmf_master_%s.csv", st))
+    csv_path <- file.path(csv_dir, state_mart_csv_name(st))
     data.table::fwrite(bmf[state == st], csv_path)
     csv_paths[i] <- csv_path
   }
@@ -98,6 +118,11 @@ build_master_state_marts <- function(
     # ADR 0039 dual-write: new unified/ prefix + old master/ prefix
     # (unchanged), same 90-day deprecation window as the geocoded merge.
     s3_roots <- c("unified/bmf/state_marts", "master/bmf/state_marts")
+    write_old_stem <- state_mart_write_old_stem()
+    if (write_old_stem) {
+      log_info(sprintf("Also writing the old bmf_master_XX.csv file name (until %s)",
+                       STATE_MART_OLD_STEM_CUTOVER))
+    }
 
     parquet_files <- list.files(parquet_dir, recursive = TRUE, full.names = TRUE)
     for (s3_root in s3_roots) {
@@ -105,15 +130,22 @@ build_master_state_marts <- function(
         rel <- sub(paste0("^", parquet_dir, "/"), "", pf)
         upload_to_s3(pf, file.path(s3_root, "parquet", rel))
       }
-      for (cf in csv_paths) {
-        upload_to_s3(cf, file.path(s3_root, "csv", basename(cf)))
+      for (i in seq_along(csv_paths)) {
+        cf <- csv_paths[i]
+        st <- state_counts$state[i]
+        if (s3_root == "unified/bmf/state_marts") {
+          upload_to_s3(cf, file.path(s3_root, "csv", state_mart_csv_name(st)))
+        }
+        # Old file name: kept under both folders while each is still written.
+        if (write_old_stem) {
+          upload_to_s3(cf, file.path(s3_root, "csv", state_mart_csv_name(st, old = TRUE)))
+        }
       }
     }
   }
 
   state_counts[, parquet_partition := file.path(parquet_dir,
                                                 paste0("state=", state))]
-  state_counts[, csv_path := file.path(csv_dir,
-                                       sprintf("bmf_master_%s.csv", state))]
+  state_counts[, csv_path := file.path(csv_dir, state_mart_csv_name(state))]
   invisible(state_counts)
 }

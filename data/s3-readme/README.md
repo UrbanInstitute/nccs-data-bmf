@@ -160,13 +160,13 @@ state); rows with missing state are bucketed into `ZZ`. Built by
 - **Files:**
   - `state_marts/parquet/state=XX/part-0.parquet` -- Hive-partitioned;
     query with `hive_partitioning = 1` in DuckDB / pandas / Athena
-  - `state_marts/csv/bmf_master_XX.csv` -- One CSV per state for
+  - `state_marts/csv/bmf_unified_XX.csv` -- One CSV per state for
     spreadsheet tools and single-file consumers
 - **Coverage:** 50 states + DC, US territories (PR, VI, GU, AS, MP),
   APO/FPO codes (AA, AE, AP), Compact-of-Free-Association codes (FM,
   MH, PW), and a `ZZ` missing-state bucket
-- **Example:** `master/bmf/state_marts/csv/bmf_master_NY.csv`
-- **Input:** `geocoding/bmf-master/merged/bmf_master_geocoded.parquet`
+- **Example:** `unified/bmf/state_marts/csv/bmf_unified_NY.csv` (the same file is also available as `bmf_master_NY.csv` until 2026-12-15)
+- **Input:** `geocoding/unified-bmf/latest/bmf_unified_geocoded.parquet`
 
 ## Documentation
 
