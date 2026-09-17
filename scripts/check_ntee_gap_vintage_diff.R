@@ -11,8 +11,9 @@
 # Exit status is non-zero unless ALL of these hold:
 #   * both files carry the full required schema, and the same schema;
 #   * same row count and the same multiset of EINs;
-#   * rows pair one-to-one on the invariant columns (everything outside the
-#     NTEE-derived set), so duplicate EINs are paired by content, not position;
+#   * rows pair on the invariant columns (everything outside the NTEE-derived
+#     set), so duplicate EINs are paired by content, not position; rows that are
+#     identical on every invariant column share a raw code and pair freely;
 #   * no column outside the NTEE-derived set differs (missing values count);
 #   * the set of changed rows is exactly the set of gap rows (rows whose
 #     corrected clean code is one of the 12), so every gap row changed and
@@ -58,7 +59,12 @@ ein_ok <- identical(sort(b$ein), sort(a$ein))
 # Pair rows on every invariant column (ADR 0048 practice). Row order is not an
 # identity; duplicate EINs are paired by their full invariant content.
 invariant <- setdiff(names(b), ALLOWED)
-setorderv(b, invariant, na.last = TRUE); setorderv(a, invariant, na.last = TRUE)
+# Sort on the invariant columns, then on the NTEE-derived ones, so rows that
+# are identical on every invariant column (for example blank-EIN rows) pair
+# deterministically. Such rows share a raw code, so every check below gives
+# the same verdict whichever of them is paired with which.
+setorderv(b, c(invariant, ALLOWED), na.last = TRUE)
+setorderv(a, c(invariant, ALLOWED), na.last = TRUE)
 neq <- function(x, y) (is.na(x) != is.na(y)) | (!is.na(x) & !is.na(y) & x != y)
 inv_diff <- Filter(function(cl) any(neq(b[[cl]], a[[cl]])), invariant)
 if (length(inv_diff)) {
@@ -67,8 +73,6 @@ if (length(inv_diff)) {
               paste(inv_diff, collapse = ",")))
   quit(status = 1)
 }
-if (anyDuplicated(b, by = invariant))
-  fail("AMBIGUOUS-PAIRING", "rows identical on every invariant column:", anyDuplicated(b, by = invariant))
 
 changed <- Reduce(`|`, lapply(ALLOWED, function(cl) neq(b[[cl]], a[[cl]])))
 

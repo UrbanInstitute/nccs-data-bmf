@@ -81,8 +81,8 @@ test_that("missing required columns fail loudly", {
   expect_equal(res$status, 1L); expect_match(res$line, "MISSING-REQUIRED-COLUMNS")
 })
 
-test_that("the two known-ambiguous cases fail: row count and unpaired rows", {
+test_that("a row-count mismatch fails; fully identical duplicate rows pair fine", {
   expect_equal(run_check(before, after[-1])$status, 1L)
-  b2 <- rbind(before, before[1]); a2 <- rbind(after, after[1])
-  expect_match(run_check(b2, a2)$line, "AMBIGUOUS-PAIRING")
+  b2 <- rbind(before, before[ntee_code_raw == "B29"]); a2 <- rbind(after, after[ntee_code_raw == "B29"])
+  res <- run_check(b2, a2[sample(.N)]); expect_equal(res$status, 0L); expect_equal(field(res, 6), "13")
 })
