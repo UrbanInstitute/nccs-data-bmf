@@ -127,6 +127,13 @@ kable(read_lookup("activity_code"))
 
 The National Taxonomy of Exempt Entities (NTEE) classification system codes and definitions.
 
+The source of truth for this list is the IRS's own appendix of NTEE codes
+(Appendix D of the Instructions for Form 1023). A copy of that appendix, stamped
+with its revision date, is kept at `data/lookup/irs_ntee_codes.csv`. The list is
+checked against the IRS once a year; the procedure is in
+`docs/runbooks/ntee-code-list-yearly-refresh.md`. Codes the IRS has retired stay
+in the sheet so older monthly files still resolve.
+
 ```{r}
 #| echo: false
 kable(read_lookup("ntee_code"))
