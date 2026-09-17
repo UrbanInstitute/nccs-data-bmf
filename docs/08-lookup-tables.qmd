@@ -132,7 +132,8 @@ The source of truth for this list is the IRS's own appendix of NTEE codes
 with its revision date, is kept at `data/lookup/irs_ntee_codes.csv`. The list is
 checked against the IRS once a year; the procedure is in
 `docs/runbooks/ntee-code-list-yearly-refresh.md`. Codes the IRS has retired stay
-in the sheet so older monthly files still resolve.
+in the sheet so older monthly files still resolve. The `naics_code` column uses
+the 2022 NAICS edition.
 
 ```{r}
 #| echo: false

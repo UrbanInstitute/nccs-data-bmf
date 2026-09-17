@@ -9,9 +9,11 @@ raw NTEE codes the lookup does not recognize.
 The IRS assigns NTEE codes and occasionally adds new ones. Our pipeline only
 accepts codes listed in the `ntee_code` sheet of `data/lookup/bmf_code_lookup.xlsx`.
 Any raw code missing from that sheet is published as "unknown" (`Z99`) in every
-downstream column. In 2026 we found 12 codes the IRS had been assigning since
-2022 (charter schools among them, about 5,300 organizations in one monthly
-file) that had been mislabeled that way. Nothing checks this automatically, so
+downstream column. In 2026 we found 12 IRS-listed codes missing from the
+lookup, about 5,300 organizations in one monthly file. Five were historical
+gaps: four present in the data since 1989 (B29 charter schools, F31, M99, P83)
+and P76 since 2008. The other seven were added by the IRS in 2021 and appear
+in the published files from 2022 onward. Nothing checks this automatically, so
 this runbook is the reminder.
 
 ## Source of truth
@@ -41,10 +43,13 @@ We do not use any third-party copy of the list as the source of truth.
 3. For each IRS code missing from the lookup, add a row to the `ntee_code`
    sheet of `data/lookup/bmf_code_lookup.xlsx` with:
    - `ntee_code`: the code.
-   - `naics_code`: the matching NAICS code. Many newer IRS codes are named
-     after NAICS industries, so the NAICS title search at
-     <https://www.census.gov/naics/> usually gives an exact match. Use
-     `UNDEFINED` if no match is defensible.
+   - `naics_code`: the matching NAICS code from the **2022 NAICS edition**.
+     Keep using the 2022 edition until the lookup is deliberately migrated
+     to another edition, because codes move between editions (pharmacies
+     were 446110 in 2017 and are 456110 in 2022). Many newer IRS codes are
+     named after NAICS industries, so the title search at
+     <https://www.census.gov/naics/> (edition selector at the top) usually
+     gives an exact match. Use `UNDEFINED` if no match is defensible.
    - `ntee_code_definition`: the IRS description, word for word.
    - `effective_date`: today as YYYYMMDD.
    Keep the sheet sorted by code. Editing in Excel is fine; if editing with R,

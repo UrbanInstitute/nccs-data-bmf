@@ -46,22 +46,50 @@ matches <- str_match_all(
   '<span class="code">\\s*([A-Z][0-9][0-9A-Z])\\s*-\\s*</span>\\s*<span class="activity">([^<]*)</span>'
 )[[1]]
 
-irs <- tibble(
+raw <- tibble(
   ntee_code   = matches[, 2],
   description = matches[, 3] |> unescape() |> str_squish()
-) |>
+)
+
+# Validate the raw parse before collapsing it. The page can change its
+# markup, and a partial parse must fail here rather than turn a missed code
+# into a false "retired by the IRS".
+conflicting <- raw |>
+  distinct(ntee_code, description) |>
+  count(ntee_code) |>
+  filter(n > 1)
+if (nrow(conflicting) > 0) {
+  stop("Same code parsed with different descriptions: ",
+       paste(conflicting$ntee_code, collapse = ", "))
+}
+stopifnot(
+  all(str_detect(raw$ntee_code, "^[A-Z][0-9][0-9A-Z]$")),
+  all(nchar(raw$description) >= 4),
+  !any(str_detect(raw$description, "[<>]"))
+)
+
+irs <- raw |>
   distinct(ntee_code, .keep_all = TRUE) |>
   arrange(ntee_code) |>
   mutate(irs_source = "Instructions for Form 1023, Appendix D",
          irs_revision = revision)
 
-# Sanity checks on the parse before anything is written.
-stopifnot(
-  nrow(irs) >= 600,
-  all(str_detect(irs$ntee_code, "^[A-Z][0-9][0-9A-Z]$")),
-  all(nchar(irs$description) >= 4),
-  !any(str_detect(irs$description, "[<>]"))
-)
+# Compare with the committed snapshot. Fewer codes than last time is far more
+# likely a parse problem than an IRS removal; a real removal is accepted by
+# rerunning with ACCEPT_IRS_REMOVALS=1 after checking the IRS page by eye.
+if (file.exists(OUT_CSV)) {
+  previous <- read_csv(OUT_CSV, show_col_types = FALSE)
+  dropped  <- setdiff(previous$ntee_code, irs$ntee_code)
+  if (length(dropped) > 0 && !nzchar(Sys.getenv("ACCEPT_IRS_REMOVALS"))) {
+    stop(sprintf(
+      "%d code(s) in the committed snapshot are missing from this parse: %s. ",
+      length(dropped), paste(dropped, collapse = ", ")),
+      "Check the IRS page. If the IRS really removed them, rerun with ACCEPT_IRS_REMOVALS=1.")
+  }
+  if (length(dropped) > 0) cat("Accepted IRS removals:", paste(dropped, collapse = ", "), "\n")
+} else if (nrow(irs) < 600) {
+  stop("Only ", nrow(irs), " codes parsed and no committed snapshot to compare against.")
+}
 
 write_csv(irs, OUT_CSV)
 cat(sprintf("IRS list: %d codes (Form 1023 instructions revised %s) written to %s\n",

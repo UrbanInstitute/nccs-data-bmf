@@ -4,8 +4,9 @@
 # Read only. Reads just the raw NTEE column from every per-vintage intermediate
 # parquet on S3 (both pipelines) with DuckDB, so nothing large is downloaded.
 # Writes two small CSVs to data/quality/:
-#   ntee_lookup_gaps_by_vintage.csv  (vintage x code counts, plus vintage rows)
-#   ntee_lookup_gaps_summary.csv     (per code: vintages seen, first/last, max, latest)
+#   ntee_lookup_gaps_by_vintage.csv  (vintage x code counts with the vintage's row count)
+#   ntee_lookup_gaps_summary.csv     (per code: vintages seen, first/last, max, count in the
+#                                     latest published current vintage, zero if absent)
 #
 # Needs live AWS credentials (aws sso login --profile thiya, then export).
 
@@ -39,44 +40,46 @@ dbExecute(con, sprintf("SET threads=%s;", Sys.getenv("DUCKDB_THREADS", "4")))
 
 code_list <- paste(sprintf("'%s'", GAP_CODES), collapse = ", ")
 
-# One row per (vintage, raw code) for the gap codes, plus the vintage row count
-# so shares can be computed. The vintage is the folder name in the S3 path.
-count_sql <- function(glob, src) sprintf("
+# Two result sets per pipeline: every scanned vintage with its row count, and
+# the (vintage, code) counts for the gap codes. The vintage is the folder name
+# in the S3 path.
+obs_cte <- function(glob) sprintf("
   WITH obs AS (
     SELECT regexp_extract(filename, '/([0-9]{4}_[0-9]{2})/[^/]+$', 1) AS vintage,
            upper(trim(CAST(ntee_code_raw AS VARCHAR)))                 AS code
     FROM read_parquet('%s', filename = true, union_by_name = true)
-  )
+  )", glob)
+
+totals_sql <- function(glob, src) paste0(obs_cte(glob), sprintf("
+  SELECT '%s' AS source, vintage, count(*) AS rows
+  FROM obs GROUP BY vintage", src))
+
+counts_sql <- function(glob, src) paste0(obs_cte(glob), sprintf("
   SELECT '%s' AS source, vintage, code, count(*) AS n
-  FROM obs
-  WHERE code IN (%s)
-  GROUP BY source, vintage, code
-  UNION ALL
-  SELECT '%s' AS source, vintage, '_rows' AS code, count(*) AS n
-  FROM obs
-  GROUP BY source, vintage
-", glob, src, code_list, src)
+  FROM obs WHERE code IN (%s) GROUP BY vintage, code", src, code_list))
 
-message("Sweeping current-pipeline vintages ...")
-cur <- dbGetQuery(con, count_sql(CUR_GLOB, "current"))
-message("Sweeping legacy-pipeline vintages ...")
-leg <- dbGetQuery(con, count_sql(LEG_GLOB, "legacy"))
+message("Counting current-pipeline vintages ...")
+cur_totals <- dbGetQuery(con, totals_sql(CUR_GLOB, "current"))
+cur_counts <- dbGetQuery(con, counts_sql(CUR_GLOB, "current"))
+message("Counting legacy-pipeline vintages ...")
+leg_totals <- dbGetQuery(con, totals_sql(LEG_GLOB, "legacy"))
+leg_counts <- dbGetQuery(con, counts_sql(LEG_GLOB, "legacy"))
 
-long <- bind_rows(cur, leg) |>
-  mutate(n = as.integer(n)) |>
-  arrange(source, vintage, code)
+# Every scanned vintage, whether or not it holds any gap code.
+vintage_totals <- bind_rows(cur_totals, leg_totals) |>
+  mutate(rows = as.integer(rows)) |>
+  arrange(source, vintage)
 
-by_vintage <- long |>
-  filter(code != "_rows") |>
-  left_join(long |> filter(code == "_rows") |> select(source, vintage, rows = n),
-            by = c("source", "vintage")) |>
+# Only (vintage, code) pairs with at least one observation.
+positive_code_counts <- bind_rows(cur_counts, leg_counts) |>
+  mutate(n = as.integer(n))
+
+code_counts_with_denominators <- positive_code_counts |>
+  left_join(vintage_totals, by = c("source", "vintage")) |>
   mutate(share_pct = round(100 * n / rows, 4)) |>
   arrange(vintage, code)
 
-vintage_rows <- long |> filter(code == "_rows")
-all_vintages <- vintage_rows |> distinct(source, vintage)
-
-summary <- by_vintage |>
+per_code_history <- code_counts_with_denominators |>
   group_by(code) |>
   summarise(
     n_vintages_present = n_distinct(vintage),
@@ -85,22 +88,44 @@ summary <- by_vintage |>
     max_n              = max(n),
     total_obs          = sum(n),
     .groups = "drop"
-  ) |>
+  )
+
+# The latest published current vintage comes from the full vintage list, so a
+# vintage with zero gap codes still counts as latest.
+latest_current_vintage <- vintage_totals |>
+  filter(source == "current") |>
+  slice_max(vintage, n = 1)
+
+latest_current_counts <- tibble(code = GAP_CODES) |>
   left_join(
-    by_vintage |>
-      filter(source == "current") |>
-      filter(vintage == max(vintage)) |>
-      select(code, latest_vintage = vintage, latest_n = n, latest_share_pct = share_pct),
+    code_counts_with_denominators |>
+      filter(source == "current", vintage == latest_current_vintage$vintage) |>
+      select(code, latest_n = n),
     by = "code"
   ) |>
-  right_join(tibble(code = GAP_CODES), by = "code") |>
-  mutate(n_vintages_total = nrow(all_vintages)) |>
-  arrange(desc(coalesce(latest_n, 0L)), code)
+  mutate(
+    latest_vintage   = latest_current_vintage$vintage,
+    latest_n         = coalesce(latest_n, 0L),
+    latest_share_pct = round(100 * latest_n / latest_current_vintage$rows, 4)
+  )
 
-write.csv(by_vintage, file.path(OUT_DIR, "ntee_lookup_gaps_by_vintage.csv"), row.names = FALSE)
-write.csv(summary,    file.path(OUT_DIR, "ntee_lookup_gaps_summary.csv"),    row.names = FALSE)
+complete_summary <- tibble(code = GAP_CODES) |>
+  left_join(per_code_history, by = "code") |>
+  left_join(latest_current_counts, by = "code") |>
+  mutate(
+    n_vintages_present = coalesce(n_vintages_present, 0L),
+    total_obs          = coalesce(total_obs, 0L),
+    n_vintages_total   = nrow(vintage_totals)
+  ) |>
+  arrange(desc(latest_n), code)
 
-cat("\nVintages swept:", nrow(all_vintages),
-    "(current:", sum(all_vintages$source == "current"),
-    ", legacy:", sum(all_vintages$source == "legacy"), ")\n\n")
-print(as.data.frame(summary))
+write.csv(code_counts_with_denominators,
+          file.path(OUT_DIR, "ntee_lookup_gaps_by_vintage.csv"), row.names = FALSE)
+write.csv(complete_summary,
+          file.path(OUT_DIR, "ntee_lookup_gaps_summary.csv"), row.names = FALSE)
+
+cat("\nVintages counted:", nrow(vintage_totals),
+    "(current:", sum(vintage_totals$source == "current"),
+    ", legacy:", sum(vintage_totals$source == "legacy"), ")\n",
+    "Latest current vintage:", latest_current_vintage$vintage, "\n\n")
+print(as.data.frame(complete_summary))

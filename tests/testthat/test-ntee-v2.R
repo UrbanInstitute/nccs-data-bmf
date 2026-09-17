@@ -70,7 +70,7 @@ test_that("A: the raw code A115 cleans to A11 and renders A00 / MS", {
 # ---------------------------------------------------------------------------
 # B. Oracle: every 3-char code in the vendored legacy crosswalk
 # ---------------------------------------------------------------------------
-test_that("B: 3-char oracle, two populations exactly as amended criterion B defines", {
+test_that("B: 3-char oracle, every crosswalk code as amended criterion B defines", {
   three <- legacy_xw[nchar(NTEE) == 3]
   expect_gt(nrow(three), 500)
   out <- run_transform(three$NTEE)
@@ -81,17 +81,14 @@ test_that("B: 3-char oracle, two populations exactly as amended criterion B defi
   three[, exp_code := sub("^[A-Z]{3}-([A-Z0-9]{3})-.*$", "\\1", NTEE2)]
   three[, exp_type := sub("^.*-", "", NTEE2)]
 
-  # Population 2 (the 12 lookup gaps named in BACKLOG Z18) was closed on
-  # 2026-09-17: every 3-char code in the crosswalk is now in the lookup, so
-  # the whole crosswalk is population 1. The IRS-list check below keeps it so.
-  gaps <- character(0)
+  # Until 2026-09-17 the crosswalk split into two populations: 12 codes the
+  # lookup lacked (BACKLOG Z18) and everything else. The lookup now has all of
+  # them, so every 3-char crosswalk code must be lookup-valid, and the middle
+  # slot and org-type must match the crosswalk EXACTLY. Expected mismatches: 0.
   expect_false(any(three$clean == NTEE_INVALID),
                info = paste("crosswalk codes missing from the lookup:",
                             paste(three[clean == NTEE_INVALID, NTEE], collapse = ", ")))
-
-  # Population 1: every row is lookup-valid; middle slot and
-  # org-type must match the crosswalk EXACTLY. Expected mismatches: 0.
-  pop1 <- three[!NTEE %in% gaps]
+  pop1 <- three
   expect_equal(pop1[got_code != exp_code, .N], 0,
                info = paste(capture.output(print(pop1[got_code != exp_code])), collapse = "\n"))
   expect_equal(pop1[got_type != exp_type, .N], 0)
