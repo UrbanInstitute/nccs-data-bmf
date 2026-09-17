@@ -70,7 +70,7 @@ test_that("A: the raw code A115 cleans to A11 and renders A00 / MS", {
 # ---------------------------------------------------------------------------
 # B. Oracle: every 3-char code in the vendored legacy crosswalk
 # ---------------------------------------------------------------------------
-test_that("B: 3-char oracle, two populations exactly as amended criterion B defines", {
+test_that("B: 3-char oracle, every crosswalk code as amended criterion B defines", {
   three <- legacy_xw[nchar(NTEE) == 3]
   expect_gt(nrow(three), 500)
   out <- run_transform(three$NTEE)
@@ -81,18 +81,14 @@ test_that("B: 3-char oracle, two populations exactly as amended criterion B defi
   three[, exp_code := sub("^[A-Z]{3}-([A-Z0-9]{3})-.*$", "\\1", NTEE2)]
   three[, exp_type := sub("^.*-", "", NTEE2)]
 
-  # Population 2: the 12 named lookup gaps (BACKLOG Z18). This pinned list may
-  # only SHRINK: a lookup update makes the expectation here fail loudly.
-  gaps <- c("B29", "E6A", "F31", "K2A", "K2B", "K2C", "L4A", "L4B", "M99", "P76", "P7A", "P83")
-  pop2 <- three[NTEE %in% gaps]
-  expect_setequal(pop2$NTEE, gaps)
-  expect_true(all(pop2$clean == NTEE_INVALID))
-  expect_true(all(pop2$got_code == "Z99" & pop2$got_sub == "UNU" & pop2$got_type == "RG"))
-  expect_false(any(gaps %in% lk$ntee_code$ntee_code))
-
-  # Population 1: every remaining row is lookup-valid; middle slot and
-  # org-type must match the crosswalk EXACTLY. Expected mismatches: 0.
-  pop1 <- three[!NTEE %in% gaps]
+  # Until 2026-09-17 the crosswalk split into two populations: 12 codes the
+  # lookup lacked (BACKLOG Z18) and everything else. The lookup now has all of
+  # them, so every 3-char crosswalk code must be lookup-valid, and the middle
+  # slot and org-type must match the crosswalk EXACTLY. Expected mismatches: 0.
+  expect_false(any(three$clean == NTEE_INVALID),
+               info = paste("crosswalk codes missing from the lookup:",
+                            paste(three[clean == NTEE_INVALID, NTEE], collapse = ", ")))
+  pop1 <- three
   expect_equal(pop1[got_code != exp_code, .N], 0,
                info = paste(capture.output(print(pop1[got_code != exp_code])), collapse = "\n"))
   expect_equal(pop1[got_type != exp_type, .N], 0)
@@ -104,6 +100,15 @@ test_that("B: 3-char oracle, two populations exactly as amended criterion B defi
   expect_equal(pop1[!NTEE %in% carve & got_sub != exp_sub, .N], 0)
 
   expect_false(any(grepl(NTEEV2_SPECIALTY_PATTERN, three$got_code)))
+})
+
+test_that("B: every code on the IRS list (data/lookup/irs_ntee_codes.csv) is in the lookup", {
+  irs <- data.table::fread(file.path(repo_root, "data", "lookup", "irs_ntee_codes.csv"))
+  expect_gte(nrow(irs), 600)
+  missing <- setdiff(irs$ntee_code, lk$ntee_code$ntee_code)
+  expect_length(missing, 0)
+  # Refresh irs_ntee_codes.csv with scripts/refresh_ntee_lookup_from_irs.R
+  # (yearly; see docs/runbooks/ntee-code-list-yearly-refresh.md).
 })
 
 test_that("B: 5-char legacy codes reproduce NTEE2 via the crosswalk path", {
