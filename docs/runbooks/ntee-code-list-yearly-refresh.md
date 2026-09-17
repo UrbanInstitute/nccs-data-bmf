@@ -43,13 +43,18 @@ We do not use any third-party copy of the list as the source of truth.
 3. For each IRS code missing from the lookup, add a row to the `ntee_code`
    sheet of `data/lookup/bmf_code_lookup.xlsx` with:
    - `ntee_code`: the code.
-   - `naics_code`: the matching NAICS code from the **2022 NAICS edition**.
-     Keep using the 2022 edition until the lookup is deliberately migrated
-     to another edition, because codes move between editions (pharmacies
-     were 446110 in 2017 and are 456110 in 2022). Many newer IRS codes are
-     named after NAICS industries, so the title search at
-     <https://www.census.gov/naics/> (edition selector at the top) usually
-     gives an exact match. Use `UNDEFINED` if no match is defensible.
+   - `naics_code`, in this order of preference:
+     1. NCCS's own NTEE-to-NAICS crosswalk, `data-raw/NTEE-NAICS-XWALK.csv`
+        in the `nccs` website repo. This is where the existing column came
+        from (625 of 626 shared codes agree).
+     2. If the code is not in that crosswalk: the **2022 NAICS edition** code
+        whose title matches the IRS description. Many newer IRS codes are
+        named after NAICS industries, so the title search at
+        <https://www.census.gov/naics/> (edition selector at the top)
+        usually gives an exact match. Keep using the 2022 edition until the
+        lookup is deliberately migrated, because codes move between
+        editions (pharmacies were 446110 in 2017 and are 456110 in 2022).
+     3. Otherwise `UNDEFINED`, as 18 existing rows already are.
    - `ntee_code_definition`: the IRS description, word for word.
    - `effective_date`: today as YYYYMMDD.
    Keep the sheet sorted by code. Editing in Excel is fine; if editing with R,
