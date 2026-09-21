@@ -233,8 +233,15 @@ few blank source rows, such as the 21 in the June 1996 legacy file, are
 visible without rejecting the vintage. Rows with a blank EIN keep the
 EIN-missing flag and cannot join to anything downstream.
 
-**Action on failure (share above the limit):** Mark report as FAILED and the
-hard gate stops the run before any upload.
+The allowance covers blank *source* rows only. The pre-check records how
+many source rows were blank (`null_counts`), and the output may never have
+more blanks than that (`CRITICAL_FIELD_SOURCE` maps `ein` to the source
+column `EIN`). If it does, a transformation lost values and the report
+fails whatever the share.
+
+**Action on failure (more blanks than the source, or share above the
+limit):** Mark report as FAILED and the hard gate stops the run before any
+upload.
 
 ### 5. Summary Statistics
 

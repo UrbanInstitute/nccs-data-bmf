@@ -109,3 +109,30 @@ test_that("an EIN column with no empties records a zero count", {
   expect_true(rep$passed)
   expect_equal(rep$critical_field_missing$ein, 0L)
 })
+
+test_that("blanks introduced by a transformation fail the report even under the share limit", {
+  n <- 100000L
+  ein <- sprintf("01-%07d", seq_len(n))
+  ein[1:5] <- ""
+  out <- data.table(ein = ein)
+  pre <- list(row_count = n, null_counts = c(EIN = 0L))   # the source had no blank EINs
+  expect_warning(
+    rep <- generate_quality_report(out, pre_check_results = pre, expected_cols = "ein"),
+    "a transformation lost values"
+  )
+  expect_false(rep$passed)
+  expect_equal(rep$critical_field_missing$ein, 5L)
+  expect_equal(rep$critical_field_source_missing$ein, 0L)
+  expect_equal(rep$critical_field_issues$ein, 5L)
+})
+
+test_that("blanks that were already blank in the source pass under the share limit", {
+  n <- 100000L
+  ein <- sprintf("01-%07d", seq_len(n))
+  ein[1:5] <- ""
+  out <- data.table(ein = ein)
+  pre <- list(row_count = n, null_counts = c(EIN = 5L))   # the same five were blank in the source
+  rep <- generate_quality_report(out, pre_check_results = pre, expected_cols = "ein")
+  expect_true(rep$passed)
+  expect_equal(rep$critical_field_source_missing$ein, 5L)
+})

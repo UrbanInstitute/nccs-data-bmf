@@ -318,6 +318,14 @@ CRITICAL_FIELDS <- c(
 # is empty (1 in 10,000). The count is always recorded and reported.
 CRITICAL_FIELD_MAX_MISSING_SHARE <- 1e-4
 
+# The source column each critical field is made from. When the pre-check
+# recorded how many source rows were blank (null_counts), the output may
+# not have more blanks than the source had: that allowance is for blank
+# source rows only, never for values a transformation lost.
+CRITICAL_FIELD_SOURCE <- c(
+  ein = "EIN"
+)
+
 # Shared column-count helper (backlog Z9); lets this file be sourced alone.
 source(here::here("R", "quality", "column_counts.R"))
 
@@ -888,6 +896,7 @@ generate_quality_report <- function(dt,
     overall_completeness = 0,
     critical_field_issues = list(),
     critical_field_missing = list(),
+    critical_field_source_missing = list(),
     emptied_columns = character(0),
     category_reports = list(),
     summary_stats = list()
@@ -918,14 +927,35 @@ generate_quality_report <- function(dt,
   # ---------------------------------------------------------------------------
   # Check 3: Critical fields validation (backlog Z27: small threshold)
   # ---------------------------------------------------------------------------
-  # The empty count is always recorded in critical_field_missing; the report
-  # fails only when the empty share exceeds CRITICAL_FIELD_MAX_MISSING_SHARE.
+  # The empty count is always recorded in critical_field_missing. The report
+  # fails when either (a) the output has more blanks than the source had, so
+  # a transformation lost values, or (b) the empty share exceeds
+  # CRITICAL_FIELD_MAX_MISSING_SHARE. Blank source rows below that share are
+  # the only thing the allowance covers.
+  source_null_counts <- pre_check_results$null_counts
   for (field in CRITICAL_FIELDS) {
     if (field %in% names(dt)) {
       missing_count <- sum(is.na(dt[[field]]) | dt[[field]] == "")
       missing_share <- if (nrow(dt) > 0) missing_count / nrow(dt) else 0
       report$critical_field_missing[[field]] <- missing_count
-      if (missing_share > CRITICAL_FIELD_MAX_MISSING_SHARE) {
+
+      source_column <- CRITICAL_FIELD_SOURCE[[field]]
+      source_missing <- if (!is.null(source_column) && source_column %in% names(source_null_counts)) {
+        as.integer(source_null_counts[[source_column]])
+      } else {
+        NA_integer_
+      }
+      report$critical_field_source_missing[[field]] <- source_missing
+
+      lost_by_transform <- !is.na(source_missing) && missing_count > source_missing
+      if (lost_by_transform) {
+        report$critical_field_issues[[field]] <- missing_count
+        report$passed <- FALSE
+        warning(sprintf(
+          "Critical field %s is empty in %s output rows but only %s source rows were blank: a transformation lost values",
+          field, format(missing_count, big.mark = ","), format(source_missing, big.mark = ",")
+        ))
+      } else if (missing_share > CRITICAL_FIELD_MAX_MISSING_SHARE) {
         report$critical_field_issues[[field]] <- missing_count
         report$passed <- FALSE
         warning(sprintf(
@@ -1137,11 +1167,13 @@ print_quality_report <- function(report, verbose = FALSE) {
     message("CRITICAL FIELDS:")
     for (field in names(report$critical_field_missing)) {
       missing_count <- report$critical_field_missing[[field]]
-      verdict <- if (!is.null(report$critical_field_issues[[field]])) "ABOVE LIMIT" else "within limit"
-      message(sprintf("  - %s: %s of %s rows empty (%s; limit %s%%)",
+      source_missing <- report$critical_field_source_missing[[field]]
+      verdict <- if (!is.null(report$critical_field_issues[[field]])) "FAILED" else "within limit"
+      message(sprintf("  - %s: %s of %s rows empty; %s blank in the source (%s; limit %s%%)",
                       field,
                       format(missing_count, big.mark = ","),
                       format(report$row_count, big.mark = ","),
+                      if (is.null(source_missing) || is.na(source_missing)) "unknown" else format(source_missing, big.mark = ","),
                       verdict,
                       format(100 * CRITICAL_FIELD_MAX_MISSING_SHARE)))
     }
