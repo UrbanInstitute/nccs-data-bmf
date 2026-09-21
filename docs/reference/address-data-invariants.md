@@ -84,7 +84,7 @@ is rule 3 below: an aggregate gate cannot see a stratified failure.
    byte-match the Unified BMF's raw values and runs the full invariant suite;
    run it after every build, before every publish.
 7. **A cleaner must never turn populated input into NA, and the pipeline must
-   halt when it does.** This defect class is invisible in a completeness
+   halt when it does.** This kind of failure is invisible in a completeness
    percentage (the column just looks emptier) and survives every downstream
    stage, so it needs its own gate rather than a metric.
    `assert_zip_integrity()` in `R/quality/post_checks.R` fails the run under
@@ -93,6 +93,6 @@ is rule 3 below: an aggregate gate cannot see a stratified failure.
    is legible. Both pipelines call it before Phases 10-11 write and upload. Any
    future cleaner that can drop populated values deserves the same treatment.
 
-The general principle (standing rule 14): when a slow-cost defect class is
+The general principle (standing rule 14): when a slow-to-notice kind of failure is
 found, leave behind a fast detector. Zero-cross-source was that detector for
 join-key breakage; it is now a build-stopping gate, nationally and per state.

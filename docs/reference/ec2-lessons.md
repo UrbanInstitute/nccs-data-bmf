@@ -137,5 +137,5 @@ for four days. Three lessons, in the order they would have caught it:
   exactly 0.00%. Any national threshold over a country-wide dataset needs a
   per-stratum twin, and the stratum here (state) was the obvious one.
 
-The general form: when a defect class is found, leave behind a fast
+The general form: when a kind of failure is found, leave behind a fast
 detector, and make sure something actually fails when it fires.

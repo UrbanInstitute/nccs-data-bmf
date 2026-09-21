@@ -6,8 +6,8 @@
 # ============================================================================
 # Destructive-transform gates
 #
-# A transform that turns populated input into NA output is the defect class
-# these gates exist to stop. It is invisible in a completeness percentage
+# A transform that turns populated input into NA output is the kind of
+# failure these gates exist to stop. It is invisible in a completeness percentage
 # (the column simply looks emptier), it survives every downstream stage, and
 # it reaches S3 and the geocoder before anyone notices. Unlike the advisory
 # metrics in generate_quality_report(), these HALT the run under
@@ -25,7 +25,7 @@
 #' Compares the raw ZIP against the cleaned output row by row. A raw value
 #' holding at least 3 digits is a recoverable ZIP (see .clean_zip()), so a NA
 #' or non-5-digit result for such a row means the cleaner dropped real data.
-#' Reports the damage by state, because this defect class is stratified: it
+#' Reports the damage by state, because this kind of failure is stratified: it
 #' hits whole states at 100% while the national completeness figure barely
 #' moves, which is exactly how it went unnoticed.
 #'
