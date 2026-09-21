@@ -55,10 +55,12 @@ PER_STATE_MIN_SPELLS       <- 5e4    # states below this are too small to judge
 
 # Env-overridable so the script can be given a preliminary test against local
 # parquet fixtures (point both at file globs) before an expensive full S3 run.
+# Only the pipeline's own *_intermediate.parquet per vintage folder (backlog
+# Z28): older *_processed.parquet copies may sit beside it and must not be read.
 current_pipeline_glob <- Sys.getenv(
-  "ADDR_XWALK_CUR_GLOB", sprintf("s3://%s/intermediate/bmf/*/*.parquet", bucket_name))
+  "ADDR_XWALK_CUR_GLOB", sprintf("s3://%s/intermediate/bmf/*/*_intermediate.parquet", bucket_name))
 legacy_pipeline_glob  <- Sys.getenv(
-  "ADDR_XWALK_LEG_GLOB", sprintf("s3://%s/intermediate/bmf-legacy/*/*.parquet", bucket_name))
+  "ADDR_XWALK_LEG_GLOB", sprintf("s3://%s/intermediate/bmf-legacy/*/*_intermediate.parquet", bucket_name))
 
 # ---------------------------------------------------------------------------
 # 1. Connect + httpfs + S3 credentials + spill config (same as ntee-resolved)

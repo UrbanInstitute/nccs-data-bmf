@@ -27,8 +27,11 @@ if (!dir.exists(OUT_DIR)) dir.create(OUT_DIR, recursive = TRUE)
 GAP_CODES <- c("B29", "E6A", "F31", "K2A", "K2B", "K2C",
                "L4A", "L4B", "M99", "P76", "P7A", "P83")
 
-CUR_GLOB <- sprintf("s3://%s/intermediate/bmf/*/*.parquet", BUCKET)
-LEG_GLOB <- sprintf("s3://%s/intermediate/bmf-legacy/*/*.parquet", BUCKET)
+# Only *_intermediate.parquet (backlog Z28): a bare *.parquet glob also read
+# the older *_processed.parquet copies and double-counted 30 vintages, which
+# is why the first Z18 estimate (about 511,000 rows) was too high.
+CUR_GLOB <- sprintf("s3://%s/intermediate/bmf/*/*_intermediate.parquet", BUCKET)
+LEG_GLOB <- sprintf("s3://%s/intermediate/bmf-legacy/*/*_intermediate.parquet", BUCKET)
 
 con <- dbConnect(duckdb::duckdb())
 on.exit(dbDisconnect(con, shutdown = TRUE), add = TRUE)
