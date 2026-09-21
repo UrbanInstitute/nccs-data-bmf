@@ -44,3 +44,4 @@ data/crosswalks/ntee_resolved_crosswalk.csv
 
 # Publish-time staging manifests (the canonical copy lives on S3; built_at churns)
 _manifest.json
+data/master/ein_index/
