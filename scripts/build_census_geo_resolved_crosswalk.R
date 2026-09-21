@@ -88,8 +88,10 @@ points <- unified |>
 
 states_to_build <- sort(unique(points$state_fips))
 if (nzchar(STATE_SUBSET)) {
-  wanted <- unname(state_fips_by_abbr[trimws(strsplit(STATE_SUBSET, ",")[[1]])])
-  states_to_build <- intersect(states_to_build, wanted)
+  # CENSUS_GEO_STATES="DE, RI" -> the FIPS codes "10" and "44"
+  requested_abbreviations <- trimws(strsplit(STATE_SUBSET, ",")[[1]])
+  requested_fips          <- unname(state_fips_by_abbr[requested_abbreviations])
+  states_to_build         <- intersect(states_to_build, requested_fips)
   points <- filter(points, state_fips %in% states_to_build)
   log_line("Trial run limited to %d state(s)", length(states_to_build))
 }
