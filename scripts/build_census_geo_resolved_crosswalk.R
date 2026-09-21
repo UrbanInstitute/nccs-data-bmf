@@ -60,7 +60,7 @@ log_line <- function(...) message(sprintf("[%s] %s", format(Sys.time(), "%H:%M:%
 log_line("Reading the geocoded Unified BMF")
 unified <- arrow::read_parquet(
   GEOCODED_PATH,
-  col_select = c("ein", "geo_lat", "geo_lon", "geo_addr_type", "geo_score",
+  col_select = c("ein", "geo_lat", "geo_lon", "geo_addr_type", "geo_score", "geo_match_addr",
                  "geo_state_abbr", "geo_county", "org_addr_is_po_box")
 ) |>
   tibble::as_tibble() |>
@@ -100,30 +100,46 @@ if (nzchar(STATE_SUBSET)) {
 # 2. Point-in-polygon per state and boundary vintage
 # ---------------------------------------------------------------------------
 
+# st_within() returns, for each point, the indices of the polygons containing
+# it (usually one, none for points outside every polygon). Keep the first.
+first_polygon_index <- function(hits) {
+  purrr::map_int(hits, function(indices) if (length(indices) > 0) indices[[1]] else NA_integer_)
+}
+
 assign_blocks_for_state <- function(state_pts, state_fips, tiger_year) {
   geoid_column <- if (tiger_year == 2020L) "GEOID20" else "GEOID10"
+
   blocks <- tigris::blocks(state = state_fips, year = tiger_year, progress_bar = FALSE) |>
     st_transform(4326) |>
     select(all_of(geoid_column))
+
   pts_sf <- st_as_sf(state_pts, coords = c("geo_lon", "geo_lat"), crs = 4326, remove = FALSE)
-  hit <- suppressMessages(st_within(pts_sf, blocks))   # spatially indexed; planar message silenced (sf_use_s2 is FALSE on purpose)
-  first_hit <- vapply(hit, function(i) if (length(i) > 0) i[[1]] else NA_integer_, integer(1))
-  blocks[[geoid_column]][first_hit]
+
+  # Spatially indexed. The "assumes planar" message is silenced because
+  # sf_use_s2(FALSE) is deliberate: TIGER edges are straight lines in
+  # longitude/latitude, which is how the Census defines block membership.
+  hits <- suppressMessages(st_within(pts_sf, blocks))
+
+  blocks[[geoid_column]][first_polygon_index(hits)]
 }
 
 block_2020 <- rep(NA_character_, nrow(points))
 block_2010 <- rep(NA_character_, nrow(points))
 
 for (state_fips in states_to_build) {
-  rows <- which(points$state_fips == state_fips)
+
+  rows      <- which(points$state_fips == state_fips)
   state_pts <- points[rows, c("ein", "geo_lon", "geo_lat")]
   log_line("State %s: %s points", state_fips, format(length(rows), big.mark = ","))
+
   block_2020[rows] <- assign_blocks_for_state(state_pts, state_fips, TIGER_YEAR_2020)
   block_2010[rows] <- assign_blocks_for_state(state_pts, state_fips, TIGER_YEAR_2010)
+
   log_line("  assigned 2020: %s | 2010: %s",
            format(sum(!is.na(block_2020[rows])), big.mark = ","),
            format(sum(!is.na(block_2010[rows])), big.mark = ","))
 }
+
 points$block_geoid_2020 <- block_2020
 points$block_geoid_2010 <- block_2010
 
@@ -137,7 +153,7 @@ log_line("ZCTA 2020 (national)")
 zcta <- tigris::zctas(year = TIGER_YEAR_2020, progress_bar = FALSE) |>
   st_transform(4326) |> select(ZCTA5CE20)
 zcta_hit <- suppressMessages(st_within(pts_sf, zcta))
-points$zcta_2020 <- zcta$ZCTA5CE20[vapply(zcta_hit, function(i) if (length(i) > 0) i[[1]] else NA_integer_, integer(1))]
+points$zcta_2020 <- zcta$ZCTA5CE20[first_polygon_index(zcta_hit)]
 rm(zcta, zcta_hit); invisible(gc())
 
 log_line("Congressional districts (TIGER %d)", CD_TIGER_YEAR)
@@ -146,7 +162,7 @@ districts <- tigris::congressional_districts(year = CD_TIGER_YEAR, progress_bar 
 cd_session <- unique(districts$CDSESSN)[[1]]
 districts <- select(districts, GEOID)
 cd_hit <- suppressMessages(st_within(pts_sf, districts))
-points$congressional_district <- districts$GEOID[vapply(cd_hit, function(i) if (length(i) > 0) i[[1]] else NA_integer_, integer(1))]
+points$congressional_district <- districts$GEOID[first_polygon_index(cd_hit)]
 rm(districts, cd_hit, pts_sf); invisible(gc())
 
 # ---------------------------------------------------------------------------
@@ -179,7 +195,7 @@ log_line("County gate: %s comparable, %s mismatches (%.3f%%), limit %.1f%%",
 audit <- points[gate$mismatch_rows, ] |>
   transmute(ein, geo_state_abbr, geo_county, geocoder_county_fips = geo_county_fips,
             block_county_fips = census_geo_county_from_block(block_geoid_2020),
-            block_geoid_2020, geo_addr_type, geo_score, geo_lat, geo_lon)
+            block_geoid_2020, geo_match_addr, geo_addr_type, geo_score, geo_lat, geo_lon)
 data.table::fwrite(audit, paste0(OUT_STEM, "_audit.csv"))
 
 if (gate$mismatch_share > CENSUS_GEO_COUNTY_MISMATCH_MAX_SHARE) {
@@ -192,7 +208,7 @@ if (gate$mismatch_share > CENSUS_GEO_COUNTY_MISMATCH_MAX_SHARE) {
 # ---------------------------------------------------------------------------
 
 crosswalk <- unified |>
-  select(ein, geo_addr_type, geo_score, org_addr_is_po_box) |>
+  select(ein, geo_match_addr, geo_addr_type, geo_score, org_addr_is_po_box) |>
   left_join(
     points |> select(ein, block_geoid_2020, block_geoid_2010, zcta_2020, congressional_district),
     by = "ein"
@@ -207,7 +223,7 @@ crosswalk <- unified |>
   ) |>
   select(ein, ein_prefixed, EIN2,
          block_geoid_2020, block_geoid_2010, zcta_2020, congressional_district,
-         geo_addr_type, geo_score, org_addr_is_po_box,
+         geo_match_addr, geo_addr_type, geo_score, org_addr_is_po_box,
          tiger_year_2020, tiger_year_2010, congress_session, source_vintage) |>
   arrange(ein)
 
@@ -230,6 +246,7 @@ dictionary <- tibble::tribble(
   "block_geoid_2010",       "15-digit census block GEOID on 2010 boundaries (TIGER/Line 2010), for joins to pre-2020 census products. Same prefix rules. NA as above.",
   "zcta_2020",              "5-digit ZIP Code Tabulation Area, 2020 boundaries. A ZCTA is an area; a ZIP code is a delivery route. NA as above.",
   "congressional_district", "4-digit district GEOID (2-digit state FIPS + 2-digit district number) for the Congress in congress_session, from TIGER/Line 2024. Redistricting changes these on a different clock from the decennial census. NA as above.",
+  "geo_match_addr",         "The address the geocoder matched, as it matched it. Lets a consumer see what the coordinates stand for.",
   "geo_addr_type",          "Geocoder precision tier. Blocks are assigned only for PointAddress, Subaddress, StreetAddress, StreetAddressExt and StreetInt; Postal, PostalExt, PostalLoc, StreetName, POI, Locality and DistanceMarker matches get NA.",
   "geo_score",              "Geocoder match confidence, 0 to 100.",
   "org_addr_is_po_box",     "TRUE when the mailing address is a PO box: the geocode then locates the post office, not the organization.",

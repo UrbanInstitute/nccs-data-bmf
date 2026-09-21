@@ -27,8 +27,10 @@
 #' @param uploader     Upload function (default upload_to_s3); tests pass a stand-in.
 #'                     Any upload that does not return TRUE stops the publish
 #'                     before the manifest is written.
-#' @param existing_manifest_reader Function returning the remote manifest (or NULL);
-#'                     tests pass a stand-in so no S3 call is made.
+#' @param existing_manifest_reader Function that fetches the manifest already on S3
+#'                     (or NULL when there is none). The tests supply a small
+#'                     function of their own that just returns NULL, so they
+#'                     never touch S3.
 #' @return Invisibly `list(manifest, uploaded, skipped)`.
 #' @export
 publish_crosswalk <- function(parquet_path, s3_prefix, inputs = list(),
