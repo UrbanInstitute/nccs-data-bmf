@@ -27,11 +27,14 @@
 #' @param uploader     Upload function (default upload_to_s3); tests pass a stand-in.
 #'                     Any upload that does not return TRUE stops the publish
 #'                     before the manifest is written.
+#' @param existing_manifest_reader Function returning the remote manifest (or NULL);
+#'                     tests pass a stand-in so no S3 call is made.
 #' @return Invisibly `list(manifest, uploaded, skipped)`.
 #' @export
 publish_crosswalk <- function(parquet_path, s3_prefix, inputs = list(),
                               vintage, bucket = BMF_S3_BUCKET, dry_run = FALSE,
-                              include_csv = TRUE, uploader = upload_to_s3) {
+                              include_csv = TRUE, uploader = upload_to_s3,
+                              existing_manifest_reader = read_existing_manifest) {
   csv_path <- sub("\\.parquet$", ".csv", parquet_path)
   stopifnot(file.exists(parquet_path), endsWith(s3_prefix, "/"))
   if (include_csv) stopifnot(file.exists(csv_path))
@@ -57,7 +60,7 @@ publish_crosswalk <- function(parquet_path, s3_prefix, inputs = list(),
   message(sprintf("Built manifest for %d rows (vintage=%s): %s",
                   nrow(df), vintage, paste(files, collapse = ", ")))
 
-  remote <- read_existing_manifest(paste0(s3_prefix, "_manifest.json"), bucket)
+  remote <- existing_manifest_reader(paste0(s3_prefix, "_manifest.json"), bucket)
   upload_if_changed <- function(local, key, dry) {
     if (manifest_unchanged(remote, key, shas[[key]])) {
       message(sprintf("SKIP (unchanged): s3://%s/%s%s", bucket, s3_prefix, key)); return("skip")
