@@ -1,0 +1,80 @@
+# Census-Geo-Resolved Crosswalk {#sec-census-geo-resolved-crosswalk}
+
+The **census-geo-resolved crosswalk** gives every organization in the
+geocoded Unified BMF its census block, for both the 2020 and the 2010
+boundaries, plus its 2020 ZIP Code Tabulation Area and its congressional
+district. It is a separate join layer keyed on `ein`, in the same pattern as
+the [NTEE-resolved crosswalk](16-ntee-resolved-crosswalk.qmd): compute once,
+publish, everyone joins ([ADR 0016](11-master-bmf.qmd) consumer-composes).
+Decided in nccs-contracts ADR 0045.
+
+## Why it exists
+
+Census tracts, block groups and blocks appear in no IRS source. They can only
+come from a spatial assignment of the geocoded coordinates. County FIPS is
+served by the [county-fips crosswalk](13-county-fips-crosswalk.qmd), a label
+join; sub-county geography needs point-in-polygon against TIGER/Line
+boundaries, which this artifact does once so no consumer has to.
+
+## What it stores
+
+One row per EIN in the geocoded Unified BMF. Only the **block GEOID** is
+stored; everything above it is a prefix:
+
+| Want | Take |
+|---|---|
+| Block group | first 12 characters of `block_geoid_2020` |
+| Tract | first 11 characters |
+| County FIPS | first 5 characters |
+| State FIPS | first 2 characters |
+
+`zcta_2020` and `congressional_district` are stored because they do not nest
+inside the block. CBSA is deliberately not a column: derive the county from
+the block and join the [CBSA crosswalk](14-cbsa-crosswalk.qmd), so there is
+one authoritative county-to-CBSA surface.
+
+The full column list is in the data dictionary published next to the file
+(`census_geo_resolved_crosswalk_data_dictionary.csv`).
+
+## Who gets a block
+
+Only address-level geocodes: precision tiers `PointAddress`, `Subaddress`,
+`StreetAddress`, `StreetAddressExt` and `StreetInt`. ZIP-centroid
+(`Postal*`), street-name, place and point-of-interest matches get `NA`,
+because a plausible-but-wrong block is worse than a missing one. The tier is
+carried in `geo_addr_type` so a consumer can tighten the cut further.
+`org_addr_is_po_box` is carried too: a PO box geocodes to the post office,
+not the organization.
+
+## Quality gate
+
+Every assigned block's county (first five characters) is compared with the
+county the geocoder named, resolved to FIPS through the county-fips
+crosswalk. Border addresses disagree occasionally; the build stops if more
+than 1% of comparable rows disagree, and writes the disagreements to
+`census_geo_resolved_crosswalk_audit.csv` either way.
+
+## How it is built
+
+`scripts/build_census_geo_resolved_crosswalk.R`, on a laptop, state by
+state: for each state, download the TIGER/Line block file (cached by
+`tigris`), place the state's points with `sf::st_within`, repeat for the
+2010 boundaries; then ZCTAs and congressional districts from the national
+files. Set `CENSUS_GEO_STATES="DE,RI"` for a trial run.
+
+Publish with
+`source("R/publish_census_geo_resolved_crosswalk.R"); publish_census_geo_resolved_crosswalk()`,
+which writes `crosswalks/census-geo-resolved/v{YYYY_MM}/` (parquet, retained)
+and `latest/` (parquet, CSV, dictionary), each with an ADR 0014 manifest that
+pins the TIGER vintages.
+
+Rebuild after each geocoded Unified BMF publish so new and re-geocoded
+organizations get a block.
+
+## Caveats for consumers
+
+- Coverage is bounded by geocoding: only address-level matches carry a
+  block. Check the build summary for the share.
+- Mailing addresses, not premises: PO boxes locate the post office.
+- Congressional districts change with redistricting on a different clock
+  from the decennial census; the Congress session is a column.

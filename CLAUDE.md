@@ -371,6 +371,12 @@ S3 (raw/bmf/YYYY-MM-BMF.csv) → Download → Transform → Validated BMF (parqu
 - `R/publish_ntee_resolved_crosswalk.R` - Thin wrapper over `R/publish_crosswalk.R` → `s3://nccsdata/crosswalks/ntee-resolved/`
 - `data/crosswalks/ntee_resolved_crosswalk.parquet` - Local artifact (CSV sibling is ~640 MB, gitignored; both distributed via S3)
 
+**Census-geo-resolved crosswalk (per-EIN census block, ZCTA, congressional district; ADR 0045):**
+- `scripts/build_census_geo_resolved_crosswalk.R` - State-by-state point-in-polygon (sf + tigris, cached TIGER/Line) of address-level geocodes against 2020 and 2010 blocks, national ZCTA 2020 and congressional districts; county-consistency gate against the county-fips crosswalk. Laptop-scale, no EC2. `CENSUS_GEO_STATES="DE,RI"` for a trial
+- `R/census_geo_resolved.R` - Pure helpers (which tiers get a block, GEOID prefix derivations, the gate); unit-tested without downloads
+- `R/publish_census_geo_resolved_crosswalk.R` - Publishes `v{YYYY_MM}/` (parquet) + `latest/` (parquet, CSV, dictionary) under `s3://nccsdata/crosswalks/census-geo-resolved/`
+- `data/crosswalks/census_geo_resolved_crosswalk*` - Local outputs (gitignored; distributed via S3)
+
 **EC2 batch scripts:**
 - `scripts/setup_ec2.sh` - One-shot bootstrap (R, system libs, AWS CLI, Quarto, R packages)
 - `scripts/run_all_legacy.sh` - Serial/parallel driver for every legacy vintage (`JOBS=N`, `SKIP_VINTAGES`, `SKIP_EXISTING`)
@@ -500,6 +506,13 @@ Path contract (prefix holds `*.parquet` + `*.csv` + ADR 0014 `_manifest.json`):
   sha256 of `transform_ntee_code.R` + the legacy 5-char lookup, so a change
   to the cleaner or that lookup is visible in published provenance. See ADR
   0034 and `docs/16-ntee-resolved-crosswalk.qmd`.
+
+- `s3://nccsdata/crosswalks/census-geo-resolved/{v{YYYY_MM},latest}/` — per-EIN
+  census block (2020 and 2010 boundaries), ZCTA 2020 and congressional
+  district from the geocoded Unified BMF (ADR 0045). Tract, block group,
+  county and state are prefixes of the block GEOID, derived by the consumer.
+  Address-level geocodes only; the rest are NA. Rebuild + re-publish after
+  each geocoded Unified BMF publish. See `docs/17-census-geo-resolved-crosswalk.qmd`.
 
 ### BMF lookup tables → S3
 

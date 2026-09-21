@@ -30,6 +30,7 @@ book:
     - 14-cbsa-crosswalk.qmd
     - 15-ct-planning-region-crosswalk.qmd
     - 16-ntee-resolved-crosswalk.qmd
+    - 17-census-geo-resolved-crosswalk.qmd
 
 format:
   html:

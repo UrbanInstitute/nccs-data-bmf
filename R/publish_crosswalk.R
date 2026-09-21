@@ -24,11 +24,19 @@
 #'                     (one S3 HEAD for the existing manifest) but write nothing.
 #' @param include_csv  If FALSE, publish the parquet + manifest only (ADR 0042
 #'                     Decision A: vintage folders retain parquet only).
+#' @param uploader     Upload function (default upload_to_s3); tests pass a stand-in.
+#'                     Any upload that does not return TRUE stops the publish
+#'                     before the manifest is written.
+#' @param existing_manifest_reader Function that fetches the manifest already on S3
+#'                     (or NULL when there is none). The tests supply a small
+#'                     function of their own that just returns NULL, so they
+#'                     never touch S3.
 #' @return Invisibly `list(manifest, uploaded, skipped)`.
 #' @export
 publish_crosswalk <- function(parquet_path, s3_prefix, inputs = list(),
                               vintage, bucket = BMF_S3_BUCKET, dry_run = FALSE,
-                              include_csv = TRUE) {
+                              include_csv = TRUE, uploader = upload_to_s3,
+                              existing_manifest_reader = read_existing_manifest) {
   csv_path <- sub("\\.parquet$", ".csv", parquet_path)
   stopifnot(file.exists(parquet_path), endsWith(s3_prefix, "/"))
   if (include_csv) stopifnot(file.exists(csv_path))
@@ -54,13 +62,20 @@ publish_crosswalk <- function(parquet_path, s3_prefix, inputs = list(),
   message(sprintf("Built manifest for %d rows (vintage=%s): %s",
                   nrow(df), vintage, paste(files, collapse = ", ")))
 
-  remote <- read_existing_manifest(paste0(s3_prefix, "_manifest.json"), bucket)
+  remote <- existing_manifest_reader(paste0(s3_prefix, "_manifest.json"), bucket)
   upload_if_changed <- function(local, key, dry) {
     if (manifest_unchanged(remote, key, shas[[key]])) {
       message(sprintf("SKIP (unchanged): s3://%s/%s%s", bucket, s3_prefix, key)); return("skip")
     }
-    if (dry) message(sprintf("  PUT  %s%s", s3_prefix, key))
-    else     upload_to_s3(local, paste0(s3_prefix, key), bucket = bucket)
+    if (dry) {
+      message(sprintf("  PUT  %s%s", s3_prefix, key))
+    } else {
+      # upload_to_s3() returns FALSE rather than erroring. A file counted as
+      # published but missing would be skipped on every later run because its
+      # hash would sit in the manifest, so stop here, before the manifest.
+      ok <- uploader(local, paste0(s3_prefix, key), bucket = bucket)
+      if (!isTRUE(ok)) stop(sprintf("upload failed for s3://%s/%s%s; manifest not written", bucket, s3_prefix, key))
+    }
     "put"
   }
 
@@ -73,7 +88,8 @@ publish_crosswalk <- function(parquet_path, s3_prefix, inputs = list(),
   # Pair each local path with its S3 basename, upload-or-skip each, and keep
   # the put/skip outcomes for the summary; the manifest uploads separately.
   acts <- Map(function(l, k) upload_if_changed(l, k, FALSE), local_paths, files)
-  upload_to_s3(manifest_path, paste0(s3_prefix, "_manifest.json"), bucket = bucket)
+  manifest_ok <- uploader(manifest_path, paste0(s3_prefix, "_manifest.json"), bucket = bucket)
+  if (!isTRUE(manifest_ok)) stop(sprintf("manifest upload failed for s3://%s/%s_manifest.json", bucket, s3_prefix))
 
   uploaded <- files[unlist(acts) == "put"]; skipped <- files[unlist(acts) == "skip"]
   message(sprintf("Publish complete: %d uploaded, %d skipped",
