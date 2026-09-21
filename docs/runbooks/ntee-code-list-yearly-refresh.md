@@ -54,9 +54,13 @@ We do not use any third-party copy of the list as the source of truth.
         usually gives an exact match. Keep using the 2022 edition until the
         lookup is deliberately migrated, because codes move between
         editions (pharmacies were 446110 in 2017 and are 456110 in 2022).
-     3. Otherwise `UNDEFINED`, as 18 existing rows already are.
+     3. Otherwise `UNDEFINED`, as `Z99` is.
    - `ntee_code_definition`: the IRS description, word for word.
    - `effective_date`: today as YYYYMMDD.
+   - `ntee_code_description`: the long description. Run
+     `Rscript scripts/add_ntee_code_descriptions.R` after adding the rows; it
+     fills this column from the NODC table and lists any code it has no text
+     for (those stay blank until someone writes the paragraph).
    Keep the sheet sorted by code. Editing in Excel is fine; if editing with R,
    use `openxlsx::loadWorkbook()` and keep the sheet order unchanged.
 
