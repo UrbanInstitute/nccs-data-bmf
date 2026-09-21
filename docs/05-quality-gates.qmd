@@ -220,13 +220,28 @@ completeness <- sapply(present_cols, function(col) {
 
 ### 4. Critical Field Validation
 
-Ensures critical fields have no NULLs:
+Counts the rows in which a critical field is empty and fails the report only
+when that share is above a small limit (backlog Z27):
 
 ```r
 CRITICAL_FIELDS <- c("ein")
+CRITICAL_FIELD_MAX_MISSING_SHARE <- 1e-4   # 1 in 10,000 rows
 ```
 
-**Action on failure:** Mark report as FAILED
+The count is always recorded (`critical_field_missing`) and printed, so a
+few blank source rows, such as the 21 in the June 1996 legacy file, are
+visible without rejecting the vintage. Rows with a blank EIN keep the
+EIN-missing flag and cannot join to anything downstream.
+
+The allowance covers blank *source* rows only. The pre-check records how
+many source rows were blank (`null_counts`), and the output may never have
+more blanks than that (`CRITICAL_FIELD_SOURCE` maps `ein` to the source
+column `EIN`). If it does, a transformation lost values and the report
+fails whatever the share.
+
+**Action on failure (more blanks than the source, or share above the
+limit):** Mark report as FAILED and the hard gate stops the run before any
+upload.
 
 ### 5. Summary Statistics
 

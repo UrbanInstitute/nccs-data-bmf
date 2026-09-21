@@ -6,8 +6,8 @@
 # ============================================================================
 # Destructive-transform gates
 #
-# A transform that turns populated input into NA output is the defect class
-# these gates exist to stop. It is invisible in a completeness percentage
+# A transform that turns populated input into NA output is the kind of
+# failure these gates exist to stop. It is invisible in a completeness percentage
 # (the column simply looks emptier), it survives every downstream stage, and
 # it reaches S3 and the geocoder before anyone notices. Unlike the advisory
 # metrics in generate_quality_report(), these HALT the run under
@@ -25,7 +25,7 @@
 #' Compares the raw ZIP against the cleaned output row by row. A raw value
 #' holding at least 3 digits is a recoverable ZIP (see .clean_zip()), so a NA
 #' or non-5-digit result for such a row means the cleaner dropped real data.
-#' Reports the damage by state, because this defect class is stratified: it
+#' Reports the damage by state, because this kind of failure is stratified: it
 #' hits whole states at 100% while the national completeness figure barely
 #' moves, which is exactly how it went unnoticed.
 #'
@@ -306,9 +306,24 @@ BMF_OUTPUT_COLUMNS <- c(
   "nteev2", "nteev2_code", "nteev2_subsector", "nteev2_subsector_definition", "nteev2_org_type"
 ) 
 
-# Critical fields that must have no NULLs in valid records
+# Critical fields that must be populated in valid records
 CRITICAL_FIELDS <- c(
   "ein"
+)
+
+# Backlog Z27: a handful of blank source rows should not reject a whole
+# vintage. June 1996 legacy has 21 rows with no EIN out of about 1.4 million;
+# those rows carry the EIN-missing flag and cannot join to anything. A
+# critical field now fails the report only when more than this share of rows
+# is empty (1 in 10,000). The count is always recorded and reported.
+CRITICAL_FIELD_MAX_MISSING_SHARE <- 1e-4
+
+# The source column each critical field is made from. When the pre-check
+# recorded how many source rows were blank (null_counts), the output may
+# not have more blanks than the source had: that allowance is for blank
+# source rows only, never for values a transformation lost.
+CRITICAL_FIELD_SOURCE <- c(
+  ein = "EIN"
 )
 
 # Shared column-count helper (backlog Z9); lets this file be sourced alone.
@@ -880,6 +895,8 @@ generate_quality_report <- function(dt,
     extra_columns = character(0),
     overall_completeness = 0,
     critical_field_issues = list(),
+    critical_field_missing = list(),
+    critical_field_source_missing = list(),
     emptied_columns = character(0),
     category_reports = list(),
     summary_stats = list()
@@ -908,14 +925,44 @@ generate_quality_report <- function(dt,
   report$extra_columns <- setdiff(names(dt), c(expected_cols, BMF_REQUIRED_COLUMNS))
 
   # ---------------------------------------------------------------------------
-  # Check 3: Critical fields validation
+  # Check 3: Critical fields validation (backlog Z27: small threshold)
   # ---------------------------------------------------------------------------
+  # The empty count is always recorded in critical_field_missing. The report
+  # fails when either (a) the output has more blanks than the source had, so
+  # a transformation lost values, or (b) the empty share exceeds
+  # CRITICAL_FIELD_MAX_MISSING_SHARE. Blank source rows below that share are
+  # the only thing the allowance covers.
+  source_null_counts <- pre_check_results$null_counts
   for (field in CRITICAL_FIELDS) {
     if (field %in% names(dt)) {
-      null_count <- sum(is.na(dt[[field]]) | dt[[field]] == "")
-      if (null_count > 0) {
-        report$critical_field_issues[[field]] <- null_count
+      missing_count <- sum(is.na(dt[[field]]) | dt[[field]] == "")
+      missing_share <- if (nrow(dt) > 0) missing_count / nrow(dt) else 0
+      report$critical_field_missing[[field]] <- missing_count
+
+      source_column <- CRITICAL_FIELD_SOURCE[[field]]
+      source_missing <- if (!is.null(source_column) && source_column %in% names(source_null_counts)) {
+        as.integer(source_null_counts[[source_column]])
+      } else {
+        NA_integer_
+      }
+      report$critical_field_source_missing[[field]] <- source_missing
+
+      lost_by_transform <- !is.na(source_missing) && missing_count > source_missing
+      if (lost_by_transform) {
+        report$critical_field_issues[[field]] <- missing_count
         report$passed <- FALSE
+        warning(sprintf(
+          "Critical field %s is empty in %s output rows but only %s source rows were blank: a transformation lost values",
+          field, format(missing_count, big.mark = ","), format(source_missing, big.mark = ",")
+        ))
+      } else if (missing_share > CRITICAL_FIELD_MAX_MISSING_SHARE) {
+        report$critical_field_issues[[field]] <- missing_count
+        report$passed <- FALSE
+        warning(sprintf(
+          "Critical field %s is empty in %s of %s rows (%.4f%%), above the %s%% limit",
+          field, format(missing_count, big.mark = ","), format(nrow(dt), big.mark = ","),
+          100 * missing_share, format(100 * CRITICAL_FIELD_MAX_MISSING_SHARE)
+        ))
       }
     }
   }
@@ -1113,14 +1160,22 @@ print_quality_report <- function(report, verbose = FALSE) {
   }
 
   # ---------------------------------------------------------------------------
-  # Critical field issues
+  # Critical fields: the empty count is always shown; it is an issue only
+  # above the threshold (backlog Z27)
   # ---------------------------------------------------------------------------
-  if (length(report$critical_field_issues) > 0) {
-    message("CRITICAL FIELD ISSUES:")
-    for (field in names(report$critical_field_issues)) {
-      message(sprintf("  - %s: %s NULL values",
+  if (length(report$critical_field_missing) > 0) {
+    message("CRITICAL FIELDS:")
+    for (field in names(report$critical_field_missing)) {
+      missing_count <- report$critical_field_missing[[field]]
+      source_missing <- report$critical_field_source_missing[[field]]
+      verdict <- if (!is.null(report$critical_field_issues[[field]])) "FAILED" else "within limit"
+      message(sprintf("  - %s: %s of %s rows empty; %s blank in the source (%s; limit %s%%)",
                       field,
-                      format(report$critical_field_issues[[field]], big.mark = ",")))
+                      format(missing_count, big.mark = ","),
+                      format(report$row_count, big.mark = ","),
+                      if (is.null(source_missing) || is.na(source_missing)) "unknown" else format(source_missing, big.mark = ","),
+                      verdict,
+                      format(100 * CRITICAL_FIELD_MAX_MISSING_SHARE)))
     }
     message("")
   }

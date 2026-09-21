@@ -589,15 +589,23 @@ if (length(report$missing_columns) > 0) {
 ```
 
 ```{r critical-issues, results='asis'}
-if (length(report$critical_field_issues) > 0) {
-  cat("\n\n## Critical Field Issues\n\n")
-  cat("::: {.callout-important}\n")
-  cat("The following critical fields have NULL or empty values:\n\n")
-  for (field in names(report$critical_field_issues)) {
-    cat(sprintf("- **%s**: %s NULL/empty values\n",
+if (length(report$critical_field_missing) > 0) {
+  cat("\n\n## Critical Fields\n\n")
+  cat("A critical field fails the report if the output has more empty rows than the source had, or if more than 1 in 10,000 rows is empty. The counts are always shown.\n\n")
+  for (field in names(report$critical_field_missing)) {
+    verdict <- if (!is.null(report$critical_field_issues[[field]])) "**report failed**" else "within the limit"
+    source_missing <- report$critical_field_source_missing[[field]]
+    cat(sprintf("- **%s**: %s of %s rows empty; %s blank in the source (%s)\n",
                 field,
-                fmt_num(report$critical_field_issues[[field]])))
+                fmt_num(report$critical_field_missing[[field]]),
+                fmt_num(report$row_count),
+                if (is.null(source_missing) || is.na(source_missing)) "unknown" else fmt_num(source_missing),
+                verdict))
   }
+}
+if (length(report$critical_field_issues) > 0) {
+  cat("\n::: {.callout-important}\n")
+  cat("A critical field is empty in more rows than the limit allows; the file was not published unless the gate was overridden.\n")
   cat(":::\n")
 }
 ```
