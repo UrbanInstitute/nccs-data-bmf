@@ -78,9 +78,12 @@ write_ein_index_shard <- function(shard_rows, prefix, vintage, output_dir) {
   list(path = shard_path, row_count = nrow(shard_rows), columns = EIN_INDEX_COLUMNS)
 }
 
-# Upload one shard with the headers browsers need to inflate it.
-upload_ein_index_shard <- function(local_path, s3_key, bucket) {
-  aws.s3::put_object(
+# Upload one shard with the headers browsers need to inflate it. Stops on
+# failure: aws.s3::put_object() returns FALSE rather than erroring, and a
+# shard counted as uploaded but missing would be skipped forever afterwards
+# because its hash would sit in the manifest.
+upload_ein_index_shard <- function(local_path, s3_key, bucket, put_object = aws.s3::put_object) {
+  result <- put_object(
     file    = local_path,
     object  = s3_key,
     bucket  = bucket,
@@ -89,6 +92,10 @@ upload_ein_index_shard <- function(local_path, s3_key, bucket) {
       `Content-Encoding` = "gzip"
     )
   )
+  if (!isTRUE(result)) {
+    stop(sprintf("EIN index: upload failed for s3://%s/%s; manifest not written", bucket, s3_key))
+  }
+  invisible(TRUE)
 }
 
 # ---------------------------------------------------------------------------
@@ -168,12 +175,14 @@ build_ein_index <- function(geocoded_path,
 #' @param s3_root    Key prefix ending in "/" under which v{vintage}/ and latest/ sit.
 #' @param bucket     Bucket name.
 #' @param dry_run    If TRUE, print the plan and upload nothing.
+#' @param put_object The upload function (aws.s3::put_object); replaceable in tests.
 #' @return Invisibly: list(vintage_prefix, latest_prefix, uploaded, skipped) with
 #'   per-folder counts.
 publish_ein_index <- function(output_dir = here::here("data", "master", "ein_index"),
                               s3_root    = EIN_INDEX_S3_ROOT,
                               bucket     = BMF_S3_BUCKET,
-                              dry_run    = FALSE) {
+                              dry_run    = FALSE,
+                              put_object = aws.s3::put_object) {
 
   stopifnot(endsWith(s3_root, "/"))
   manifest_path <- file.path(output_dir, "_manifest.json")
@@ -196,15 +205,20 @@ publish_ein_index <- function(output_dir = here::here("data", "master", "ein_ind
       if (dry_run) {
         message(sprintf("  PUT  %s%s", s3_prefix, file_name))
       } else {
-        upload_ein_index_shard(file.path(output_dir, file_name), paste0(s3_prefix, file_name), bucket)
+        upload_ein_index_shard(file.path(output_dir, file_name), paste0(s3_prefix, file_name), bucket, put_object)
       }
       uploaded <- c(uploaded, file_name)
     }
     if (dry_run) {
       message(sprintf("  PUT  %s_manifest.json", s3_prefix))
     } else {
-      aws.s3::put_object(file = manifest_path, object = paste0(s3_prefix, "_manifest.json"),
-                         bucket = bucket, headers = list(`Content-Type` = "application/json"))
+      # Every shard above succeeded (a failure stops the run), so the manifest
+      # can now be written. Its own upload is checked too.
+      manifest_result <- put_object(file = manifest_path, object = paste0(s3_prefix, "_manifest.json"),
+                                    bucket = bucket, headers = list(`Content-Type` = "application/json"))
+      if (!isTRUE(manifest_result)) {
+        stop(sprintf("EIN index: manifest upload failed for s3://%s/%s_manifest.json", bucket, s3_prefix))
+      }
     }
     message(sprintf("EIN index -> %s %s: %d uploaded, %d skipped", s3_prefix,
                     if (dry_run) "(dry run)" else "done", length(uploaded), length(skipped)))

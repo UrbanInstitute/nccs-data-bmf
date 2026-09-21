@@ -122,3 +122,51 @@ test_that("a dry-run publish plans every shard for the vintage folder and the mi
   expect_equal(unname(result$uploaded), c(4, 4))
   expect_equal(unname(result$skipped),  c(0, 0))
 })
+
+test_that("a failed shard upload stops the publish before the manifest is written", {
+  work_dir     <- withr::local_tempdir()
+  parquet_path <- file.path(work_dir, "bmf_unified_geocoded.parquet")
+  build_fake_unified(parquet_path)
+  output_dir   <- file.path(work_dir, "ein_index")
+  build_ein_index(geocoded_path = parquet_path, output_dir = output_dir,
+                  vintage = "2026_09", source_uri = "s3://test/unified.parquet")
+
+  # A stand-in for aws.s3::put_object that fails on the second shard and
+  # records every object it was asked to write.
+  objects_attempted <- character()
+  failing_put_object <- function(file, object, bucket, headers) {
+    objects_attempted <<- c(objects_attempted, object)
+    !grepl("5301\\.json$", object)
+  }
+
+  # Only the vintage folder is reached: the failure stops the run there.
+  expect_error(
+    publish_ein_index(output_dir = output_dir, s3_root = "test/ein-index/", bucket = "none",
+                      dry_run = FALSE, put_object = failing_put_object),
+    "upload failed for s3://none/test/ein-index/v2026_09/5301.json"
+  )
+  expect_false(any(grepl("_manifest\\.json$", objects_attempted)))
+  expect_equal(objects_attempted, c("test/ein-index/v2026_09/1234.json", "test/ein-index/v2026_09/5301.json"))
+})
+
+test_that("a successful publish writes every shard and then the manifest, for both folders", {
+  work_dir     <- withr::local_tempdir()
+  parquet_path <- file.path(work_dir, "bmf_unified_geocoded.parquet")
+  build_fake_unified(parquet_path)
+  output_dir   <- file.path(work_dir, "ein_index")
+  build_ein_index(geocoded_path = parquet_path, output_dir = output_dir,
+                  vintage = "2026_09", source_uri = "s3://test/unified.parquet")
+
+  objects_written <- character()
+  recording_put_object <- function(file, object, bucket, headers) {
+    objects_written <<- c(objects_written, object)
+    TRUE
+  }
+
+  result <- publish_ein_index(output_dir = output_dir, s3_root = "test/ein-index/", bucket = "none",
+                              dry_run = FALSE, put_object = recording_put_object)
+  expect_equal(unname(result$uploaded), c(4, 4))
+  expect_equal(length(objects_written), 10)   # 4 shards + manifest, twice
+  expect_equal(objects_written[5],  "test/ein-index/v2026_09/_manifest.json")
+  expect_equal(objects_written[10], "test/ein-index/latest/_manifest.json")
+})
