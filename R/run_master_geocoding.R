@@ -64,6 +64,13 @@ if (MASTER_GEOCODING_MODE == "delta") {
     s3_upload     = ENABLE_S3_UPLOAD
   )
 
+  # The EIN index (ADR 0050) is cut from the geocoded file just published,
+  # so it is rebuilt here, after every merge. Set BUILD_EIN_INDEX <- FALSE
+  # before sourcing to skip it.
+  if (!exists("BUILD_EIN_INDEX") || isTRUE(BUILD_EIN_INDEX)) {
+    source(here::here("R", "run_ein_index.R"))
+  }
+
 } else {
   stop(sprintf("Unknown MASTER_GEOCODING_MODE: '%s'. Use 'delta', 'retrieve', 'export' or 'merge'.",
                MASTER_GEOCODING_MODE))
