@@ -306,10 +306,17 @@ BMF_OUTPUT_COLUMNS <- c(
   "nteev2", "nteev2_code", "nteev2_subsector", "nteev2_subsector_definition", "nteev2_org_type"
 ) 
 
-# Critical fields that must have no NULLs in valid records
+# Critical fields that must be populated in valid records
 CRITICAL_FIELDS <- c(
   "ein"
 )
+
+# Backlog Z27: a handful of blank source rows should not reject a whole
+# vintage. June 1996 legacy has 21 rows with no EIN out of about 1.4 million;
+# those rows carry the EIN-missing flag and cannot join to anything. A
+# critical field now fails the report only when more than this share of rows
+# is empty (1 in 10,000). The count is always recorded and reported.
+CRITICAL_FIELD_MAX_MISSING_SHARE <- 1e-4
 
 # Shared column-count helper (backlog Z9); lets this file be sourced alone.
 source(here::here("R", "quality", "column_counts.R"))
@@ -880,6 +887,7 @@ generate_quality_report <- function(dt,
     extra_columns = character(0),
     overall_completeness = 0,
     critical_field_issues = list(),
+    critical_field_missing = list(),
     emptied_columns = character(0),
     category_reports = list(),
     summary_stats = list()
@@ -908,14 +916,23 @@ generate_quality_report <- function(dt,
   report$extra_columns <- setdiff(names(dt), c(expected_cols, BMF_REQUIRED_COLUMNS))
 
   # ---------------------------------------------------------------------------
-  # Check 3: Critical fields validation
+  # Check 3: Critical fields validation (backlog Z27: small threshold)
   # ---------------------------------------------------------------------------
+  # The empty count is always recorded in critical_field_missing; the report
+  # fails only when the empty share exceeds CRITICAL_FIELD_MAX_MISSING_SHARE.
   for (field in CRITICAL_FIELDS) {
     if (field %in% names(dt)) {
-      null_count <- sum(is.na(dt[[field]]) | dt[[field]] == "")
-      if (null_count > 0) {
-        report$critical_field_issues[[field]] <- null_count
+      missing_count <- sum(is.na(dt[[field]]) | dt[[field]] == "")
+      missing_share <- if (nrow(dt) > 0) missing_count / nrow(dt) else 0
+      report$critical_field_missing[[field]] <- missing_count
+      if (missing_share > CRITICAL_FIELD_MAX_MISSING_SHARE) {
+        report$critical_field_issues[[field]] <- missing_count
         report$passed <- FALSE
+        warning(sprintf(
+          "Critical field %s is empty in %s of %s rows (%.4f%%), above the %s%% limit",
+          field, format(missing_count, big.mark = ","), format(nrow(dt), big.mark = ","),
+          100 * missing_share, format(100 * CRITICAL_FIELD_MAX_MISSING_SHARE)
+        ))
       }
     }
   }
@@ -1113,14 +1130,20 @@ print_quality_report <- function(report, verbose = FALSE) {
   }
 
   # ---------------------------------------------------------------------------
-  # Critical field issues
+  # Critical fields: the empty count is always shown; it is an issue only
+  # above the threshold (backlog Z27)
   # ---------------------------------------------------------------------------
-  if (length(report$critical_field_issues) > 0) {
-    message("CRITICAL FIELD ISSUES:")
-    for (field in names(report$critical_field_issues)) {
-      message(sprintf("  - %s: %s NULL values",
+  if (length(report$critical_field_missing) > 0) {
+    message("CRITICAL FIELDS:")
+    for (field in names(report$critical_field_missing)) {
+      missing_count <- report$critical_field_missing[[field]]
+      verdict <- if (!is.null(report$critical_field_issues[[field]])) "ABOVE LIMIT" else "within limit"
+      message(sprintf("  - %s: %s of %s rows empty (%s; limit %s%%)",
                       field,
-                      format(report$critical_field_issues[[field]], big.mark = ",")))
+                      format(missing_count, big.mark = ","),
+                      format(report$row_count, big.mark = ","),
+                      verdict,
+                      format(100 * CRITICAL_FIELD_MAX_MISSING_SHARE)))
     }
     message("")
   }

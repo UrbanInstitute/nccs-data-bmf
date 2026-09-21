@@ -76,3 +76,36 @@ test_that("generate_quality_report fails on an emptied column and reports it", {
   expect_false(rep$passed)
   expect_equal(rep$emptied_columns, "org_addr_zip5")
 })
+
+
+# Backlog Z27: a critical field fails the report only above a small share of
+# empty rows; the count is always recorded.
+
+test_that("a few empty EINs are counted but do not fail the report", {
+  n <- 100000L
+  ein <- sprintf("01-%07d", seq_len(n))
+  ein[1:5] <- ""                      # 5 in 100,000 = 1 in 20,000, under the 1 in 10,000 limit
+  out <- data.table(ein = ein)
+  rep <- generate_quality_report(out, pre_check_results = list(row_count = n), expected_cols = "ein")
+  expect_true(rep$passed)
+  expect_equal(rep$critical_field_missing$ein, 5L)
+  expect_equal(length(rep$critical_field_issues), 0)
+})
+
+test_that("too many empty EINs fail the report and are reported", {
+  out <- data.table(ein = c("01-0000001", "", "01-0000003"))   # 1 in 3
+  expect_warning(
+    rep <- generate_quality_report(out, pre_check_results = list(row_count = 3L), expected_cols = "ein"),
+    "above the"
+  )
+  expect_false(rep$passed)
+  expect_equal(rep$critical_field_missing$ein, 1L)
+  expect_equal(rep$critical_field_issues$ein, 1L)
+})
+
+test_that("an EIN column with no empties records a zero count", {
+  out <- data.table(ein = c("01-0000001", "01-0000002"))
+  rep <- generate_quality_report(out, pre_check_results = list(row_count = 2L), expected_cols = "ein")
+  expect_true(rep$passed)
+  expect_equal(rep$critical_field_missing$ein, 0L)
+})
