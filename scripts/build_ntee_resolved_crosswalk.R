@@ -40,11 +40,27 @@ OUT_DIR  <- here::here("data", "crosswalks")
 OUT_STEM <- file.path(OUT_DIR, "ntee_resolved_crosswalk")
 if (!dir.exists(OUT_DIR)) dir.create(OUT_DIR, recursive = TRUE)
 
-# Glob every intermediate parquet. The two pipelines use different filenames
-# under intermediate/ (current: *_processed.parquet, legacy: *_intermediate.parquet),
-# so glob on *.parquet rather than a fixed stem.
-CUR_GLOB <- sprintf("s3://%s/intermediate/bmf/*/*.parquet", BUCKET)
-LEG_GLOB <- sprintf("s3://%s/intermediate/bmf-legacy/*/*.parquet", BUCKET)
+# Read only the pipeline's own intermediate file in each vintage folder,
+# *_intermediate.parquet (backlog Z28). Both pipelines have written that
+# name since 2026-01-20; before that the current pipeline wrote
+# *_processed.parquet, and 30 of those older copies were left behind next to
+# the new files. A bare *.parquet glob read both and counted those vintages
+# twice, which inflated the modal counts in this crosswalk.
+CUR_GLOB <- sprintf("s3://%s/intermediate/bmf/*/*_intermediate.parquet", BUCKET)
+LEG_GLOB <- sprintf("s3://%s/intermediate/bmf-legacy/*/*_intermediate.parquet", BUCKET)
+
+# Stop if any vintage folder still contributes more than one parquet.
+assert_one_parquet_per_vintage <- function(con, glob, label) {
+  per_vintage <- dbGetQuery(con, sprintf("
+    SELECT regexp_extract(filename, '(\\d{4}_\\d{2})', 1) AS vintage_ym, COUNT(*) AS n_files
+    FROM (SELECT DISTINCT filename FROM read_parquet('%s', filename = true))
+    GROUP BY 1 HAVING COUNT(*) > 1", glob))
+  if (nrow(per_vintage) > 0) {
+    stop(sprintf("%s: more than one parquet in vintage folder(s) %s; each vintage must be read once",
+                 label, paste(per_vintage$vintage_ym, collapse = ", ")))
+  }
+  invisible(TRUE)
+}
 
 # ---------------------------------------------------------------------------
 # 1. Connect + httpfs + S3 credentials (credential chain: env, then profile)
@@ -79,6 +95,10 @@ resolve_ein_col <- function(con, glob) {
   # if both 'ein' and 'ein_1' exist, the dedup artifact 'ein_1' is the formatted one
   if ("ein_1" %in% cand) "ein_1" else cand[[1]]
 }
+
+log_info("Checking that every vintage folder contributes exactly one parquet")
+assert_one_parquet_per_vintage(con, CUR_GLOB, "current")
+assert_one_parquet_per_vintage(con, LEG_GLOB, "legacy")
 
 log_info("Resolving EIN column from schemas")
 ein_cur <- resolve_ein_col(con, CUR_GLOB)
