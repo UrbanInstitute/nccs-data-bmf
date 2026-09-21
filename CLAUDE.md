@@ -505,7 +505,7 @@ Path contract (prefix holds `*.parquet` + `*.csv` + ADR 0014 `_manifest.json`):
 
 Path contract:
 
-- `s3://nccsdata/unified/bmf/ein-index/latest/{prefix}.json` — EIN index (ADR 0050): one gzip JSON shard per four-digit EIN prefix with identity, NTEE and status columns, so the website can look an organization up by EIN in the browser. Built by `R/build_ein_index.R`, run via `R/run_ein_index.R`, rebuilt after every geocoded merge.
+- `s3://nccsdata/unified/bmf/ein-index/v{YYYY_MM}/{prefix}.json` + `latest/` mirror — EIN index (ADR 0050): one gzip JSON shard per four-digit EIN prefix with identity, NTEE and status columns, so the website can look an organization up by EIN in the browser. Built by `R/build_ein_index.R`, run via `R/run_ein_index.R`, rebuilt after every geocoded merge.
 - `s3://nccsdata/lookups/bmf/{YYYY_MM}/{lookup_name}.csv` — vintage snapshot
 - `s3://nccsdata/lookups/bmf/{YYYY_MM}/MANIFEST.json` — file list, row counts,
   column names, sha256, byte size

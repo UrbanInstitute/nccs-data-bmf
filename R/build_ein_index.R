@@ -8,18 +8,25 @@
 #
 # Output (local):  data/master/ein_index/{prefix}.json  (gzip-compressed bytes)
 #                  data/master/ein_index/_manifest.json  (ADR 0014 shape)
-# Output (S3):     s3://nccsdata/unified/bmf/ein-index/latest/{prefix}.json
-#                  s3://nccsdata/unified/bmf/ein-index/latest/_manifest.json
+# Output (S3):     s3://nccsdata/unified/bmf/ein-index/v{YYYY_MM}/{prefix}.json  (retained, ADR 0042)
+#                  s3://nccsdata/unified/bmf/ein-index/latest/{prefix}.json      (mirror)
+#                  ... plus _manifest.json in each folder
 #
 # Shards are uploaded with Content-Encoding: gzip so browsers inflate them
-# transparently. Uploads are idempotent: a shard whose sha256 matches the
-# remote manifest is skipped.
+# transparently. Shards carry no build time, and gzip output here is
+# deterministic, so an unchanged shard has the same bytes and hash on every
+# rebuild; uploads skip any shard whose sha256 matches the remote manifest.
+#
+# The build stops rather than publishing if any source EIN is not in the
+# XX-XXXXXXX form, if an EIN repeats, or if the shard rows do not add up to
+# the source rows.
 #
 # Depends on R/config.R (BMF_S3_BUCKET) and R/manifest.R (write_manifest,
 # read_existing_manifest, manifest_unchanged).
 # ============================================================================
 
-EIN_INDEX_S3_PREFIX <- "unified/bmf/ein-index/latest/"
+EIN_INDEX_S3_ROOT <- "unified/bmf/ein-index/"
+EIN_PATTERN       <- "^[0-9]{2}-[0-9]{7}$"
 
 EIN_INDEX_COLUMNS <- c(
   "ein", "org_name_display", "org_addr_city", "org_addr_state", "org_addr_zip5",
@@ -53,12 +60,12 @@ read_source_vintage <- function(geocoded_path) {
 }
 
 # Write one shard: a JSON object with the column names once and the records
-# as arrays in that order, gzip-compressed on disk.
-write_ein_index_shard <- function(shard_rows, prefix, vintage, built_at, output_dir) {
+# as arrays in that order, gzip-compressed on disk. No build time is written,
+# so identical records give identical bytes.
+write_ein_index_shard <- function(shard_rows, prefix, vintage, output_dir) {
   shard_path <- file.path(output_dir, paste0(prefix, ".json"))
   payload <- list(
     vintage  = vintage,
-    built_at = built_at,
     prefix   = prefix,
     fields   = EIN_INDEX_COLUMNS,
     records  = dplyr::select(shard_rows, dplyr::all_of(EIN_INDEX_COLUMNS))
@@ -104,23 +111,38 @@ build_ein_index <- function(geocoded_path,
   if (dir.exists(output_dir)) unlink(output_dir, recursive = TRUE)
   dir.create(output_dir, recursive = TRUE)
 
-  built_at <- format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
-
   unified_rows <- arrow::open_dataset(geocoded_path) |>
     dplyr::select(dplyr::all_of(EIN_INDEX_COLUMNS)) |>
     dplyr::collect() |>
     tibble::as_tibble() |>   # config.R makes arrow return data.tables; keep plain frames here
     dplyr::mutate(dplyr::across(dplyr::everything(), as.character)) |>
-    dplyr::mutate(shard_prefix = ein_index_prefix(ein)) |>
-    dplyr::filter(nchar(shard_prefix) == EIN_INDEX_PREFIX_LENGTH) |>
     dplyr::arrange(ein)
 
+  # Every row must carry a canonical EIN and each EIN must appear once;
+  # otherwise a lookup could silently miss an organization.
+  malformed_eins <- unified_rows$ein[is.na(unified_rows$ein) | !grepl(EIN_PATTERN, unified_rows$ein)]
+  if (length(malformed_eins) > 0) {
+    stop(sprintf("EIN index: %d source rows have an EIN not in XX-XXXXXXX form, e.g. %s",
+                 length(malformed_eins), paste(utils::head(malformed_eins, 5), collapse = ", ")))
+  }
+  duplicated_eins <- unique(unified_rows$ein[duplicated(unified_rows$ein)])
+  if (length(duplicated_eins) > 0) {
+    stop(sprintf("EIN index: %d EINs appear more than once, e.g. %s",
+                 length(duplicated_eins), paste(utils::head(duplicated_eins, 5), collapse = ", ")))
+  }
+
+  unified_rows <- dplyr::mutate(unified_rows, shard_prefix = ein_index_prefix(ein))
   rows_by_prefix <- split(unified_rows, unified_rows$shard_prefix)
 
   outputs <- purrr::imap(rows_by_prefix, function(shard_rows, prefix) {
-    write_ein_index_shard(shard_rows, prefix, vintage, built_at, output_dir)
+    write_ein_index_shard(shard_rows, prefix, vintage, output_dir)
   })
   names(outputs) <- paste0(names(rows_by_prefix), ".json")
+
+  shard_row_total <- sum(vapply(outputs, function(o) o$row_count, numeric(1)))
+  if (shard_row_total != nrow(unified_rows)) {
+    stop(sprintf("EIN index: shards hold %d rows but the source has %d", shard_row_total, nrow(unified_rows)))
+  }
 
   inputs <- list(list(uri = source_uri, sha256 = digest::digest(file = geocoded_path, algo = "sha256")))
   manifest_written <- write_manifest(vintage = vintage, out_dir = output_dir,
@@ -137,51 +159,62 @@ build_ein_index <- function(geocoded_path,
 # Publish
 # ---------------------------------------------------------------------------
 
-#' Upload the built EIN index to S3, skipping shards whose sha256 is unchanged
+#' Upload the built EIN index to S3: the vintage folder, then the latest/ mirror
+#'
+#' Each folder is compared against its own remote manifest and only changed
+#' shards are sent (ADR 0042 retention; ADR 0014 idempotency).
 #'
 #' @param output_dir Directory produced by build_ein_index().
-#' @param s3_prefix  Key prefix ending in "/".
+#' @param s3_root    Key prefix ending in "/" under which v{vintage}/ and latest/ sit.
 #' @param bucket     Bucket name.
 #' @param dry_run    If TRUE, print the plan and upload nothing.
-#' @return Invisibly: list(uploaded, skipped).
+#' @return Invisibly: list(vintage_prefix, latest_prefix, uploaded, skipped) with
+#'   per-folder counts.
 publish_ein_index <- function(output_dir = here::here("data", "master", "ein_index"),
-                              s3_prefix  = EIN_INDEX_S3_PREFIX,
+                              s3_root    = EIN_INDEX_S3_ROOT,
                               bucket     = BMF_S3_BUCKET,
                               dry_run    = FALSE) {
 
-  stopifnot(endsWith(s3_prefix, "/"))
+  stopifnot(endsWith(s3_root, "/"))
   manifest_path <- file.path(output_dir, "_manifest.json")
   stopifnot(file.exists(manifest_path))
-  local_manifest  <- jsonlite::fromJSON(manifest_path, simplifyVector = FALSE)
-  remote_manifest <- if (dry_run) NULL else read_existing_manifest(paste0(s3_prefix, "_manifest.json"), bucket)
+  local_manifest <- jsonlite::fromJSON(manifest_path, simplifyVector = FALSE)
 
-  uploaded <- character()
-  skipped  <- character()
+  vintage_prefix <- paste0(s3_root, "v", local_manifest$vintage, "/")
+  latest_prefix  <- paste0(s3_root, "latest/")
 
-  for (file_name in names(local_manifest$files)) {
-    local_path <- file.path(output_dir, file_name)
-    sha256     <- local_manifest$files[[file_name]]$sha256
-    s3_key     <- paste0(s3_prefix, file_name)
-    if (manifest_unchanged(remote_manifest, file_name, sha256)) {
-      skipped <- c(skipped, file_name)
-      next
+  upload_folder <- function(s3_prefix) {
+    remote_manifest <- if (dry_run) NULL else read_existing_manifest(paste0(s3_prefix, "_manifest.json"), bucket)
+    uploaded <- character()
+    skipped  <- character()
+    for (file_name in names(local_manifest$files)) {
+      sha256 <- local_manifest$files[[file_name]]$sha256
+      if (manifest_unchanged(remote_manifest, file_name, sha256)) {
+        skipped <- c(skipped, file_name)
+        next
+      }
+      if (dry_run) {
+        message(sprintf("  PUT  %s%s", s3_prefix, file_name))
+      } else {
+        upload_ein_index_shard(file.path(output_dir, file_name), paste0(s3_prefix, file_name), bucket)
+      }
+      uploaded <- c(uploaded, file_name)
     }
     if (dry_run) {
-      message(sprintf("  PUT  %s", s3_key))
+      message(sprintf("  PUT  %s_manifest.json", s3_prefix))
     } else {
-      upload_ein_index_shard(local_path, s3_key, bucket)
+      aws.s3::put_object(file = manifest_path, object = paste0(s3_prefix, "_manifest.json"),
+                         bucket = bucket, headers = list(`Content-Type` = "application/json"))
     }
-    uploaded <- c(uploaded, file_name)
+    message(sprintf("EIN index -> %s %s: %d uploaded, %d skipped", s3_prefix,
+                    if (dry_run) "(dry run)" else "done", length(uploaded), length(skipped)))
+    list(uploaded = uploaded, skipped = skipped)
   }
 
-  if (dry_run) {
-    message(sprintf("  PUT  %s_manifest.json", s3_prefix))
-  } else {
-    aws.s3::put_object(file = manifest_path, object = paste0(s3_prefix, "_manifest.json"),
-                       bucket = bucket, headers = list(`Content-Type` = "application/json"))
-  }
+  vintage_result <- upload_folder(vintage_prefix)
+  latest_result  <- upload_folder(latest_prefix)
 
-  message(sprintf("EIN index publish %s: %d uploaded, %d skipped",
-                  if (dry_run) "(dry run)" else "complete", length(uploaded), length(skipped)))
-  invisible(list(uploaded = uploaded, skipped = skipped))
+  invisible(list(vintage_prefix = vintage_prefix, latest_prefix = latest_prefix,
+                 uploaded = c(vintage = length(vintage_result$uploaded), latest = length(latest_result$uploaded)),
+                 skipped  = c(vintage = length(vintage_result$skipped),  latest = length(latest_result$skipped))))
 }

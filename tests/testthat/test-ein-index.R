@@ -77,7 +77,37 @@ test_that("every organization lands in exactly one shard, in the contracted shap
   expect_equal(manifest$inputs[[1]]$uri, "s3://test/unified.parquet")
 })
 
-test_that("a dry-run publish plans every shard and touches nothing", {
+test_that("a malformed or repeated EIN stops the build", {
+  work_dir     <- withr::local_tempdir()
+  parquet_path <- file.path(work_dir, "bmf_unified_geocoded.parquet")
+  fake_rows    <- build_fake_unified(parquet_path)
+
+  bad_rows <- fake_rows
+  bad_rows$ein[2] <- "530196573"      # digits only, no hyphen
+  arrow::write_parquet(bad_rows, parquet_path)
+  expect_error(build_ein_index(parquet_path, output_dir = file.path(work_dir, "a"), vintage = "2026_09"),
+               "not in XX-XXXXXXX form")
+
+  dup_rows <- fake_rows
+  dup_rows$ein[2] <- dup_rows$ein[1]
+  arrow::write_parquet(dup_rows, parquet_path)
+  expect_error(build_ein_index(parquet_path, output_dir = file.path(work_dir, "b"), vintage = "2026_09"),
+               "appear more than once")
+})
+
+test_that("building twice from the same source gives identical shard hashes", {
+  work_dir     <- withr::local_tempdir()
+  parquet_path <- file.path(work_dir, "bmf_unified_geocoded.parquet")
+  build_fake_unified(parquet_path)
+  first  <- build_ein_index(parquet_path, output_dir = file.path(work_dir, "first"),  vintage = "2026_09", source_uri = "s3://t")
+  Sys.sleep(1.1)
+  second <- build_ein_index(parquet_path, output_dir = file.path(work_dir, "second"), vintage = "2026_09", source_uri = "s3://t")
+  first_hashes  <- vapply(first$manifest$files,  function(f) f$sha256, character(1))
+  second_hashes <- vapply(second$manifest$files, function(f) f$sha256, character(1))
+  expect_equal(first_hashes, second_hashes)
+})
+
+test_that("a dry-run publish plans every shard for the vintage folder and the mirror", {
   work_dir     <- withr::local_tempdir()
   parquet_path <- file.path(work_dir, "bmf_unified_geocoded.parquet")
   build_fake_unified(parquet_path)
@@ -85,8 +115,10 @@ test_that("a dry-run publish plans every shard and touches nothing", {
   build_ein_index(geocoded_path = parquet_path, output_dir = output_dir,
                   vintage = "2026_09", source_uri = "s3://test/unified.parquet")
 
-  result <- publish_ein_index(output_dir = output_dir, s3_prefix = "test/ein-index/",
+  result <- publish_ein_index(output_dir = output_dir, s3_root = "test/ein-index/",
                               bucket = "none", dry_run = TRUE)
-  expect_equal(length(result$uploaded), 4)
-  expect_equal(length(result$skipped), 0)
+  expect_equal(result$vintage_prefix, "test/ein-index/v2026_09/")
+  expect_equal(result$latest_prefix,  "test/ein-index/latest/")
+  expect_equal(unname(result$uploaded), c(4, 4))
+  expect_equal(unname(result$skipped),  c(0, 0))
 })
