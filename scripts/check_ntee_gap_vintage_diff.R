@@ -61,19 +61,21 @@ after_path  <- arguments[[2]]
 label       <- if (length(arguments) >= 3) arguments[[3]] else basename(before_path)
 legacy_mode <- grepl("legacy", label, fixed = TRUE)
 
-# Print a short failure line and stop. Used for problems found before the
-# comparison can even start (missing columns, schema drift, row count).
+# Print one pipe-delimited failure line and exit 1, so a pre-comparison problem
+# (missing columns, schema drift, row count) is still recorded in the diff log.
 stop_with <- function(tag, ...) {
   cat(sprintf("%s|%s|%s\n", label, tag, paste(..., collapse = ";")))
   quit(status = 1)
 }
 
-# TRUE where two vectors differ, treating a missing value as different from
-# any present value (plain != would return NA there).
+# TRUE where two vectors differ, counting NA versus a value as a difference,
+# because plain != would return NA there and hide the change.
 values_differ <- function(x, y) {
   (is.na(x) != is.na(y)) | (!is.na(x) & !is.na(y) & x != y)
 }
 
+# Read a processed BMF CSV with every column as character, so the before and
+# after files compare on text and not on how fread guessed each type.
 read_processed_file <- function(path) {
   data.table::fread(path, colClasses = "character", showProgress = FALSE,
                     na.strings = c("", "NA"))
@@ -116,6 +118,8 @@ sort_columns      <- c(invariant_columns, columns_allowed_to_change)
 data.table::setorderv(before_rows, sort_columns, na.last = TRUE)
 data.table::setorderv(after_rows,  sort_columns, na.last = TRUE)
 
+# TRUE if a column has any row-level difference between the paired files;
+# used to find invariant columns that changed when only NTEE columns should.
 column_differs <- function(column_name) {
   any(values_differ(before_rows[[column_name]], after_rows[[column_name]]))
 }
@@ -134,6 +138,8 @@ if (length(invariant_columns_that_differ) > 0) {
 # ---------------------------------------------------------------------------
 
 lookup_path <- file.path(repo_root, "data", "lookup", "bmf_code_lookup.xlsx")
+# Read one sheet of the BMF code lookup workbook as a data.table, so the
+# expected NTEE values come from the same source the pipeline uses.
 read_lookup_sheet <- function(sheet_name) {
   data.table::setDT(openxlsx::read.xlsx(lookup_path, sheet = sheet_name))
 }

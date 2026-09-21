@@ -18,6 +18,9 @@ source(file.path(repo_root, "R", "transform_ntee_code.R"))
 # ---------------------------------------------------------------------------
 
 lookup_path <- file.path(repo_root, "data", "lookup", "bmf_code_lookup.xlsx")
+
+# Read one sheet of the BMF code lookup workbook as a data.table, the same
+# source the pipeline uses, so the fixtures reflect the real code list.
 read_lookup_sheet <- function(sheet_name) {
   data.table::setDT(openxlsx::read.xlsx(lookup_path, sheet = sheet_name))
 }
