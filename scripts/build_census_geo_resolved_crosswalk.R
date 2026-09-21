@@ -115,9 +115,21 @@ assign_blocks_for_state <- function(state_pts, state_fips, tiger_year) {
 
   pts_sf <- st_as_sf(state_pts, coords = c("geo_lon", "geo_lat"), crs = 4326, remove = FALSE)
 
-  # Spatially indexed. The "assumes planar" message is silenced because
-  # sf_use_s2(FALSE) is deliberate: TIGER edges are straight lines in
-  # longitude/latitude, which is how the Census defines block membership.
+  # Which block polygon contains each point. sf uses a spatial index, so
+  # each point is tested only against the polygons near it.
+  #
+  # About the silenced message. Coordinates here are longitude and latitude,
+  # which are positions on a sphere. By default sf does spherical geometry
+  # on such data through a library called s2, and it prints "assumes that
+  # they are planar" whenever that is switched off. It is switched off at
+  # the top of this script (sf_use_s2(FALSE)) on purpose: the Census draws
+  # block boundaries as straight lines between longitude/latitude vertices
+  # and defines block membership on that flat drawing. Treating the same
+  # lines as curves on a sphere bends every edge slightly, so a point just
+  # inside a block's straight edge could land in the neighbouring block.
+  # Flat ("planar") geometry matches the data, is faster, and the county
+  # gate below checks the result. The message would otherwise print once
+  # per state and vintage and bury the useful log lines.
   hits <- suppressMessages(st_within(pts_sf, blocks))
 
   blocks[[geoid_column]][first_polygon_index(hits)]
@@ -147,23 +159,39 @@ points$block_geoid_2010 <- block_2010
 # 3. ZCTA (2020) and congressional district (119th Congress), national files
 # ---------------------------------------------------------------------------
 
+# One point layer for the two national joins.
 pts_sf <- st_as_sf(points, coords = c("geo_lon", "geo_lat"), crs = 4326, remove = FALSE)
 
+# --- ZIP Code Tabulation Areas, 2020 boundaries ------------------------------
+
 log_line("ZCTA 2020 (national)")
+
 zcta <- tigris::zctas(year = TIGER_YEAR_2020, progress_bar = FALSE) |>
-  st_transform(4326) |> select(ZCTA5CE20)
-zcta_hit <- suppressMessages(st_within(pts_sf, zcta))
-points$zcta_2020 <- zcta$ZCTA5CE20[first_polygon_index(zcta_hit)]
-rm(zcta, zcta_hit); invisible(gc())
+  st_transform(4326) |>
+  select(ZCTA5CE20)
+
+zcta_hits        <- suppressMessages(st_within(pts_sf, zcta))
+points$zcta_2020 <- zcta$ZCTA5CE20[first_polygon_index(zcta_hits)]
+
+rm(zcta, zcta_hits)
+invisible(gc())
+
+# --- Congressional districts -------------------------------------------------
 
 log_line("Congressional districts (TIGER %d)", CD_TIGER_YEAR)
+
 districts <- tigris::congressional_districts(year = CD_TIGER_YEAR, progress_bar = FALSE) |>
   st_transform(4326)
+
+# The TIGER file says which Congress its districts belong to (119 today).
 cd_session <- unique(districts$CDSESSN)[[1]]
-districts <- select(districts, GEOID)
-cd_hit <- suppressMessages(st_within(pts_sf, districts))
-points$congressional_district <- districts$GEOID[first_polygon_index(cd_hit)]
-rm(districts, cd_hit, pts_sf); invisible(gc())
+districts  <- select(districts, GEOID)
+
+district_hits                 <- suppressMessages(st_within(pts_sf, districts))
+points$congressional_district <- districts$GEOID[first_polygon_index(district_hits)]
+
+rm(districts, district_hits, pts_sf)
+invisible(gc())
 
 # ---------------------------------------------------------------------------
 # 4. County-consistency gate (ADR 0045 §4)
