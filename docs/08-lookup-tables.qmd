@@ -133,7 +133,11 @@ with its revision date, is kept at `data/lookup/irs_ntee_codes.csv`. The list is
 checked against the IRS once a year; the procedure is in
 `docs/runbooks/ntee-code-list-yearly-refresh.md`. Codes the IRS has retired stay
 in the sheet so older monthly files still resolve. The `naics_code` column uses
-the 2022 NAICS edition.
+the 2022 NAICS edition. `ntee_code_description` is the paragraph-length
+description of each code, taken from the Nonprofit Open Data Collective's NTEE
+table (copy at `data/lookup/nodc_ntee_descriptions.csv`; blank for the codes
+that table has no text for); it is published for
+the website's NTEE reference page and is not joined into the BMF (ADR 0049).
 
 ```{r}
 #| echo: false
