@@ -22,6 +22,7 @@ if (!exists("publish_crosswalk")) source(here::here("R", "publish_crosswalk.R"))
 #' @param vintage        Build vintage tag; defaults to the source Unified BMF vintage
 #'                       recorded in the build summary, else today's YYYY_MM.
 #' @param dry_run        If TRUE, print the plan and touch nothing on S3.
+#' @param uploader       Upload function (default upload_to_s3); every upload is checked.
 #' @return Invisibly `list(vintage, vintage_result, latest_result)`.
 #' @export
 publish_census_geo_resolved_crosswalk <- function(
@@ -29,7 +30,8 @@ publish_census_geo_resolved_crosswalk <- function(
     s3_root        = "crosswalks/census-geo-resolved/",
     bucket         = BMF_S3_BUCKET,
     vintage        = NULL,
-    dry_run        = FALSE) {
+    dry_run        = FALSE,
+    uploader       = upload_to_s3) {
 
   stopifnot(endsWith(s3_root, "/"), file.exists(crosswalk_path))
   stem            <- sub("\\.parquet$", "", crosswalk_path)
@@ -60,15 +62,19 @@ publish_census_geo_resolved_crosswalk <- function(
 
   vintage_result <- publish_crosswalk(parquet_path = crosswalk_path, s3_prefix = vintage_prefix,
                                       inputs = inputs, vintage = vintage, bucket = bucket,
-                                      dry_run = dry_run, include_csv = FALSE)
+                                      dry_run = dry_run, include_csv = FALSE, uploader = uploader)
   latest_result  <- publish_crosswalk(parquet_path = crosswalk_path, s3_prefix = latest_prefix,
                                       inputs = inputs, vintage = vintage, bucket = bucket,
-                                      dry_run = dry_run, include_csv = TRUE)
+                                      dry_run = dry_run, include_csv = TRUE, uploader = uploader)
 
   if (file.exists(dictionary_path)) {
     dictionary_key <- paste0(latest_prefix, basename(dictionary_path))
-    if (dry_run) message(sprintf("  PUT  %s", dictionary_key))
-    else upload_to_s3(dictionary_path, dictionary_key, bucket = bucket)
+    if (dry_run) {
+      message(sprintf("  PUT  %s", dictionary_key))
+    } else {
+      dictionary_ok <- uploader(dictionary_path, dictionary_key, bucket = bucket)
+      if (!isTRUE(dictionary_ok)) stop(sprintf("data dictionary upload failed for s3://%s/%s", bucket, dictionary_key))
+    }
   }
 
   invisible(list(vintage = vintage, vintage_result = vintage_result, latest_result = latest_result))

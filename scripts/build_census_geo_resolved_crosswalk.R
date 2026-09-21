@@ -14,7 +14,7 @@
 #
 # Inputs
 #   data/geocoding/master/merged/bmf_unified_geocoded.parquet (+ _manifest.json)
-#   data/county_fips_crosswalk.parquet   (published county-fips crosswalk, for the gate)
+#   data/crosswalks/county_fips_crosswalk.parquet   (county-fips crosswalk, committed; for the gate)
 #   TIGER/Line via tigris (cached): blocks per state for 2020 and 2010,
 #   ZCTAs 2020 (national), congressional districts (119th Congress).
 #
@@ -41,7 +41,7 @@ source(here::here("R", "ein.R"))
 
 GEOCODED_PATH     <- here::here("data", "geocoding", "master", "merged", "bmf_unified_geocoded.parquet")
 GEOCODED_MANIFEST <- here::here("data", "geocoding", "master", "merged", "_manifest.json")
-COUNTY_XWALK_PATH <- here::here("data", "county_fips_crosswalk.parquet")
+COUNTY_XWALK_PATH <- here::here("data", "crosswalks", "county_fips_crosswalk.parquet")   # committed in this repo
 OUT_DIR           <- here::here("data", "crosswalks")
 OUT_STEM          <- file.path(OUT_DIR, "census_geo_resolved_crosswalk")
 
@@ -155,8 +155,19 @@ county_xwalk <- arrow::read_parquet(COUNTY_XWALK_PATH) |>
   filter(resolution == "resolved") |>
   select(geo_state_abbr, geo_county_raw, geo_county_fips)
 
+# The lookup must be one row per (state, raw county label), or the join
+# below would multiply organization rows while the mismatch rate still
+# looked fine.
+duplicate_keys <- county_xwalk |> count(geo_state_abbr, geo_county_raw) |> filter(n > 1)
+if (nrow(duplicate_keys) > 0) {
+  stop(sprintf("County crosswalk has %d duplicated (state, county) keys, e.g. %s / %s",
+               nrow(duplicate_keys), duplicate_keys$geo_state_abbr[[1]], duplicate_keys$geo_county_raw[[1]]))
+}
+
+points_before_join <- nrow(points)
 points <- points |>
   left_join(county_xwalk, by = c("geo_state_abbr", "geo_county" = "geo_county_raw"))
+stopifnot("county join changed the row count" = nrow(points) == points_before_join)
 
 gate <- census_geo_county_gate(points$block_geoid_2020, points$geo_county_fips)
 log_line("County gate: %s comparable, %s mismatches (%.3f%%), limit %.1f%%",
@@ -197,6 +208,13 @@ crosswalk <- unified |>
          geo_addr_type, geo_score, org_addr_is_po_box,
          tiger_year_2020, tiger_year_2010, congress_session, source_vintage) |>
   arrange(ein)
+
+# One row per EIN, exactly the EINs of the source, before anything is written.
+stopifnot(
+  "crosswalk row count differs from the Unified BMF" = nrow(crosswalk) == nrow(unified),
+  "crosswalk has repeated EINs"                       = !anyDuplicated(crosswalk$ein),
+  "crosswalk EIN set differs from the Unified BMF"    = setequal(crosswalk$ein, unified$ein)
+)
 
 arrow::write_parquet(crosswalk, paste0(OUT_STEM, ".parquet"), compression = "zstd")
 data.table::fwrite(crosswalk, paste0(OUT_STEM, ".csv"))
