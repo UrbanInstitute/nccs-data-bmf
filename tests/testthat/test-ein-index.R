@@ -34,10 +34,10 @@ read_shard <- function(path) {
   jsonlite::fromJSON(readLines(connection, warn = FALSE), simplifyVector = FALSE)
 }
 
-test_that("the shard prefix is the first three digits of the EIN", {
-  expect_equal(ein_index_prefix("53-0196572"), "530")
-  expect_equal(ein_index_prefix("530196572"), "530")
-  expect_equal(ein_index_prefix("EIN-53-0196572"), "530")
+test_that("the shard prefix is the first four digits of the EIN", {
+  expect_equal(ein_index_prefix("53-0196572"), "5301")
+  expect_equal(ein_index_prefix("530196572"), "5301")
+  expect_equal(ein_index_prefix("EIN-53-0196572"), "5301")
 })
 
 test_that("every organization lands in exactly one shard, in the contracted shape", {
@@ -49,12 +49,12 @@ test_that("every organization lands in exactly one shard, in the contracted shap
   built <- build_ein_index(geocoded_path = parquet_path, output_dir = output_dir,
                            vintage = "2026_09", source_uri = "s3://test/unified.parquet")
 
-  shard_files <- sort(list.files(output_dir, pattern = "^[0-9]{3}\\.json$"))
-  expect_equal(shard_files, c("123.json", "530.json", "531.json", "987.json"))
+  shard_files <- sort(list.files(output_dir, pattern = "^[0-9]{4}\\.json$"))
+  expect_equal(shard_files, c("1234.json", "5301.json", "5311.json", "9876.json"))
 
-  shard_530 <- read_shard(file.path(output_dir, "530.json"))
+  shard_530 <- read_shard(file.path(output_dir, "5301.json"))
   expect_equal(shard_530$vintage, "2026_09")
-  expect_equal(shard_530$prefix, "530")
+  expect_equal(shard_530$prefix, "5301")
   expect_equal(unlist(shard_530$fields), EIN_INDEX_COLUMNS)
   expect_equal(length(shard_530$records), 2)
 
@@ -65,7 +65,7 @@ test_that("every organization lands in exactly one shard, in the contracted shap
   expect_equal(length(first_record), length(EIN_INDEX_COLUMNS))
 
   # A missing value is null, not the string "NA"
-  shard_531 <- read_shard(file.path(output_dir, "531.json"))
+  shard_531 <- read_shard(file.path(output_dir, "5311.json"))
   expect_null(shard_531$records[[1]][[3]])
 
   # The manifest lists every shard and the row counts add up

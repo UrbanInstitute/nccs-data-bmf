@@ -2,7 +2,7 @@
 # build_ein_index.R
 #
 # Build and publish the EIN index (nccs-contracts ADR 0050): one small JSON
-# file per three-digit EIN prefix, cut from the geocoded Unified BMF, so the
+# file per four-digit EIN prefix, cut from the geocoded Unified BMF, so the
 # NCCS website can look up one organization by EIN in the browser without a
 # server. Each shard holds identity, NTEE and status columns only.
 #
@@ -32,11 +32,15 @@ EIN_INDEX_COLUMNS <- c(
 # Helpers
 # ---------------------------------------------------------------------------
 
-# The first three digits of the nine-digit EIN, which decide the shard a
-# record lands in. "53-0196572" -> "530".
+# The first four digits of the nine-digit EIN, which decide the shard a
+# record lands in. "53-0196572" -> "5301". Three digits gave shards of up to
+# 209,000 organizations (6 MB compressed); four digits caps the largest at
+# about 48,000 (under 2 MB) with a typical shard well under 10 KB.
+EIN_INDEX_PREFIX_LENGTH <- 4L
+
 ein_index_prefix <- function(ein) {
   digits_only <- gsub("[^0-9]", "", ein)
-  substr(digits_only, 1, 3)
+  substr(digits_only, 1, EIN_INDEX_PREFIX_LENGTH)
 }
 
 # Read the vintage stamp from the geocoded build's manifest when it sits next
@@ -108,7 +112,7 @@ build_ein_index <- function(geocoded_path,
     tibble::as_tibble() |>   # config.R makes arrow return data.tables; keep plain frames here
     dplyr::mutate(dplyr::across(dplyr::everything(), as.character)) |>
     dplyr::mutate(shard_prefix = ein_index_prefix(ein)) |>
-    dplyr::filter(nchar(shard_prefix) == 3) |>
+    dplyr::filter(nchar(shard_prefix) == EIN_INDEX_PREFIX_LENGTH) |>
     dplyr::arrange(ein)
 
   rows_by_prefix <- split(unified_rows, unified_rows$shard_prefix)
