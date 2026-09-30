@@ -151,8 +151,10 @@ normalize_zip5_sql <- function(column_name) {
           zip_digits, zip_digits, zip_digits, zip_digits)
 }
 
-#' SQL selecting one normalized observation row per (vintage, EIN) from a glob.
-observation_select_sql <- function(parquet_glob, source_label, ein_column) {
+#' SQL selecting one normalized observation row per (vintage, EIN) from a list
+#' of parquet files (one vintage each).
+observation_select_sql <- function(parquet_files, source_label, ein_column) {
+  file_list_sql <- paste0("['", paste(parquet_files, collapse = "', '"), "']")
   sprintf("
   SELECT regexp_extract(filename, '(\\d{4}_\\d{2})', 1) AS vintage_ym,
          \"%s\" AS ein,
@@ -161,43 +163,87 @@ observation_select_sql <- function(parquet_glob, source_label, ein_column) {
          %s     AS city,
          %s     AS state,
          %s     AS zip5
-  FROM read_parquet('%s', filename = true, union_by_name = true)",
+  FROM read_parquet(%s, filename = true, union_by_name = true)",
           ein_column, source_label,
           normalize_text_sql("org_addr_street_raw"),
           normalize_text_sql("org_addr_city_raw"),
           normalize_text_sql("org_addr_state_raw"),
           normalize_zip5_sql("org_addr_zip_raw"),
-          parquet_glob)
+          file_list_sql)
 }
 
-log_info("Building observation view over all intermediate parquets")
-# Both pipelines' observation selects -> one union view the aggregate reads once
-DBI::dbExecute(duckdb_connection, sprintf(
-  "CREATE OR REPLACE TEMP VIEW obs AS %s UNION ALL BY NAME %s;",
-  observation_select_sql(current_pipeline_glob, "current", current_ein_column),
-  observation_select_sql(legacy_pipeline_glob,  "legacy",  legacy_ein_column)))
+# ---------------------------------------------------------------------------
+# 2a. Aggregate in chunks of vintages, then fold the chunks.
+#
+# One pass over every vintage at once needs the whole observation set (about
+# 250M rows of address text) in the hash table of the COUNT(DISTINCT vintage)
+# step, which spilled 47 GB to disk and ran out on a laptop (2026-09-30). Each
+# parquet file is one vintage, so vintages never straddle chunks, and the
+# per-chunk partial aggregates fold exactly: SUM of per-chunk distinct-vintage
+# counts is the overall distinct count, MIN/MAX of vintages compose, and
+# `source` is settled at the fold. Partials are a few million rows per chunk.
+# ---------------------------------------------------------------------------
 
-# Inner GROUP BY: distinct vintages per (ein, source, address tuple).
-# Outer GROUP BY: fold the two sources together, tagging tuples seen in both.
-# n_vintages counts DISTINCT vintages rather than rows so the column name stays
-# true even if a vintage ever lands as several parquet parts or duplicate EINs.
-log_info("Aggregating per (ein, address tuple) across sources")
-address_spells <- data.table::as.data.table(DBI::dbGetQuery(duckdb_connection, "
+files_per_chunk <- as.integer(Sys.getenv("ADDR_XWALK_FILES_PER_CHUNK", "10"))
+partials_dir    <- file.path(Sys.getenv("DUCKDB_TEMP_DIR", file.path(tempdir(), "duckdb_spill")), "address_partials")
+unlink(partials_dir, recursive = TRUE)
+dir.create(partials_dir, recursive = TRUE, showWarnings = FALSE)
+
+list_parquet_files <- function(connection, parquet_glob) {
+  DBI::dbGetQuery(connection, sprintf("SELECT file FROM glob('%s') ORDER BY file", parquet_glob))$file
+}
+
+# Chunk the file list; for each chunk compute the per-(ein, source, address)
+# partial: distinct vintages, first and last vintage. Written to one parquet
+# per chunk so a failed chunk can be rerun without redoing the others.
+aggregate_one_chunk <- function(parquet_files, source_label, ein_column, chunk_index) {
+  partial_path <- file.path(partials_dir, sprintf("%s_%03d.parquet", source_label, chunk_index))
+  log_info(sprintf("  %s chunk %d: %d vintage file(s)", source_label, chunk_index, length(parquet_files)))
+  DBI::dbExecute(duckdb_connection, sprintf("
+    COPY (
+      SELECT ein, src, street, city, state, zip5,
+             COUNT(DISTINCT vintage_ym) AS vintage_count,
+             MIN(vintage_ym)            AS first_vintage_in_source,
+             MAX(vintage_ym)            AS last_vintage_in_source
+      FROM (%s)
+      WHERE ein IS NOT NULL AND (street IS NOT NULL OR city IS NOT NULL)
+      GROUP BY ein, src, street, city, state, zip5
+    ) TO '%s' (FORMAT PARQUET, COMPRESSION ZSTD)",
+    observation_select_sql(parquet_files, source_label, ein_column), partial_path))
+  partial_path
+}
+
+aggregate_source_in_chunks <- function(parquet_glob, source_label, ein_column) {
+  parquet_files <- list_parquet_files(duckdb_connection, parquet_glob)
+  chunk_index   <- ceiling(seq_along(parquet_files) / files_per_chunk)
+  file_chunks   <- split(parquet_files, chunk_index)
+  log_info(sprintf("%s pipeline: %d vintage files in %d chunk(s)",
+                   source_label, length(parquet_files), length(file_chunks)))
+  purrr::imap_chr(unname(file_chunks), function(chunk_files, index) {
+    aggregate_one_chunk(chunk_files, source_label, ein_column, index)
+  })
+}
+
+log_info("Aggregating per (ein, source, address tuple), chunk by chunk")
+partial_paths <- c(
+  aggregate_source_in_chunks(current_pipeline_glob, "current", current_ein_column),
+  aggregate_source_in_chunks(legacy_pipeline_glob,  "legacy",  legacy_ein_column)
+)
+
+# Fold the partials: distinct vintages add up across chunks (no vintage is in
+# two chunks), first/last compose, and a tuple seen under both sources is
+# tagged 'both'.
+log_info("Folding the chunk partials into spells")
+address_spells <- data.table::as.data.table(DBI::dbGetQuery(duckdb_connection, sprintf("
   SELECT ein, street, city, state, zip5,
          SUM(vintage_count)                  AS n_vintages,
          MIN(first_vintage_in_source)        AS first_vintage,
          MAX(last_vintage_in_source)         AS last_vintage,
          CASE WHEN COUNT(DISTINCT src) > 1 THEN 'both' ELSE MIN(src) END AS source
-  FROM (
-    SELECT ein, src, street, city, state, zip5,
-           COUNT(DISTINCT vintage_ym) AS vintage_count,
-           MIN(vintage_ym)            AS first_vintage_in_source,
-           MAX(vintage_ym)            AS last_vintage_in_source
-    FROM obs
-    WHERE ein IS NOT NULL AND (street IS NOT NULL OR city IS NOT NULL)
-    GROUP BY ein, src, street, city, state, zip5
-  )
-  GROUP BY ein, street, city, state, zip5"))
+  FROM read_parquet(['%s'])
+  GROUP BY ein, street, city, state, zip5",
+  paste(partial_paths, collapse = "', '"))))
+address_spells[, n_vintages := as.integer(n_vintages)]
 
 log_info(sprintf("Spells: %s rows across %s EINs",
                  format(nrow(address_spells), big.mark = ","),
