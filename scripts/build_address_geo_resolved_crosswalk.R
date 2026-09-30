@@ -214,7 +214,8 @@ crosswalk <- address_spells |>
       transmute(street, city, state, zip5,
                 block_geoid_2020, block_geoid_2010, zcta_2020, congressional_district_119,
                 latitude = geo_lat, longitude = geo_lon,
-                geo_match_level, geo_addr_type, geo_score, geo_match_addr, org_addr_is_po_box),
+                geo_match_level, geo_addr_type, geo_score, geo_match_addr, org_addr_is_po_box,
+                geo_state_abbr),   # for the trial-run filter below only; not published
     by = c("street", "city", "state", "zip5")
   ) |>
   mutate(
@@ -246,10 +247,13 @@ census_crosswalk <- arrow::read_parquet(
   col_select = c("ein", "block_geoid_2020", "block_geoid_2010", "zcta_2020", "congressional_district")
 )
 
-states_compared <- if (nzchar(STATE_SUBSET)) names(state_fips_by_abbr)[state_fips_by_abbr %in% states_to_build] else unique(crosswalk$state)
+# A trial run assigns blocks only in the requested states, so it compares only
+# addresses the geocoder placed in those states (an organization can list one
+# state and sit in another; the state check above counts those).
+states_compared <- if (nzchar(STATE_SUBSET)) names(state_fips_by_abbr)[state_fips_by_abbr %in% states_to_build] else unique(crosswalk$geo_state_abbr)
 
 current_comparison <- crosswalk |>
-  filter(spell_rank == 0L, !is.na(street), state %in% states_compared) |>
+  filter(spell_rank == 0L, !is.na(street), geo_state_abbr %in% states_compared) |>
   semi_join(unified_current_addresses, by = c("ein", "street", "city", "state", "zip5")) |>
   inner_join(census_crosswalk, by = "ein", suffix = c("", "_census")) |>
   mutate(agrees = coalesce(block_geoid_2020 == block_geoid_2020_census, is.na(block_geoid_2020) & is.na(block_geoid_2020_census)) &
