@@ -267,6 +267,46 @@ CSV is gitignored — distributed via S3 only). Publish with
 See `docs/16-ntee-resolved-crosswalk.qmd`. Rebuild after each new monthly
 current BMF so `ntee_current` tracks the newest vintage.
 
+### Build the address-geo-resolved crosswalk (census geography for the address history)
+Census geography for every address in the address-resolved crosswalk, not
+only the current one (nccs-contracts ADR 0051). One row per spell, keyed on
+`spell_id` (the stable spell identifier, `R/address_spell_id.R`, also
+published in the address history; never join the two on `spell_rank`). Same
+columns as the census-geo-resolved crosswalk plus coordinates and a
+plain-language `geo_match_level`. Spells with no street (pre-2009) are
+listed with empty geography. Rebuilt about once a quarter, not monthly.
+
+Four steps, from the repo root with AWS credentials in scope:
+
+```r
+# 1. The address history must carry spell_id: rebuild + validate it first
+#    (Rscript scripts/build_address_resolved_crosswalk.R; scripts/validate_address_crosswalk.R).
+# 2. Stage the geocoder run: distinct historical addresses, minus those the
+#    geocoded Unified BMF already holds; DELTA_SUBMIT-style opt-in to submit.
+source("R/config.R"); source("R/utils/logging.R"); source("R/address.R")
+source("R/address_normalize.R"); source("R/quality/geocoding_checks.R")
+source("R/master_geocoding_delta.R"); source("R/address_history_geocoding.R")
+prepare_address_history_geocoder_run(submit = FALSE)   # stage and inspect
+prepare_address_history_geocoder_run(submit = TRUE)    # ... or submit up to 3 batches
+# 3. Retrieve (same function as the monthly delta; polls, archives, keeps the window full)
+retrieve_master_geocoder_delta(geocoding_dir = ADDRESS_HISTORY_GEOCODING_DIR)
+```
+
+```bash
+# 4. Assign blocks/ZCTA/district, check, write; then publish
+Rscript scripts/build_address_geo_resolved_crosswalk.R
+Rscript -e 'source("R/config.R"); source("R/manifest.R"); source("R/publish_address_geo_resolved_crosswalk.R"); publish_address_geo_resolved_crosswalk(dry_run = TRUE)'
+```
+
+The run shares the `runs/` folder and `LATEST_RUN` pointer with the Unified
+BMF delta, so neither can start while the other has batches in flight (the
+geocoder is one shared queue for all of Urban). First round: about 2.98M
+addresses, four batches; later rounds send only addresses never seen before.
+Working folder `data/geocoding/address_history/` (gitignored). Needs the
+geocoded Unified BMF and the published census-geo-resolved crosswalk on disk
+(`data/geocoding/master/merged/`, `data/crosswalks/`); the build compares
+current addresses against the census table and stops on any difference.
+
 ### Batch-process all legacy vintages on EC2
 For running the legacy pipeline across every vintage in
 `s3://nccsdata/legacy/bmf/`, use the EC2 batch scripts:
@@ -488,6 +528,19 @@ rebuilding any local artifact, and keep all three on the same geography
 vintage (TIGER year ↔ OMB delineation year) so GEOIDs match. The three
 are coupled: rebuilding the CT companion or the county crosswalk requires
 rebuilding the CBSA crosswalk afterward (its universe folds in both).
+
+### Address history and its geography → S3
+
+- `s3://nccsdata/crosswalks/address-resolved/` — one row per (EIN, address
+  spell), every address an organization has had (ADR 0041/0042). Carries
+  `spell_id` (ADR 0051), the stable join key.
+- `s3://nccsdata/crosswalks/address-geo-resolved/` — census geography per
+  spell (ADR 0051), keyed on `spell_id`. Built by
+  `scripts/build_address_geo_resolved_crosswalk.R`, published via
+  `R/publish_address_geo_resolved_crosswalk.R`; `latest/` also carries a
+  10,000-row sample for reviewers. The manifest records the sha256 of the
+  address history it was built from. Rebuilt about quarterly; between
+  rebuilds new spells go unmatched on `spell_id`, never mismatched.
 
 ### NTEE-resolved crosswalk → S3
 

@@ -25,6 +25,11 @@
 #     observations carry NULL street with real city/state/zip, kept honestly.
 #   * Keyed on EIN2 per the maintainer's spec, with canonical ein and
 #     ein_prefixed alongside (ADR 0036).
+#   * `spell_id` (ADR 0051) is a stable identifier for each (organization,
+#     address) pair, computed from EIN2 and the normalized address fields
+#     (R/address_spell_id.R). Unlike spell_rank, which is renumbered when an
+#     organization gains an address, it never changes between builds, so the
+#     address-geo-resolved crosswalk joins to this table on it.
 #
 # Requirements: DuckDB + httpfs, AWS creds via credential chain. The address
 # projection is fatter than ntee-resolved's single column; on a laptop set
@@ -40,6 +45,7 @@ library(here)
 source(here::here("R", "config.R"))                  # BMF_S3_BUCKET
 source(here::here("R", "utils", "logging.R"))        # log_info()
 source(here::here("R", "ein.R"))                     # ein_to_prefixed/ein_to_ein2 (ADR 0036)
+source(here::here("R", "address_spell_id.R"))        # address_spell_id() (ADR 0051)
 
 bucket_name      <- if (exists("BMF_S3_BUCKET")) BMF_S3_BUCKET else "nccsdata"
 aws_region       <- Sys.getenv("AWS_DEFAULT_REGION", unset = "us-east-1")
@@ -268,7 +274,18 @@ address_spells[, n_distinct_addresses := .N,               by = ein]
 address_spells[, ein_prefixed := ein_to_prefixed(ein)]
 address_spells[, EIN2         := ein_to_ein2(ein)]
 
-data.table::setcolorder(address_spells, c("EIN2", "ein", "ein_prefixed", "spell_rank",
+# ADR 0051: the stable spell identifier. One organization at one normalized
+# address is one spell, so the id must be unique here; a repeat would mean
+# the GROUP BY above and the hash disagree about what a distinct address is.
+address_spells[, spell_id := address_spell_id(EIN2, street, city, state, zip5)]
+
+duplicate_spell_id_count <- address_spells[, .N, by = spell_id][N > 1L, .N]
+if (duplicate_spell_id_count > 0L) {
+  stop(sprintf("Invariant violated: %s spell_id values repeat; the identifier must be unique per (EIN, address).",
+               format(duplicate_spell_id_count, big.mark = ",")))
+}
+
+data.table::setcolorder(address_spells, c("spell_id", "EIN2", "ein", "ein_prefixed", "spell_rank",
   "street", "city", "state", "zip5",
   "first_vintage", "last_vintage", "n_vintages", "source",
   "n_distinct_addresses"))

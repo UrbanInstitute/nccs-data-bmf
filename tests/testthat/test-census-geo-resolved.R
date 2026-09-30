@@ -20,6 +20,18 @@ test_that("block GEOID prefixes give tract, county and state", {
   expect_equal(census_geo_county_from_block(NA_character_), NA_character_)
 })
 
+test_that("the address-history match level names every case and is never NA (ADR 0051)", {
+  levels <- address_geo_match_level(
+    has_street    = c(FALSE, TRUE,  TRUE,           TRUE,           TRUE,     TRUE,       TRUE),
+    is_po_box     = c(FALSE, FALSE, FALSE,          TRUE,           FALSE,    FALSE,      FALSE),
+    geo_addr_type = c(NA,    NA,    "PointAddress", "PointAddress", "Postal", "Locality", "StreetName"),
+    geo_lat       = c(NA,    NA,    40,             40,             40,       40,         40),
+    geo_lon       = c(NA,    NA,    -75,            -75,            -75,      -75,        -75)
+  )
+  expect_equal(levels, c("not_geocoded", "no_match", "address", "po_box", "zip", "city", "other"))
+  expect_false(anyNA(levels))
+})
+
 test_that("the county gate counts only comparable rows and reports the mismatch share", {
   blocks   <- c("110010001011000", "240050001011000", NA,      "360610001011000")
   counties <- c("11001",           "24510",           "11001", NA)

@@ -25,6 +25,8 @@ suppressPackageStartupMessages({library(arrow); library(data.table); library(pur
 library(here)
 source(here::here("R", "utils", "logging.R"))        # log_info()
 source(here::here("R", "ein.R"))                     # ein_to_prefixed/ein_to_ein2 (ADR 0036)
+source(here::here("R", "address_spell_id.R"))        # address_spell_id() (ADR 0051)
+source(here::here("R", "address_normalize.R"))       # address_normalize_zip5(), the R mirror of the builder's SQL
 
 crosswalk_parquet_path <- Sys.getenv(
   "ADDR_XWALK_PARQUET",
@@ -40,18 +42,6 @@ SAMPLE_MATCH_FLOOR       <- 0.99
 SAMPLE_SIZE              <- 1000L
 
 address_crosswalk <- data.table::setDT(arrow::read_parquet(crosswalk_parquet_path))
-
-#' Reduce a raw ZIP to the 5-digit form the crosswalk keys on.
-#'
-#' The same rule the builder applies in SQL (normalize_zip5_sql): keep digits
-#' only, take the first five (dropping the ZIP+4 add-on the current pipeline
-#' carries), and put back any leading zero the legacy pipeline dropped. Change
-#' one of the two and change the other.
-normalize_zip5 <- function(raw_zip) {
-  zip_base <- substr(gsub("[^0-9]", "", raw_zip), 1, 5)
-  data.table::fifelse(zip_base == "", NA_character_,
-                      stringr::str_pad(zip_base, width = 5, side = "left", pad = "0"))
-}
 
 # Every check is collected into one named vector, then reported together, so a
 # run tells you everything that is wrong rather than stopping at the first
@@ -81,7 +71,16 @@ check_results <- c(
   "EIN2 consistent with canonical ein" =
     address_crosswalk[, all(EIN2 == ein_to_ein2(ein))],
   "ein_prefixed consistent with canonical ein" =
-    address_crosswalk[, all(ein_prefixed == ein_to_prefixed(ein))]
+    address_crosswalk[, all(ein_prefixed == ein_to_prefixed(ein))],
+
+  # spell_id (ADR 0051) is the join key to the address-geo-resolved crosswalk.
+  # It has to be unique, and it has to be reproducible from the published
+  # columns by the shared definition, or a rebuild would quietly break every
+  # join that depends on it.
+  "spell_id unique" =
+    anyDuplicated(address_crosswalk$spell_id) == 0L,
+  "spell_id reproducible from EIN2 and the address fields" =
+    address_crosswalk[, all(spell_id == address_spell_id(EIN2, street, city, state, zip5))]
 )
 
 # ---------------------------------------------------------------------------
@@ -160,7 +159,7 @@ if (nzchar(unified_parquet_path) && file.exists(unified_parquet_path)) {
   sample_match_rate <- joined_sample[, mean(
     toupper(trimws(org_addr_street_raw)) == street &
     toupper(trimws(org_addr_city_raw))   == city &
-    normalize_zip5(org_addr_zip_raw)     == zip5,
+    address_normalize_zip5(org_addr_zip_raw) == zip5,
     na.rm = TRUE)]
   check_results[sprintf("spell-0 sample match vs Unified BMF: %.2f%% (n=%d)",
                         100 * sample_match_rate, nrow(joined_sample))] <-

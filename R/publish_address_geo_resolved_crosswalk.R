@@ -1,0 +1,98 @@
+# ============================================================================
+# publish_address_geo_resolved_crosswalk.R
+#
+# Publishes the address-geo-resolved crosswalk (nccs-contracts ADR 0051)
+# built by scripts/build_address_geo_resolved_crosswalk.R, in the ADR 0042
+# layout:
+#
+#   s3://nccsdata/crosswalks/address-geo-resolved/v{YYYY_MM}/   parquet + manifest (retained)
+#   s3://nccsdata/crosswalks/address-geo-resolved/latest/       parquet + CSV + data dictionary
+#                                                               + 10,000-row sample + manifest
+#
+# Thin wrapper over R/publish_crosswalk.R (idempotent, manifest-driven). The
+# manifest records the sha256 of the address-resolved crosswalk the table was
+# built from, so anyone can check which address history it pairs with.
+#
+# Run:
+#   source("R/config.R"); source("R/manifest.R"); source("R/publish_crosswalk.R")
+#   source("R/publish_address_geo_resolved_crosswalk.R")
+#   publish_address_geo_resolved_crosswalk(dry_run = TRUE)   # inspect first
+#   publish_address_geo_resolved_crosswalk()                 # live write
+# ============================================================================
+
+if (!exists("publish_crosswalk")) source(here::here("R", "publish_crosswalk.R"))
+
+#' Publish the address-geo-resolved crosswalk to its vintage folder and latest/.
+#'
+#' @param crosswalk_path         Local parquet path (CSV, dictionary, sample and summary siblings expected).
+#' @param address_crosswalk_path Local address-resolved crosswalk the table was built from; its
+#'                               sha256 goes into the manifest.
+#' @param s3_root                Key prefix ending in "/" under which v{vintage}/ and latest/ sit.
+#' @param bucket                 S3 bucket.
+#' @param vintage                Build vintage tag (default: this month's YYYY_MM).
+#' @param dry_run                If TRUE, print the plan and touch nothing on S3.
+#' @param uploader               Upload function (default upload_to_s3); every upload is checked.
+#' @return Invisibly `list(vintage, vintage_result, latest_result)`.
+#' @export
+publish_address_geo_resolved_crosswalk <- function(
+    crosswalk_path         = here::here("data", "crosswalks", "address_geo_resolved_crosswalk.parquet"),
+    address_crosswalk_path = here::here("data", "crosswalks", "address_resolved_crosswalk.parquet"),
+    s3_root                = "crosswalks/address-geo-resolved/",
+    bucket                 = BMF_S3_BUCKET,
+    vintage                = format(Sys.Date(), "%Y_%m"),
+    dry_run                = FALSE,
+    uploader               = upload_to_s3) {
+
+  stopifnot(endsWith(s3_root, "/"), file.exists(crosswalk_path), file.exists(address_crosswalk_path))
+  stem            <- sub("\\.parquet$", "", crosswalk_path)
+  summary_path    <- paste0(stem, "_summary.json")
+  dictionary_path <- paste0(stem, "_data_dictionary.csv")
+  sample_path     <- paste0(stem, "_sample.csv")
+  build_summary   <- if (file.exists(summary_path)) jsonlite::fromJSON(summary_path) else list()
+
+  inputs <- list(
+    list(uri    = sprintf("s3://%s/crosswalks/address-resolved/latest/address_resolved_crosswalk.parquet", bucket),
+         sha256 = digest::digest(address_crosswalk_path, algo = "sha256", file = TRUE),
+         note   = "address-resolved crosswalk this table was built from (join on spell_id); sha256 of the local build file"),
+    list(uri  = sprintf("s3://%s/geocoding/unified-bmf/latest/bmf_unified_geocoded.parquet", bucket),
+         note = "geocoded Unified BMF: geocoder results carried over for addresses it already holds"),
+    list(uri  = sprintf("s3://%s/crosswalks/census-geo-resolved/latest/census_geo_resolved_crosswalk.parquet", bucket),
+         note = "census-geo-resolved crosswalk, compared against for current addresses"),
+    list(uri  = "https://www2.census.gov/geo/tiger/",
+         note = sprintf("TIGER/Line via tigris: blocks %s and %s, ZCTA %s, congressional districts TIGER %s (Congress %s)",
+                        build_summary$tiger$blocks_2020 %||% 2020, build_summary$tiger$blocks_2010 %||% 2010,
+                        build_summary$tiger$zcta %||% 2020, build_summary$tiger$congressional_districts %||% 2024,
+                        build_summary$tiger$congress_session %||% 119)),
+    manifest_input_repo("R/census_geo_resolved.R"),
+    manifest_input_repo("R/census_geo_assign.R"),
+    manifest_input_repo("R/address_history_geocoding.R"),
+    manifest_input_repo("R/address_spell_id.R"),
+    manifest_input_repo("R/ein.R")
+  )
+
+  vintage_prefix <- paste0(s3_root, "v", vintage, "/")
+  latest_prefix  <- paste0(s3_root, "latest/")
+
+  vintage_result <- publish_crosswalk(parquet_path = crosswalk_path, s3_prefix = vintage_prefix,
+                                      inputs = inputs, vintage = vintage, bucket = bucket,
+                                      dry_run = dry_run, include_csv = FALSE, uploader = uploader)
+  latest_result  <- publish_crosswalk(parquet_path = crosswalk_path, s3_prefix = latest_prefix,
+                                      inputs = inputs, vintage = vintage, bucket = bucket,
+                                      dry_run = dry_run, include_csv = TRUE, uploader = uploader)
+
+  # The dictionary and the reviewer sample sit beside latest/ only.
+  upload_sidecar <- function(local_path) {
+    if (!file.exists(local_path)) return(invisible(NULL))
+    key <- paste0(latest_prefix, basename(local_path))
+    if (dry_run) {
+      message(sprintf("  PUT  %s", key))
+    } else {
+      ok <- uploader(local_path, key, bucket = bucket)
+      if (!isTRUE(ok)) stop(sprintf("upload failed for s3://%s/%s", bucket, key))
+    }
+    invisible(key)
+  }
+  purrr::walk(c(dictionary_path, sample_path), upload_sidecar)
+
+  invisible(list(vintage = vintage, vintage_result = vintage_result, latest_result = latest_result))
+}
