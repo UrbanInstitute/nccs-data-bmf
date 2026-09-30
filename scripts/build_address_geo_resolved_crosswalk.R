@@ -87,6 +87,12 @@ log_info(sprintf("Distinct addresses: %s; with a geocoder result: %s",
                  format(nrow(distinct_addresses), big.mark = ","),
                  format(nrow(geocodes), big.mark = ",")))
 
+# Every batch retrieved and every submitted address present in the outputs,
+# or stop: a partial retrieval must never be published as "no match".
+run_completeness <- address_history_stop_unless_complete(GEOCODING_DIR, geocodes)
+log_info(sprintf("Geocoder run complete: %d batch(es), %s submitted addresses all accounted for",
+                 run_completeness$batches, format(run_completeness$submitted, big.mark = ",")))
+
 # The distinct-address file has to describe the same address history, or a
 # spell could silently miss its geocode.
 addresses_in_history <- address_history_distinct_addresses(address_spells)
@@ -104,7 +110,10 @@ address_geocodes <- distinct_addresses |>
     geo_match_level    = address_geo_match_level(
       has_street = TRUE, is_po_box = org_addr_is_po_box,
       geo_addr_type = geo_addr_type, geo_lat = geo_lat, geo_lon = geo_lon),
-    point_level        = census_geo_is_point_level(geo_addr_type, geo_lat, geo_lon)
+    # ADR 0051 §5: only "address" rows are placed in a block. A PO box
+    # matched to a point keeps its coordinates (the post office's) but no
+    # block, ZCTA or district.
+    point_level        = geo_match_level == "address"
   )
 
 log_info(sprintf("Match levels over distinct addresses: %s",
@@ -113,11 +122,7 @@ log_info(sprintf("Match levels over distinct addresses: %s",
                        collapse = ", ")))
 
 # ---------------------------------------------------------------------------
-# 2. Point-in-polygon for the address-level points
-#    Blocks go to every point-level geocode, PO boxes included (the block of
-#    the post office, as in the census table, ADR 0045), so the two tables
-#    agree row for row on current addresses. The match level says which is
-#    which.
+# 2. Point-in-polygon for the address-level points (geo_match_level "address")
 # ---------------------------------------------------------------------------
 
 state_fips_by_abbr <- tigris::fips_codes |>
@@ -225,13 +230,18 @@ crosswalk <- address_spells |>
   arrange(ein, spell_rank)
 
 # ---------------------------------------------------------------------------
-# 5. Current addresses agree with the published census table (ADR 0051 §6)
-#    Compared where the rank-0 spell is the same address the Unified BMF
-#    holds for that organization; rows where the address history is newer
-#    than the census table are counted, not compared.
+# 5. Current addresses come from the published census table (ADR 0051 §6,
+#    operating rule 6). For every rank-0 spell whose address is the one the
+#    Unified BMF holds for that organization, the census table's geography
+#    is copied in. The values computed above for the same rows must agree
+#    with the copy (they come from the same coordinates), and the §5 rule
+#    still applies to the copy: only "address" rows keep a block. Rank-0
+#    spells whose address is not the Unified BMF's (the history is newer
+#    than the census table) keep the computed values; they must be rare and
+#    are listed in an audit file.
 # ---------------------------------------------------------------------------
 
-log_info("Comparing current addresses with the census-geo-resolved crosswalk")
+log_info("Copying current-address geography from the census-geo-resolved crosswalk")
 unified_current_addresses <- arrow::read_parquet(
   GEOCODED_UNIFIED_PATH,
   col_select = c("ein", "org_addr_street_raw", "org_addr_city_raw", "org_addr_state_raw", "org_addr_zip_raw")
@@ -252,24 +262,71 @@ census_crosswalk <- arrow::read_parquet(
 # state and sit in another; the state check above counts those).
 states_compared <- if (nzchar(STATE_SUBSET)) names(state_fips_by_abbr)[state_fips_by_abbr %in% states_to_build] else unique(crosswalk$geo_state_abbr)
 
-current_comparison <- crosswalk |>
-  filter(spell_rank == 0L, !is.na(street), geo_state_abbr %in% states_compared) |>
-  semi_join(unified_current_addresses, by = c("ein", "street", "city", "state", "zip5")) |>
-  inner_join(census_crosswalk, by = "ein", suffix = c("", "_census")) |>
-  mutate(agrees = coalesce(block_geoid_2020 == block_geoid_2020_census, is.na(block_geoid_2020) & is.na(block_geoid_2020_census)) &
-                  coalesce(block_geoid_2010 == block_geoid_2010_census, is.na(block_geoid_2010) & is.na(block_geoid_2010_census)) &
-                  coalesce(zcta_2020 == zcta_2020_census,               is.na(zcta_2020) & is.na(zcta_2020_census)) &
-                  coalesce(congressional_district_119 == congressional_district, is.na(congressional_district_119) & is.na(congressional_district)))
+current_rows <- crosswalk |>
+  filter(spell_rank == 0L, !is.na(street), geo_state_abbr %in% states_compared)
 
-current_disagreements <- filter(current_comparison, !agrees)
-log_info(sprintf("Current addresses compared: %s; disagreements: %s",
-                 format(nrow(current_comparison), big.mark = ","), format(nrow(current_disagreements), big.mark = ",")))
+# Coverage: which current rows are the Unified BMF's address, and of those,
+# which have a census row. Every matched row must have one.
+current_matched <- current_rows |>
+  semi_join(unified_current_addresses, by = c("ein", "street", "city", "state", "zip5"))
+current_unmatched <- current_rows |>
+  anti_join(unified_current_addresses, by = c("ein", "street", "city", "state", "zip5"))
+
+current_copied <- current_matched |>
+  inner_join(census_crosswalk, by = "ein", suffix = c("", "_census"))
+
+stopifnot("a current address matched to the Unified BMF has no row in the census-geo-resolved crosswalk" =
+            nrow(current_copied) == nrow(current_matched))
+
+unmatched_share <- if (nrow(current_rows) > 0) nrow(current_unmatched) / nrow(current_rows) else 0
+log_info(sprintf("Current addresses: %s; the Unified BMF's address: %s; newer than the census table: %s (%.3f%%)",
+                 format(nrow(current_rows), big.mark = ","), format(current_matched |> nrow(), big.mark = ","),
+                 format(nrow(current_unmatched), big.mark = ","), 100 * unmatched_share))
+current_unmatched |>
+  select(spell_id, ein, street, city, state, zip5, geo_match_level) |>
+  data.table::fwrite(paste0(OUT_STEM, "_current_addresses_not_in_census_table.csv"))
+if (unmatched_share > STATE_MISMATCH_MAX_SHARE) {
+  stop(sprintf("%.3f%% of current addresses are not the Unified BMF's address (limit %.1f%%): the address history and the census table are out of step. Rebuild both from the same vintage.",
+               100 * unmatched_share, 100 * STATE_MISMATCH_MAX_SHARE))
+}
+
+# The copy, with the §5 rule applied: a block only where the match level is "address".
+same_value <- function(computed, copied) coalesce(computed == copied, is.na(computed) & is.na(copied))
+current_copied <- current_copied |>
+  mutate(
+    keep_block                       = geo_match_level == "address",
+    block_geoid_2020_copy            = if_else(keep_block, block_geoid_2020_census, NA_character_),
+    block_geoid_2010_copy            = if_else(keep_block, block_geoid_2010_census, NA_character_),
+    zcta_2020_copy                   = if_else(keep_block, zcta_2020_census, NA_character_),
+    congressional_district_119_copy  = if_else(keep_block, congressional_district, NA_character_),
+    agrees = same_value(block_geoid_2020, block_geoid_2020_copy) &
+             same_value(block_geoid_2010, block_geoid_2010_copy) &
+             same_value(zcta_2020, zcta_2020_copy) &
+             same_value(congressional_district_119, congressional_district_119_copy)
+  )
+
+current_disagreements <- filter(current_copied, !agrees)
+log_info(sprintf("Current addresses copied from the census table: %s; computed values that differ from the copy: %s",
+                 format(nrow(current_copied), big.mark = ","), format(nrow(current_disagreements), big.mark = ",")))
 
 if (nrow(current_disagreements) > 0L) {
   data.table::fwrite(current_disagreements, paste0(OUT_STEM, "_current_address_disagreements.csv"))
   stop(sprintf("%d current addresses carry different geography than the census-geo-resolved crosswalk; see %s_current_address_disagreements.csv",
                nrow(current_disagreements), OUT_STEM))
 }
+
+# Write the copied values into the table (identical to the computed ones,
+# as just checked; the census table is the source of record for them).
+crosswalk <- crosswalk |>
+  rows_update(
+    current_copied |>
+      transmute(spell_id,
+                block_geoid_2020           = block_geoid_2020_copy,
+                block_geoid_2010           = block_geoid_2010_copy,
+                zcta_2020                  = zcta_2020_copy,
+                congressional_district_119 = congressional_district_119_copy),
+    by = "spell_id"
+  )
 
 # ---------------------------------------------------------------------------
 # 6. Checks before anything is written (ADR 0051 Acceptance)
@@ -287,7 +344,8 @@ stopifnot(
   "a spell with a street is marked not_geocoded"           = !any(crosswalk$geo_match_level[!is.na(crosswalk$street)] == "not_geocoded"),
   "no_match or not_geocoded rows carry geography"          = all(is.na(rows_without_geography$block_geoid_2020) & is.na(rows_without_geography$zcta_2020) &
                                                                  is.na(rows_without_geography$latitude)),
-  "a block is assigned outside the point-level tiers"      = all(crosswalk$geo_addr_type[!is.na(crosswalk$block_geoid_2020)] %in% CENSUS_GEO_POINT_LEVEL_TYPES)
+  "a block is assigned outside the address level"          = all(crosswalk$geo_match_level[!is.na(crosswalk$block_geoid_2020)] == "address"),
+  "a ZCTA or district is assigned outside the address level" = all(crosswalk$geo_match_level[!is.na(crosswalk$zcta_2020) | !is.na(crosswalk$congressional_district_119)] == "address")
 )
 
 # ---------------------------------------------------------------------------
@@ -310,13 +368,13 @@ dictionary <- tibble::tribble(
   "EIN2",                       "Employer Identification Number, EIN-XX-XXXXXXX (ADR 0036).",
   "ein",                        "Employer Identification Number, XX-XXXXXXX.",
   "ein_prefixed",               "Coercion-safe EIN key, ein-XX-XXXXXXX (ADR 0036).",
-  "block_geoid_2020",           "15-digit census block GEOID on 2020 boundaries (TIGER/Line 2020). Tract = first 11 digits, block group = first 12, county = first 5, state = first 2. Empty unless the address was geocoded to a specific address (geo_match_level address or po_box).",
+  "block_geoid_2020",           "15-digit census block GEOID on 2020 boundaries (TIGER/Line 2020). Tract = first 11 digits, block group = first 12, county = first 5, state = first 2. Empty unless geo_match_level is address.",
   "block_geoid_2010",           "15-digit census block GEOID on 2010 boundaries (TIGER/Line 2010), for joins to pre-2020 census products. Same prefix rules. Empty as above.",
   "zcta_2020",                  "5-digit ZIP Code Tabulation Area, 2020 boundaries. A ZCTA is an area; a ZIP code is a delivery route. Empty as above.",
   "congressional_district_119", "4-digit district GEOID (2-digit state FIPS + 2-digit district number) for the 119th Congress, from TIGER/Line 2024. Empty as above.",
   "latitude",                   "Latitude returned by the geocoder (WGS 84). Empty when no_match or not_geocoded.",
   "longitude",                  "Longitude returned by the geocoder (WGS 84). Empty when no_match or not_geocoded.",
-  "geo_match_level",            "How the address was placed. not_geocoded: the spell has no street (pre-2009 records) and was not sent. no_match: sent, no coordinates came back. po_box: the street is a post office box, so the point and block are the post office's, not the organization's. address: matched to a specific address (PointAddress, Subaddress, StreetAddress, StreetAddressExt, StreetInt). zip: ZIP code centre only (Postal, PostalExt, PostalLoc). city: city or place only (Locality). other: any other tier with coordinates (street name, point of interest). Only address and po_box rows carry a block, ZCTA and district.",
+  "geo_match_level",            "How the address was placed. not_geocoded: the spell has no street (pre-2009 records) and was not sent. no_match: sent, no coordinates came back. po_box: the street is a post office box; the coordinates are the post office's, and no block is assigned. address: matched to a specific address (PointAddress, Subaddress, StreetAddress, StreetAddressExt, StreetInt). zip: ZIP code centre only (Postal, PostalExt, PostalLoc). city: city or place only (Locality). other: any other tier with coordinates (street name, point of interest). Only address rows carry a block, ZCTA and district.",
   "geo_addr_type",              "Geocoder precision tier as returned.",
   "geo_score",                  "Geocoder match confidence, 0 to 100.",
   "geo_match_addr",             "The address the geocoder matched, as it matched it. Lets a user see what the coordinates stand for. Past addresses are placed on today's street network.",
@@ -336,7 +394,8 @@ summary <- list(
   assigned_congressional_district_119 = sum(!is.na(crosswalk_out$congressional_district_119)),
   state_check                 = list(n_comparable = nrow(state_comparable), n_mismatch = nrow(state_mismatches),
                                      mismatch_share = state_mismatch_share, limit = STATE_MISMATCH_MAX_SHARE),
-  current_address_comparison  = list(n_compared = nrow(current_comparison), n_disagree = nrow(current_disagreements)),
+  current_address_copy        = list(n_current = nrow(current_rows), n_copied = nrow(current_copied),
+                                     n_not_in_census_table = nrow(current_unmatched), n_disagree = nrow(current_disagreements)),
   tiger                       = list(blocks_2020 = TIGER_YEAR_2020, blocks_2010 = TIGER_YEAR_2010, zcta = TIGER_YEAR_2020,
                                      congressional_districts = CD_TIGER_YEAR, congress_session = 119L),
   states_built                = states_to_build,
@@ -346,3 +405,14 @@ jsonlite::write_json(summary, paste0(OUT_STEM, "_summary.json"), auto_unbox = TR
 
 log_info(sprintf("Wrote %s.{parquet,csv} (%s rows), sample, dictionary, audit and summary",
                  OUT_STEM, format(nrow(crosswalk_out), big.mark = ",")))
+
+# ---------------------------------------------------------------------------
+# 8. Persist the address cache so the next round sends only new addresses
+#    (ADR 0051 §7). Skipped on a trial run.
+# ---------------------------------------------------------------------------
+
+if (nzchar(STATE_SUBSET)) {
+  log_info("Trial run: address cache not written")
+} else {
+  address_history_write_cache(address_geocodes, geocoding_dir = GEOCODING_DIR)
+}

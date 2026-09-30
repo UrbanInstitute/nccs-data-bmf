@@ -36,6 +36,13 @@ ADDRESS_HISTORY_GEOCODING_DIR <- here::here("data", "geocoding", "address_histor
 ADDRESS_HISTORY_ADDRESS_LOOKUP_FILE <- "address_history_geocoder_addr_lookup.parquet"
 ADDRESS_HISTORY_CARRYOVER_FILE      <- "address_history_geocoder_batch_00_geocoded.csv"
 
+# The persistent address cache (ADR 0051 §7; geocoder etiquette rule 7):
+# every historical address ever attempted, with its geocoder result. Kept on
+# S3 so the next build sends only addresses never seen before. A working
+# file of this producer, not a contracted surface.
+ADDRESS_HISTORY_CACHE_KEY  <- "geocoding/address-history/cache/latest/address_geocode_cache.parquet"
+ADDRESS_HISTORY_CACHE_FILE <- "address_geocode_cache.parquet"
+
 
 # ---------------------------------------------------------------------------
 # 1. Distinct addresses
@@ -94,23 +101,60 @@ address_history_prior_geocodes <- function(geocoded_unified) {
     dplyr::distinct(street, city, state, zip5, .keep_all = TRUE)
 }
 
-#' Split the distinct addresses into those already geocoded and those to send.
+#' The persistent cache of historical addresses already attempted, if any.
 #'
-#' An address counts as already attempted when the Unified BMF has a row for
-#' it, whether or not the geocoder matched it (same rule as the monthly
-#' delta: failures are not retried on a delta run).
+#' Downloads the cache from S3 when it exists. Returns NULL on the first
+#' round, when no cache has been written yet.
 #'
+#' @return Tibble keyed by street, city, state, zip5 with the geo_* columns,
+#'   or NULL.
+address_history_read_cache <- function(geocoding_dir = ADDRESS_HISTORY_GEOCODING_DIR,
+                                       bucket        = BMF_S3_BUCKET,
+                                       cache_key     = ADDRESS_HISTORY_CACHE_KEY) {
+
+  local_path <- file.path(geocoding_dir, ADDRESS_HISTORY_CACHE_FILE)
+  copy_rc    <- suppressWarnings(system2(
+    "aws", c("s3", "cp", paste0("s3://", bucket, "/", cache_key), local_path, "--only-show-errors"),
+    stdout = FALSE, stderr = FALSE))
+
+  if (copy_rc != 0L || !file.exists(local_path)) {
+    log_info("No address cache on S3 yet; carryover comes from the Unified BMF only.")
+    return(NULL)
+  }
+
+  arrow::read_parquet(local_path) |>
+    tibble::as_tibble()
+}
+
+#' Split the distinct addresses into those already attempted and those to send.
+#'
+#' An address counts as already attempted when the Unified BMF or the cache
+#' from an earlier round has a row for it, whether or not the geocoder
+#' matched it (same rule as the monthly delta: failures are not retried on
+#' a delta run). Where both hold the address, the cache row wins, since it
+#' is the result of the most recent attempt.
+#'
+#' @param distinct_addresses From address_history_distinct_addresses().
+#' @param prior_geocodes     From address_history_prior_geocodes() (Unified BMF).
+#' @param cached_geocodes    From address_history_read_cache(); NULL on the first round.
 #' @return list(carryover = addresses with prior geo_* columns,
 #'              delta     = addresses to submit)
-address_history_split_carryover <- function(distinct_addresses, prior_geocodes) {
+address_history_split_carryover <- function(distinct_addresses, prior_geocodes, cached_geocodes = NULL) {
 
   address_key <- c("street", "city", "state", "zip5")
 
+  known_geocodes <- if (is.null(cached_geocodes)) {
+    prior_geocodes
+  } else {
+    dplyr::bind_rows(cached_geocodes, prior_geocodes) |>
+      dplyr::distinct(dplyr::across(dplyr::all_of(address_key)), .keep_all = TRUE)
+  }
+
   carryover <- distinct_addresses |>
-    dplyr::inner_join(prior_geocodes, by = address_key)
+    dplyr::inner_join(known_geocodes, by = address_key)
 
   delta <- distinct_addresses |>
-    dplyr::anti_join(prior_geocodes, by = address_key)
+    dplyr::anti_join(known_geocodes, by = address_key)
 
   list(carryover = carryover, delta = delta)
 }
@@ -187,7 +231,12 @@ prepare_address_history_geocoder_run <- function(
   prior_geocodes <- address_history_prior_geocodes(geocoded_unified)
   rm(geocoded_unified)
 
-  split     <- address_history_split_carryover(distinct_addresses, prior_geocodes)
+  cached_geocodes <- address_history_read_cache(geocoding_dir)
+  if (!is.null(cached_geocodes)) {
+    log_info(sprintf("Address cache from an earlier round: %s addresses", format(nrow(cached_geocodes), big.mark = ",")))
+  }
+
+  split     <- address_history_split_carryover(distinct_addresses, prior_geocodes, cached_geocodes)
   carryover <- split$carryover
   delta     <- split$delta
   log_info(sprintf("Carryover (already attempted): %s | To submit: %s",
@@ -247,6 +296,7 @@ prepare_address_history_geocoder_run <- function(
     spells_with_street     = sum(!is.na(address_spells$street)),
     distinct_addresses     = nrow(distinct_addresses),
     carryover_addresses    = nrow(carryover),
+    cached_addresses       = if (is.null(cached_geocodes)) 0L else nrow(cached_geocodes),
     delta_addresses        = nrow(delta),
     batch_size             = batch_size,
     num_batches            = length(stems),
@@ -293,7 +343,96 @@ prepare_address_history_geocoder_run <- function(
 
 
 # ---------------------------------------------------------------------------
-# 4. Read the results back: one row per distinct address
+# 4. Is the run complete? (ADR 0051 Acceptance: every submitted address is
+#    accounted for). Run before the results are read, so an interrupted or
+#    partial retrieval can never be published as "no match".
+# ---------------------------------------------------------------------------
+
+#' Stop unless every batch was retrieved and every submitted address came back.
+#'
+#' @param geocoding_dir Working directory of the run.
+#' @param geocodes      Output of read_address_history_geocodes(), keyed by f_address.
+#' @return Invisibly a list with the counts checked.
+address_history_stop_unless_complete <- function(geocoding_dir, geocodes) {
+
+  input_dir     <- file.path(geocoding_dir, "input")
+  manifest_path <- file.path(input_dir, "bmf_master_geocoder_manifest.json")
+  ledger_path   <- file.path(geocoding_dir, "geocode_ledger.tsv")
+  stopifnot("run manifest missing" = file.exists(manifest_path))
+  manifest <- jsonlite::read_json(manifest_path)
+
+  # Nothing was submitted: only the carryover file is expected.
+  if (identical(manifest$num_batches, 0L) || length(manifest$batches) == 0L) {
+    return(invisible(list(batches = 0L, submitted = 0L, missing = 0L)))
+  }
+
+  stopifnot("run ledger missing" = file.exists(ledger_path))
+  ledger <- data.table::fread(ledger_path, sep = "\t", colClasses = "character")
+
+  not_retrieved <- ledger[ledger$status != "retrieved", ]
+  if (nrow(not_retrieved) > 0L) {
+    stop(sprintf("Geocoder run %s is not complete: %d batch(es) not retrieved (%s). Finish retrieval before building.",
+                 manifest$run_id, nrow(not_retrieved),
+                 paste(sprintf("%s=%s", not_retrieved$service_stem, not_retrieved$status), collapse = ", ")))
+  }
+
+  # One-column CSV: readr handles the quoting a lone quoted column needs
+  # (the addresses contain commas), which data.table's reader does not.
+  read_submitted_addresses <- function(batch_filename) {
+    readr::read_csv(file.path(input_dir, batch_filename), col_types = readr::cols(.default = "c"),
+                    progress = FALSE)$f_address
+  }
+  submitted_addresses <- purrr::map(ledger$batch_file, read_submitted_addresses) |>
+    purrr::list_c()
+
+  missing_addresses <- setdiff(submitted_addresses, geocodes$f_address)
+  if (length(missing_addresses) > 0L) {
+    stop(sprintf("%s submitted address(es) have no row in the geocoder outputs (e.g. %s). The outputs are incomplete; do not build.",
+                 format(length(missing_addresses), big.mark = ","), missing_addresses[[1]]))
+  }
+
+  invisible(list(batches = nrow(ledger), submitted = length(submitted_addresses), missing = 0L))
+}
+
+
+# ---------------------------------------------------------------------------
+# 5. Persist the cache for the next round
+# ---------------------------------------------------------------------------
+
+#' Write every attempted address with its result to the cache, locally and on S3.
+#'
+#' Called by the build script once the run is known to be complete. An
+#' address that was attempted and not matched is kept with empty geo_*
+#' columns, so it is not resubmitted on a later round (failures ride the
+#' occasional full refresh, as for the monthly delta).
+#'
+#' @param address_geocodes One row per distinct address: the address key
+#'   columns plus the geo_* columns (NA where the geocoder returned nothing).
+#' @return Invisibly the local path written.
+address_history_write_cache <- function(address_geocodes,
+                                        geocoding_dir = ADDRESS_HISTORY_GEOCODING_DIR,
+                                        bucket        = BMF_S3_BUCKET,
+                                        cache_key     = ADDRESS_HISTORY_CACHE_KEY,
+                                        uploader      = upload_to_s3) {
+
+  geo_columns <- intersect(unname(GEOCODER_COLUMN_MAP), names(address_geocodes))
+  cache <- address_geocodes |>
+    dplyr::select(street, city, state, zip5, dplyr::all_of(geo_columns)) |>
+    dplyr::mutate(cached_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"))
+
+  local_path <- file.path(geocoding_dir, ADDRESS_HISTORY_CACHE_FILE)
+  arrow::write_parquet(cache, local_path, compression = "zstd")
+
+  uploaded <- uploader(local_path, cache_key, bucket = bucket)
+  if (!isTRUE(uploaded)) stop(sprintf("Address cache upload failed: s3://%s/%s", bucket, cache_key))
+  log_info(sprintf("Address cache written: %s addresses -> s3://%s/%s", format(nrow(cache), big.mark = ","), bucket, cache_key))
+
+  invisible(local_path)
+}
+
+
+# ---------------------------------------------------------------------------
+# 6. Read the results back: one row per distinct address
 # ---------------------------------------------------------------------------
 
 #' Geocoder results for every distinct address, carryover and fresh alike.
