@@ -38,11 +38,15 @@ first_polygon_index <- function(hits) {
 
     if (length(polygon_indices) == 0L) {
 
-      return(NA_integer_)
+      first_index <- NA_integer_
+
+    } else {
+
+      first_index <- polygon_indices[[1]]
 
     }
 
-    return(polygon_indices[[1]])
+    return(first_index)
 
   }
 

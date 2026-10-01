@@ -24,11 +24,16 @@ if (!exists("publish_crosswalk")) source(here::here("R", "publish_crosswalk.R"))
 
 #' Publish the address-geo-resolved crosswalk to its vintage folder and latest/.
 #'
-#' @param crosswalk_path         Character: local parquet path. The CSV, the
-#'   data dictionary, the sample and the build summary are expected beside it
-#'   under the same file stem.
-#' @param address_crosswalk_path Character: local address-resolved crosswalk
-#'   the table was built from; its sha256 goes into the manifest.
+#' @param crosswalk_path         Character: path of the parquet file on this
+#'   machine, as written by scripts/build_address_geo_resolved_crosswalk.R.
+#'   It is read locally and not from S3, because this function is the step
+#'   that puts it on S3. The CSV, the data dictionary, the sample and the
+#'   build summary are expected beside it under the same file stem.
+#' @param address_crosswalk_path Character: path on this machine of the
+#'   address-resolved crosswalk the build read; its sha256 goes into the
+#'   manifest. It is also read locally and not from S3, so the recorded
+#'   sha256 is that of the exact file the table was built from. The copy on
+#'   S3 may have been replaced by a newer build since.
 #' @param s3_root                Character: key prefix ending in "/" under
 #'   which v{vintage}/ and latest/ sit.
 #' @param bucket                 Character: S3 bucket.
