@@ -9,7 +9,7 @@
 # that have a street to the shared Urban geocoder, once per distinct address,
 # and reuses what the Unified BMF already knows.
 #
-# It reuses the Unified BMF delta machinery in R/master_geocoding_delta.R
+# It reuses the Unified BMF delta machinery in R/unified_geocoding_delta.R
 # unchanged for everything operational: the ledger, the submission window
 # (at most three batches in flight), the run-stamped archive on S3, and the
 # resume-from-ledger retrieval. A run started here uses the same runs/
@@ -20,13 +20,10 @@
 #   1. prepare_address_history_geocoder_run()   month check, distinct
 #                                               addresses, carryover, batches,
 #                                               ledger; optional submit
-#   2. retrieve_master_geocoder_delta(geocoding_dir = <address history dir>)
+#   2. retrieve_unified_geocoder_delta(geocoding_dir = <address history dir>)
 #                                               poll, archive, download, keep
 #                                               the window full (unchanged;
-#                                               the function serves both runs
-#                                               and keeps its older "master"
-#                                               name until the ADR 0037 rename
-#                                               reaches the geocoding files)
+#                                               the function serves both runs)
 #   3. read_address_history_geocodes()          one row per distinct address
 #                                               with the geocoder's columns,
 #                                               consumed by
@@ -138,7 +135,7 @@ address_history_stop_unless_same_vintage <- function(address_history_vintages, u
     table_to_rebuild         <- if (address_history_is_older) {
       "the address history (scripts/build_address_resolved_crosswalk.R, then scripts/validate_address_crosswalk.R)"
     } else {
-      "the geocoded Unified BMF (R/run_master_pipeline.R, then R/run_master_geocoding.R)"
+      "the geocoded Unified BMF (R/run_master_pipeline.R, then R/run_unified_geocoding.R)"
     }
 
     stop(sprintf(
@@ -302,8 +299,8 @@ address_history_split_carryover <- function(distinct_addresses, prior_geocodes, 
 #'   input/address_history_geocoder_addr_lookup.parquet   every distinct address
 #'   input/address_history_geocoder_batch_NN.csv          addresses to submit
 #'   input/<stem>.json                                    service form per batch
-#'   input/bmf_master_geocoder_manifest.json              run manifest (the name
-#'                                                        retrieve_master_geocoder_delta() reads)
+#'   input/bmf_unified_geocoder_manifest.json              run manifest (the name
+#'                                                        retrieve_unified_geocoder_delta() reads)
 #'   output/address_history_geocoder_batch_00_geocoded.csv carryover, raw geocoder column names
 #'   geocode_ledger.tsv                                   mirrored to S3 runs/{run_id}/
 #'
@@ -322,7 +319,7 @@ address_history_split_carryover <- function(distinct_addresses, prior_geocodes, 
 #'   address_history_stop_unless_same_vintage()).
 prepare_address_history_geocoder_run <- function(
     address_crosswalk_path = here::here("data", "crosswalks", "address_resolved_crosswalk.parquet"),
-    geocoded_unified_path  = here::here("data", "geocoding", "master", "merged", "bmf_unified_geocoded.parquet"),
+    geocoded_unified_path  = here::here("data", "geocoding", "unified", "merged", "bmf_unified_geocoded.parquet"),
     geocoding_dir          = ADDRESS_HISTORY_GEOCODING_DIR,
     batch_size             = GEOCODER_BATCH_SIZE,
     urbanid                = "tpoongundranar",
@@ -341,7 +338,7 @@ prepare_address_history_geocoder_run <- function(
   purrr::walk(c(input_dir, output_dir), dir.create, recursive = TRUE, showWarnings = FALSE)
 
   # Same guard as the monthly delta, against the same shared run pointer.
-  delta_stop_if_runs_pending(geocoding_dir)
+  geocoder_stop_if_runs_pending(geocoding_dir)
 
   # Deleting geocoder outputs left over from an earlier run, because the build
   # reads every *_geocoded.csv in output/ and would take them for this run's
@@ -521,7 +518,7 @@ prepare_address_history_geocoder_run <- function(
     batches                 = batch_details
   )
 
-  manifest_path <- file.path(input_dir, "bmf_master_geocoder_manifest.json")
+  manifest_path <- file.path(input_dir, "bmf_unified_geocoder_manifest.json")
   jsonlite::write_json(manifest, manifest_path, pretty = TRUE, auto_unbox = TRUE)
 
   if (!has_batches) {
@@ -540,7 +537,7 @@ prepare_address_history_geocoder_run <- function(
 
   manifest_mirrored <- upload_to_s3(
     manifest_path,
-    paste0(delta_runs_prefix(run_id), "bmf_master_geocoder_manifest.json")
+    paste0(delta_runs_prefix(run_id), "bmf_unified_geocoder_manifest.json")
   )
 
   if (!isTRUE(manifest_mirrored)) {
@@ -580,7 +577,7 @@ prepare_address_history_geocoder_run <- function(
   } else {
 
     log_info(sprintf(
-      "DRY RUN: %d batch(es) staged; retrieve_master_geocoder_delta(geocoding_dir = ...) submits and polls.",
+      "DRY RUN: %d batch(es) staged; retrieve_unified_geocoder_delta(geocoding_dir = ...) submits and polls.",
       length(stems)
     ))
 
@@ -612,7 +609,7 @@ prepare_address_history_geocoder_run <- function(
 address_history_stop_unless_complete <- function(geocoding_dir, geocodes) {
 
   input_dir     <- file.path(geocoding_dir, "input")
-  manifest_path <- file.path(input_dir, "bmf_master_geocoder_manifest.json")
+  manifest_path <- file.path(input_dir, "bmf_unified_geocoder_manifest.json")
   ledger_path   <- file.path(geocoding_dir, "geocode_ledger.tsv")
 
   stopifnot("run manifest missing" = file.exists(manifest_path))

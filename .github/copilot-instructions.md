@@ -30,7 +30,7 @@ companion PR to `nccs-contracts`) or the change is out of bounds.
 | Contract | Output path | Producer entrypoint |
 |---|---|---|
 | `bmf-master` | `s3://nccsdata/master/bmf/` | `R/run_master_pipeline.R` → `R/master_bmf_builder.R` |
-| `bmf-master-geocoded` | `s3://nccsdata/geocoding/bmf-master/merged/` | `R/run_master_geocoding.R` → `R/master_geocoding.R` |
+| `bmf-master-geocoded` | `s3://nccsdata/geocoding/bmf-master/merged/` | `R/run_unified_geocoding.R` → `R/unified_geocoding.R` |
 | `bmf-lookups` | `s3://nccsdata/lookups/bmf/{vintage}/` + `latest/` | `R/run_publish_lookups.R` → `R/publish_lookups.R` |
 | `bmf-legacy` | `s3://nccsdata/processed/bmf-legacy/` | `R/run_legacy_pipeline.R` |
 
@@ -48,7 +48,7 @@ PRs that touch contract-sensitive files:
 - `R/master_bmf_builder.R`, `R/run_master_pipeline.R` — the
   BMF master pipeline; output schema and S3 path concerns here
   affect `bmf-master` and indirectly every downstream consumer.
-- `R/master_geocoding.R`, `R/run_master_geocoding.R`,
+- `R/unified_geocoding.R`, `R/run_unified_geocoding.R`,
   `R/master_state_marts.R` — geocoded master + state marts;
   affects `bmf-master-geocoded`.
 - `R/publish_lookups.R`, `R/run_publish_lookups.R` — `bmf-lookups`.

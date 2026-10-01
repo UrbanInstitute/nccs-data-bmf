@@ -13,7 +13,7 @@
 # the geocoder named and stops the build if they disagree too often.
 #
 # Inputs
-#   data/geocoding/master/merged/bmf_unified_geocoded.parquet (+ _manifest.json)
+#   data/geocoding/unified/merged/bmf_unified_geocoded.parquet (+ _manifest.json)
 #   data/crosswalks/county_fips_crosswalk.parquet   (county-fips crosswalk, committed; for the gate)
 #   TIGER/Line via tigris (cached): blocks per state for 2020 and 2010,
 #   ZCTAs 2020 (national), congressional districts (119th Congress).
@@ -39,8 +39,8 @@ sf::sf_use_s2(FALSE)   # planar predicates are what block shapefiles expect
 source(here::here("R", "census_geo_resolved.R"))
 source(here::here("R", "ein.R"))
 
-GEOCODED_PATH     <- here::here("data", "geocoding", "master", "merged", "bmf_unified_geocoded.parquet")
-GEOCODED_MANIFEST <- here::here("data", "geocoding", "master", "merged", "_manifest.json")
+GEOCODED_PATH     <- here::here("data", "geocoding", "unified", "merged", "bmf_unified_geocoded.parquet")
+GEOCODED_MANIFEST <- here::here("data", "geocoding", "unified", "merged", "_manifest.json")
 COUNTY_XWALK_PATH <- here::here("data", "crosswalks", "county_fips_crosswalk.parquet")   # committed in this repo
 OUT_DIR           <- here::here("data", "crosswalks")
 OUT_STEM          <- file.path(OUT_DIR, "census_geo_resolved_crosswalk")

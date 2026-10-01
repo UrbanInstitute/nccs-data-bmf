@@ -26,11 +26,8 @@
 #   data/geocoding/address_history/output/*_geocoded.csv     geocoder results, one file per batch plus
 #                                                            the carryover file (R/address_history_geocoding.R)
 #   data/geocoding/address_history/input/address_history_geocoder_addr_lookup.parquet
-#   data/geocoding/master/merged/bmf_unified_geocoded.parquet the geocoded Unified BMF (which rank-0
-#                                                            spells match the current address). The
-#                                                            folder keeps its older "master" name until
-#                                                            the ADR 0037 rename reaches the geocoding
-#                                                            working folders.
+#   data/geocoding/unified/merged/bmf_unified_geocoded.parquet the geocoded Unified BMF (which rank-0
+#                                                            spells match the current address)
 #   data/crosswalks/census_geo_resolved_crosswalk.parquet     the published census table (ADR 0045),
 #                                                            for the current-address comparison
 #   TIGER/Line via tigris (cached): blocks 2020 and 2010 per state, ZCTA 2020, districts (TIGER 2024)
@@ -71,7 +68,7 @@ source(here::here("R", "census_geo_assign.R"))
 source(here::here("R", "address_history_geocoding.R"))
 
 ADDRESS_CROSSWALK_PATH <- here::here("data", "crosswalks", "address_resolved_crosswalk.parquet")
-GEOCODED_UNIFIED_PATH  <- here::here("data", "geocoding", "master", "merged", "bmf_unified_geocoded.parquet")
+GEOCODED_UNIFIED_PATH  <- here::here("data", "geocoding", "unified", "merged", "bmf_unified_geocoded.parquet")
 CENSUS_CROSSWALK_PATH  <- here::here("data", "crosswalks", "census_geo_resolved_crosswalk.parquet")
 GEOCODING_DIR          <- Sys.getenv("ADDRESS_HISTORY_GEOCODING_DIR", ADDRESS_HISTORY_GEOCODING_DIR)
 OUT_DIR                <- here::here("data", "crosswalks")

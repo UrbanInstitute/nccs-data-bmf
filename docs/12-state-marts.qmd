@@ -62,7 +62,7 @@ source("R/run_master_state_marts.R")
 ```
 
 The script reads
-`data/geocoding/master/merged/bmf_master_geocoded.parquet`, writes
+`data/geocoding/unified/merged/bmf_master_geocoded.parquet`, writes
 both formats to `data/master/state_marts/`, and (if
 `ENABLE_S3_UPLOAD <- TRUE`) uploads everything to S3.
 

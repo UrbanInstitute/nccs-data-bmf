@@ -1,7 +1,7 @@
 # ============================================================================
-# master_geocoding_delta.R
+# unified_geocoding_delta.R
 #
-# Delta variant of the master geocoding export (Z8 on the contracts
+# Delta variant of the Unified BMF geocoding export (Z8 on the contracts
 # backlog, first hand-run during the Z1 rebuild 2026-07-29): instead of
 # resubmitting all ~3.5M unique addresses to the geocoder service each
 # cycle, carry forward results for every address already present in the
@@ -24,16 +24,16 @@
 #           re-merges are free and a later export can safely clear the
 #           flat local staging dir
 #
-# Outputs mirror prepare_master_geocoder_batches() exactly, so
-# merge_master_geocoded_results() runs unchanged afterwards:
-#   <geocoding_dir>/input/bmf_master_geocoder_addr_lookup.parquet
-#   <geocoding_dir>/input/bmf_master_geocoder_manifest.json
-#   <geocoding_dir>/input/bmf_master_geocoder_batch_NN.csv       (delta only)
-#   <geocoding_dir>/output/bmf_master_geocoder_batch_00_geocoded.csv
+# Outputs mirror prepare_unified_geocoder_batches() exactly, so
+# merge_unified_geocoded_results() runs unchanged afterwards:
+#   <geocoding_dir>/input/bmf_unified_geocoder_addr_lookup.parquet
+#   <geocoding_dir>/input/bmf_unified_geocoder_manifest.json
+#   <geocoding_dir>/input/bmf_unified_geocoder_batch_NN.csv       (delta only)
+#   <geocoding_dir>/output/bmf_unified_geocoder_batch_00_geocoded.csv
 #       (carryover: prior results, raw geocoder column names, keyed to the
 #        NEW representative EIN per address)
-#   <geocoding_dir>/output/bmf_master_geocoder_batch_NN_geocoded.csv
-#       (delta results, written by retrieve_master_geocoder_delta())
+#   <geocoding_dir>/output/bmf_unified_geocoder_batch_NN_geocoded.csv
+#       (delta results, written by retrieve_unified_geocoder_delta())
 #
 # Carryover semantics: an address counts as "already attempted" if it
 # appears in the published geocoded artifact at all -- including addresses
@@ -41,6 +41,8 @@
 # resubmitted; a failed match last month fails this month too, and
 # re-tries ride the occasional full re-export instead.
 # ============================================================================
+
+source(here::here("R", "geocoder_working_files.R"))   # names of the run's working files, old and new
 
 MAX_IN_FLIGHT <- 3L  # bulk-run etiquette rule 2
 
@@ -144,7 +146,7 @@ delta_latest_run_id <- function() {
 #' @return Invisibly NULL when no batch is waiting. Stops with a message
 #'   naming the waiting batches otherwise, and also stops when the most
 #'   recent run's ledger on S3 cannot be read (its state cannot be verified).
-delta_stop_if_runs_pending <- function(geocoding_dir) {
+geocoder_stop_if_runs_pending <- function(geocoding_dir) {
 
   local_ledger_path <- file.path(geocoding_dir, "geocode_ledger.tsv")
 
@@ -170,7 +172,7 @@ delta_stop_if_runs_pending <- function(geocoding_dir) {
       stop(sprintf(
         paste0(
           "%s has %d pending stem(s) (%s). Resume with ",
-          "retrieve_master_geocoder_delta(), or mark them failed-* ",
+          "retrieve_unified_geocoder_delta(), or mark them failed-* ",
           "before re-exporting."
         ),
         ledger_label,
@@ -343,9 +345,9 @@ delta_submit_window <- function(geocoding_dir, run_id) {
 #' Stages ALL delta batches + form JSONs locally and records them in the
 #' ledger as `staged`; with `submit = TRUE` it then opens the submission
 #' window (at most MAX_IN_FLIGHT in flight). Remaining batches are
-#' submitted by retrieve_master_geocoder_delta() as earlier ones complete.
+#' submitted by retrieve_unified_geocoder_delta() as earlier ones complete.
 #'
-#' @param master_path        Path to the freshly rebuilt bmf_unified.parquet.
+#' @param unified_path        Path to the freshly rebuilt bmf_unified.parquet.
 #' @param geocoding_dir      Working dir (same contract as the full export).
 #' @param prior_geocoded_uri S3 URI of the published geocoded parquet to
 #'                           carry results forward from (default: latest/).
@@ -355,9 +357,9 @@ delta_submit_window <- function(geocoding_dir, run_id) {
 #' @param submit             If TRUE, submit up to MAX_IN_FLIGHT batches now.
 #' @return Invisibly: list(run_id, n_unique, n_carryover, n_delta, stems).
 #' @export
-prepare_master_geocoder_delta <- function(
-    master_path        = here::here("data", "master", "bmf_unified.parquet"),
-    geocoding_dir      = here::here("data", "geocoding", "master"),
+prepare_unified_geocoder_delta <- function(
+    unified_path        = here::here("data", "master", "bmf_unified.parquet"),
+    geocoding_dir      = here::here("data", "geocoding", "unified"),
     prior_geocoded_uri = paste0("s3://", BMF_S3_BUCKET, "/",
                                 BMF_S3_UNIFIED_GEOCODING_PREFIX,
                                 "latest/bmf_unified_geocoded.parquet"),
@@ -367,7 +369,7 @@ prepare_master_geocoder_delta <- function(
     submit             = FALSE
   ) {
 
-  stopifnot(file.exists(master_path))
+  stopifnot(file.exists(unified_path))
   run_id <- sprintf("delta_%s_%s", format(Sys.time(), "%Y_%m_%d_%H%M%S"), urbanid)
 
   input_dir  <- file.path(geocoding_dir, "input")
@@ -376,7 +378,7 @@ prepare_master_geocoder_delta <- function(
     if (!dir.exists(d)) dir.create(d, recursive = TRUE)
   }
 
-  delta_stop_if_runs_pending(geocoding_dir)
+  geocoder_stop_if_runs_pending(geocoding_dir)
 
   # The merge step glob-reads every *_geocoded.csv in output/, and batch
   # filenames are stable across runs -- leftovers from a prior run would be
@@ -392,8 +394,8 @@ prepare_master_geocoder_delta <- function(
   }
 
   # ---- geocodable universe + dedup: byte-identical to the full export ----
-  log_info(sprintf("Reading master BMF: %s", master_path))
-  bmf <- arrow::read_parquet(master_path) |> data.table::as.data.table()
+  log_info(sprintf("Reading the Unified BMF: %s", unified_path))
+  bmf <- arrow::read_parquet(unified_path) |> data.table::as.data.table()
   bmf[, org_addr_full := trimws(as.character(org_addr_full))]
   geocodable <- bmf[!is.na(org_addr_full) & nchar(org_addr_full) > 0]
   log_info(sprintf("Geocodable rows: %s of %s",
@@ -416,7 +418,7 @@ prepare_master_geocoder_delta <- function(
                        all.x = TRUE)
   data.table::setnames(addr_lookup, "ein", "representative_ein")
   addr_lookup_path <- file.path(input_dir,
-                                "bmf_master_geocoder_addr_lookup.parquet")
+                                "bmf_unified_geocoder_addr_lookup.parquet")
   arrow::write_parquet(addr_lookup, addr_lookup_path)
   log_info(sprintf("Address-lookup manifest: %s (%s rows)",
                    addr_lookup_path,
@@ -464,7 +466,7 @@ prepare_master_geocoder_delta <- function(
   data.table::setnames(carryover, present, raw_names)
   data.table::setcolorder(carryover, c("ein", "f_address", raw_names))
   carryover_path <- file.path(output_dir,
-                              "bmf_master_geocoder_batch_00_geocoded.csv")
+                              "bmf_unified_geocoder_batch_00_geocoded.csv")
   data.table::fwrite(carryover, carryover_path, quote = TRUE)
   log_info(sprintf("Carryover written: %s", carryover_path))
 
@@ -478,14 +480,14 @@ prepare_master_geocoder_delta <- function(
     batches <- split(delta, idx)
     ts0 <- as.integer(Sys.time())
     for (i in seq_len(n_batches)) {
-      fn <- sprintf("bmf_master_geocoder_batch_%02d.csv", i)
+      fn <- sprintf("bmf_unified_geocoder_batch_%02d.csv", i)
       data.table::fwrite(batches[[i]], file.path(input_dir, fn), quote = TRUE)
       stem <- sprintf("%s-%d-public", urbanid, ts0 + i - 1L)
       stems <- c(stems, stem)
       batch_details[[i]] <- list(
         batch_number = i, filename = fn,
         expected_output_filename =
-          sprintf("bmf_master_geocoder_batch_%02d_geocoded.csv", i),
+          sprintf("bmf_unified_geocoder_batch_%02d_geocoded.csv", i),
         service_stem = stem, row_count = nrow(batches[[i]]),
         first_ein = batches[[i]]$ein[1L],
         last_ein  = batches[[i]]$ein[nrow(batches[[i]])]
@@ -516,12 +518,12 @@ prepare_master_geocoder_delta <- function(
     }))
   # ---- manifest (same shape as the full export, plus delta fields) -------
   manifest <- list(
-    pipeline           = "master",
+    pipeline           = "unified-bmf",
     mode               = "delta",
     run_id             = run_id,
     created_at         = format(Sys.time(), "%Y-%m-%dT%H:%M:%S"),
     status             = if (submit && length(stems)) "submitting" else "staged",
-    master_source      = master_path,
+    unified_source      = unified_path,
     prior_geocoded_uri = prior_geocoded_uri,
     total_records      = nrow(bmf),
     geocodable_records = nrow(geocodable),
@@ -533,7 +535,7 @@ prepare_master_geocoder_delta <- function(
     max_in_flight      = MAX_IN_FLIGHT,
     batches            = batch_details
   )
-  manifest_path <- file.path(input_dir, "bmf_master_geocoder_manifest.json")
+  manifest_path <- file.path(input_dir, "bmf_unified_geocoder_manifest.json")
   jsonlite::write_json(manifest, manifest_path, pretty = TRUE,
                        auto_unbox = TRUE)
   if (length(stems)) {
@@ -542,7 +544,7 @@ prepare_master_geocoder_delta <- function(
     # ledger sync + LATEST_RUN pointer below) without it.
     manifest_mirrored <- upload_to_s3(
       manifest_path, paste0(delta_runs_prefix(run_id),
-                            "bmf_master_geocoder_manifest.json"))
+                            "bmf_unified_geocoder_manifest.json"))
     if (!isTRUE(manifest_mirrored)) stop("Run-manifest mirror upload failed.")
   }
   log_info(sprintf("Manifest saved: %s", manifest_path))
@@ -552,7 +554,7 @@ prepare_master_geocoder_delta <- function(
       delta_submit_window(geocoding_dir, run_id)
     } else {
       log_info(sprintf(paste0("DRY RUN: %d batch(es) staged; ",
-        "MASTER_GEOCODING_MODE='retrieve' submits (windowed) and polls."),
+        "UNIFIED_GEOCODING_MODE='retrieve' submits (windowed) and polls."),
         n_batches))
     }
   } else {
@@ -560,10 +562,10 @@ prepare_master_geocoder_delta <- function(
     # Zero-delta runs still get a manifest: retrieve is unnecessary but the
     # run (and the merge that follows) stays documented and mode-checked.
     manifest <- list(
-      pipeline = "master", mode = "delta", run_id = run_id,
+      pipeline = "unified-bmf", mode = "delta", run_id = run_id,
       created_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%S"),
       status = "complete-no-delta",
-      master_source = master_path,
+      unified_source = unified_path,
       prior_geocoded_uri = prior_geocoded_uri,
       total_records = nrow(bmf), geocodable_records = nrow(geocodable),
       unique_addresses = nrow(unique_addr),
@@ -571,7 +573,7 @@ prepare_master_geocoder_delta <- function(
       batch_size = batch_size, num_batches = 0L,
       max_in_flight = MAX_IN_FLIGHT, batches = list())
     manifest_path <- file.path(input_dir,
-                               "bmf_master_geocoder_manifest.json")
+                               "bmf_unified_geocoder_manifest.json")
     jsonlite::write_json(manifest, manifest_path, pretty = TRUE,
                          auto_unbox = TRUE)
     log_info(sprintf("Manifest saved: %s", manifest_path))
@@ -593,37 +595,63 @@ prepare_master_geocoder_delta <- function(
 #' expects, records downloaded_at + status (rule 3, synced), and submits
 #' the next staged batch so MAX_IN_FLIGHT stays full (rule 2).
 #'
-#' @param geocoding_dir Same dir passed to prepare_master_geocoder_delta().
+#' @param geocoding_dir Same dir passed to prepare_unified_geocoder_delta().
 #' @param wait          If TRUE, poll until every stem is retrieved;
 #'                      if FALSE, one pass over what's ready.
 #' @param poll_seconds  Interval between polls.
 #' @return Invisibly: character vector of downloaded output paths.
 #' @export
-retrieve_master_geocoder_delta <- function(
-    geocoding_dir = here::here("data", "geocoding", "master"),
+retrieve_unified_geocoder_delta <- function(
+    geocoding_dir = here::here("data", "geocoding", "unified"),
     wait          = TRUE,
     poll_seconds  = 300
   ) {
 
   input_dir  <- file.path(geocoding_dir, "input")
   output_dir <- file.path(geocoding_dir, "output")
-  manifest_path <- file.path(input_dir, "bmf_master_geocoder_manifest.json")
+  manifest_file_name <- "bmf_unified_geocoder_manifest.json"
+
+  # A run staged before the ADR 0037 rename has its manifest under the old
+  # name, locally and in its S3 run folder; both are accepted (see
+  # R/geocoder_working_files.R).
+  manifest_path <- geocoder_working_file_path(input_dir, manifest_file_name)
+
   if (!file.exists(manifest_path)) {
+
     prior_run <- delta_latest_run_id()
+
     if (is.null(prior_run)) {
       stop("No local manifest and no LATEST_RUN pointer; nothing to resume.")
     }
+
     dir.create(input_dir, recursive = TRUE, showWarnings = FALSE)
-    rc <- system2("aws", c("s3", "cp",
-                           paste0("s3://", BMF_S3_BUCKET, "/",
-                                  delta_runs_prefix(prior_run),
-                                  "bmf_master_geocoder_manifest.json"),
-                           manifest_path, "--only-show-errors"))
-    if (rc != 0L || !file.exists(manifest_path)) {
+
+    mirrored_run_folder <- paste0("s3://", BMF_S3_BUCKET, "/", delta_runs_prefix(prior_run))
+
+    # Tries to copy the run's mirrored manifest, under the given name, to
+    # manifest_path. TRUE when the file arrived.
+    fetch_mirrored_manifest <- function(mirrored_file_name) {
+
+      copy_return_code <- system2(
+        "aws",
+        c("s3", "cp", paste0(mirrored_run_folder, mirrored_file_name), manifest_path, "--only-show-errors"),
+        stdout = FALSE,
+        stderr = FALSE
+      )
+
+      return(copy_return_code == 0L && file.exists(manifest_path))
+
+    }
+
+    manifest_fetched <- fetch_mirrored_manifest(manifest_file_name) ||
+      fetch_mirrored_manifest(geocoder_legacy_file_name(manifest_file_name))
+
+    if (!manifest_fetched) {
       stop(sprintf(
         "Could not fetch mirrored manifest for run %s; cannot resume.",
         prior_run))
     }
+
   }
   manifest <- jsonlite::read_json(manifest_path)
   # "address-history" runs (ADR 0051, R/address_history_geocoding.R) stage

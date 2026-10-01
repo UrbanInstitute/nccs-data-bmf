@@ -101,7 +101,7 @@ test_that("an incomplete run stops the build", {
 
   jsonlite::write_json(list(run_id = "addrhist_test", num_batches = 1L,
                             batches = list(list(batch_number = 1L, filename = "address_history_geocoder_batch_01.csv"))),
-                       file.path(input_dir, "bmf_master_geocoder_manifest.json"), auto_unbox = TRUE)
+                       file.path(input_dir, "bmf_unified_geocoder_manifest.json"), auto_unbox = TRUE)
   data.table::fwrite(data.frame(f_address = c("1 MAIN ST, SPRINGFIELD, MA 01103", "2 MAIN ST, SPRINGFIELD, MA 01103")),
                      file.path(input_dir, "address_history_geocoder_batch_01.csv"))
   ledger <- data.frame(batch_id = "addrhist_test_01", service_stem = "tpoongundranar-1-addrhist",
@@ -162,7 +162,7 @@ test_that("the geocoder form carries every key, including the ones that do not a
   # Known bug in the geocoder service: a form with a missing key stops the
   # Windows worker without any error. Every key must be written, empty or
   # null where it does not apply.
-  source(here::here("R", "master_geocoding_delta.R"))
+  source(here::here("R", "unified_geocoding_delta.R"))
   form_dir <- withr::local_tempdir()
 
   geocoder_write_form_json(form_dir, "tpoongundranar-1-addrhist", "address_history_geocoder_batch_01.csv", "someone@urban.org")

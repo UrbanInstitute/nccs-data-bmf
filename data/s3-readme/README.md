@@ -89,7 +89,7 @@ Final pipeline output with only transformed columns. This is the primary dataset
 ### `geocoding/unified-bmf/`
 
 The Unified BMF (see `unified/bmf/` below) with geographic coordinates added by
-the Urban Institute geocoder. Produced by `R/run_master_geocoding.R`.
+the Urban Institute geocoder. Produced by `R/run_unified_geocoding.R`.
 
 - **Sub-folders:**
   - `latest/` -- Always the newest data set. Read from here.

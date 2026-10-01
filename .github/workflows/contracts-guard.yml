@@ -21,4 +21,4 @@ jobs:
   contracts-guard:
     uses: UrbanInstitute/nccs-contracts/.github/workflows/contracts-guard.yml@main
     with:
-      paths_regex: '^(R/publish_.*\.R|R/run_.*\.R|R/master_.*\.R|R/config\.R|R/manifest\.R|scripts/build_.*\.R)$'
+      paths_regex: '^(R/publish_.*\.R|R/run_.*\.R|R/master_.*\.R|R/unified_.*\.R|R/config\.R|R/manifest\.R|scripts/build_.*\.R)$'

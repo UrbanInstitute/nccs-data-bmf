@@ -1,11 +1,12 @@
 # ============================================================================
-# master_geocoding.R
+# unified_geocoding.R
 #
-# Geocoding for the Master BMF. Two functions mirroring the per-month
-# geocoding workflow but tuned for a single bmf_master.parquet input:
+# Geocoding for the Unified BMF (called the Master BMF before ADR 0037). Two
+# functions mirroring the per-month geocoding workflow but tuned for a single
+# bmf_unified.parquet input:
 #
-#   prepare_master_geocoder_batches()  -- export mode
-#   merge_master_geocoded_results()    -- merge mode
+#   prepare_unified_geocoder_batches()  -- export mode
+#   merge_unified_geocoded_results()    -- merge mode
 #
 # Address dedup before export typically cuts ~30-40 % of geocoder rows
 # (multiple EINs share addresses). One representative EIN is chosen per
@@ -13,40 +14,42 @@
 # that address in the merge step.
 # ============================================================================
 
-#' Export master BMF addresses as geocoder batches
+source(here::here("R", "geocoder_working_files.R"))   # names of the run's working files, old and new
+
+#' Export Unified BMF addresses as geocoder batches
 #'
-#' Reads `data/master/bmf_master.parquet` (or the path you pass), keeps
+#' Reads `data/master/bmf_unified.parquet` (or the path you pass), keeps
 #' only rows with usable addresses, dedups on `org_addr_full`, splits
 #' into batches under the geocoder's row limit, and writes one CSV per
 #' batch plus an address-lookup manifest used by the merge step.
 #'
-#' @param master_path     Path to bmf_master.parquet
-#' @param geocoding_dir   Output directory (default: data/geocoding/master)
+#' @param unified_path    Path to bmf_unified.parquet
+#' @param geocoding_dir   Output directory (default: data/geocoding/unified)
 #' @param batch_size      Max rows per batch (default: GEOCODER_BATCH_SIZE)
 #' @param s3_upload       Upload batches and manifest to S3 (default: TRUE)
 #' @return Invisibly: list with batch counts and paths
 #' @export
-prepare_master_geocoder_batches <- function(
-    master_path   = here::here("data", "master", "bmf_master.parquet"),
-    geocoding_dir = here::here("data", "geocoding", "master"),
+prepare_unified_geocoder_batches <- function(
+    unified_path  = here::here("data", "master", "bmf_unified.parquet"),
+    geocoding_dir = here::here("data", "geocoding", "unified"),
     batch_size    = GEOCODER_BATCH_SIZE,
     s3_upload     = TRUE
   ) {
 
-  if (!file.exists(master_path)) {
-    stop(sprintf("Master BMF not found: %s\nRun the master pipeline first.",
-                 master_path))
+  if (!file.exists(unified_path)) {
+    stop(sprintf("Unified BMF not found: %s\nRun R/run_master_pipeline.R first.",
+                 unified_path))
   }
-  log_info(sprintf("Reading master BMF: %s", master_path))
-  bmf <- arrow::read_parquet(master_path) |> data.table::as.data.table()
+  log_info(sprintf("Reading the Unified BMF: %s", unified_path))
+  bmf <- arrow::read_parquet(unified_path) |> data.table::as.data.table()
   total_records <- nrow(bmf)
-  log_info(sprintf("Total master records: %s",
+  log_info(sprintf("Total Unified BMF records: %s",
                    format(total_records, big.mark = ",")))
 
   required_cols <- c("ein", "org_addr_full")
   missing_cols <- setdiff(required_cols, names(bmf))
   if (length(missing_cols) > 0) {
-    stop(sprintf("Master BMF missing required columns: %s",
+    stop(sprintf("Unified BMF missing required columns: %s",
                  paste(missing_cols, collapse = ", ")))
   }
 
@@ -96,7 +99,7 @@ prepare_master_geocoder_batches <- function(
   data.table::setnames(addr_lookup, "ein", "representative_ein")
 
   addr_lookup_path <- file.path(input_dir,
-                                "bmf_master_geocoder_addr_lookup.parquet")
+                                "bmf_unified_geocoder_addr_lookup.parquet")
   arrow::write_parquet(addr_lookup, addr_lookup_path)
   log_info(sprintf("Address-lookup manifest: %s (%s rows)",
                    addr_lookup_path,
@@ -117,8 +120,8 @@ prepare_master_geocoder_batches <- function(
 
   for (i in seq_len(n_batches)) {
     batch_num <- sprintf("%02d", i)
-    fn  <- sprintf("bmf_master_geocoder_batch_%s.csv", batch_num)
-    ofn <- sprintf("bmf_master_geocoder_batch_%s_geocoded.csv", batch_num)
+    fn  <- sprintf("bmf_unified_geocoder_batch_%s.csv", batch_num)
+    ofn <- sprintf("bmf_unified_geocoder_batch_%s_geocoded.csv", batch_num)
     fp  <- file.path(input_dir, fn)
     bd  <- batches[[i]]
 
@@ -143,10 +146,10 @@ prepare_master_geocoder_batches <- function(
   # Manifest JSON
   # --------------------------------------------------------------------------
   manifest <- list(
-    pipeline           = "master",
+    pipeline           = "unified-bmf",
     created_at         = format(Sys.time(), "%Y-%m-%dT%H:%M:%S"),
     status             = "exported",
-    master_source      = master_path,
+    unified_source      = unified_path,
     total_records      = total_records,
     geocodable_records = nrow(geocodable),
     excluded_records   = excluded,
@@ -155,7 +158,7 @@ prepare_master_geocoder_batches <- function(
     num_batches        = n_batches,
     batches            = batch_details
   )
-  manifest_path <- file.path(input_dir, "bmf_master_geocoder_manifest.json")
+  manifest_path <- file.path(input_dir, "bmf_unified_geocoder_manifest.json")
   jsonlite::write_json(manifest, manifest_path,
                        pretty = TRUE, auto_unbox = TRUE)
   log_info(sprintf("Manifest saved: %s", manifest_path))
@@ -180,7 +183,7 @@ prepare_master_geocoder_batches <- function(
   # --------------------------------------------------------------------------
   # Operator instructions
   # --------------------------------------------------------------------------
-  cat("\n=== MASTER GEOCODER INSTRUCTIONS ===\n")
+  cat("\n=== UNIFIED BMF GEOCODER INSTRUCTIONS ===\n")
   cat(sprintf("%d batch file(s) prepared in %s\n", n_batches, input_dir))
   for (i in seq_len(n_batches)) {
     cat(sprintf("  Batch %d: %s (%s rows)\n",
@@ -196,7 +199,7 @@ prepare_master_geocoder_batches <- function(
   for (i in seq_len(n_batches)) {
     cat(sprintf("       %s\n", expected_outputs[i]))
   }
-  cat("  4. Run: merge_master_geocoded_results()\n\n")
+  cat("  4. Run: merge_unified_geocoded_results()\n\n")
 
   invisible(list(
     n_batches    = n_batches,
@@ -208,23 +211,23 @@ prepare_master_geocoder_batches <- function(
 }
 
 
-#' Merge geocoded results back into bmf_master
+#' Merge geocoded results back into the Unified BMF
 #'
 #' Reads every geocoded CSV in `<geocoding_dir>/output/`, concatenates,
-#' joins lat/lon to bmf_master via the address-lookup manifest written
+#' joins lat/lon to the Unified BMF via the address-lookup manifest written
 #' by the export step, and writes a parquet + CSV + quality report.
 #'
-#' Output schema: bmf_master columns (all VARCHAR) + geo_lat / geo_lon
+#' Output schema: Unified BMF columns (all VARCHAR) + geo_lat / geo_lon
 #' (cast to DOUBLE) + the geocoder's other geo_* columns (kept VARCHAR).
 #'
-#' @param master_path     Path to bmf_master.parquet
+#' @param unified_path    Path to bmf_unified.parquet
 #' @param geocoding_dir   Same directory passed to the export step
 #' @param s3_upload       Upload merged outputs to S3 (default: TRUE)
 #' @return Invisibly: list with row counts and output paths
 #' @export
-merge_master_geocoded_results <- function(
-    master_path   = here::here("data", "master", "bmf_master.parquet"),
-    geocoding_dir = here::here("data", "geocoding", "master"),
+merge_unified_geocoded_results <- function(
+    unified_path  = here::here("data", "master", "bmf_unified.parquet"),
+    geocoding_dir = here::here("data", "geocoding", "unified"),
     s3_upload     = TRUE
   ) {
 
@@ -239,11 +242,9 @@ merge_master_geocoded_results <- function(
   if (!dir.exists(merged_dir)) dir.create(merged_dir, recursive = TRUE)
 
   # Find geocoded CSVs.
-  geocoded_files <- list.files(
-    output_dir,
-    pattern = "^bmf_master_geocoder_batch_\\d{2}_geocoded\\.csv$",
-    full.names = TRUE
-  )
+  # Either naming is accepted, so a run retrieved before the ADR 0037 rename
+  # can still be merged (see R/geocoder_working_files.R).
+  geocoded_files <- geocoder_batch_output_files(output_dir)
   if (length(geocoded_files) == 0) {
     stop(sprintf("No geocoded CSVs in %s. Did you upload + download yet?",
                  output_dir))
@@ -284,8 +285,10 @@ merge_master_geocoded_results <- function(
                    100 * match_n / nrow(geocoded)))
 
   # Load address-lookup manifest.
-  addr_lookup_path <- file.path(input_dir,
-                                "bmf_master_geocoder_addr_lookup.parquet")
+  addr_lookup_path <- geocoder_working_file_path(
+    input_dir,
+    "bmf_unified_geocoder_addr_lookup.parquet"
+  )
   if (!file.exists(addr_lookup_path)) {
     stop(sprintf("Address-lookup manifest not found: %s", addr_lookup_path))
   }
@@ -300,22 +303,22 @@ merge_master_geocoded_results <- function(
   log_info(sprintf("Expanded geocoded set to %s EIN rows",
                    format(nrow(expanded), big.mark = ",")))
 
-  # Read master and join.
-  log_info(sprintf("Reading master BMF: %s", master_path))
-  bmf <- arrow::read_parquet(master_path) |> data.table::as.data.table()
+  # Read the Unified BMF and join.
+  log_info(sprintf("Reading the Unified BMF: %s", unified_path))
+  bmf <- arrow::read_parquet(unified_path) |> data.table::as.data.table()
   data.table::setnames(expanded, "ein_all", "ein")
 
   # Drop org_addr_full, representative_ein from the join payload
-  # (already in master / no longer needed).
+  # (already in the Unified BMF / no longer needed).
   geo_cols <- setdiff(names(expanded),
                       c("ein", "org_addr_full", "representative_ein"))
   expanded <- expanded[, c("ein", geo_cols), with = FALSE]
 
-  master_geo <- merge(bmf, expanded, by = "ein", all.x = TRUE)
+  unified_geo <- merge(bmf, expanded, by = "ein", all.x = TRUE)
 
-  log_info(sprintf("Master+geo rows: %s | with lat/lon: %s",
-                   format(nrow(master_geo), big.mark = ","),
-                   format(sum(master_geo$geo_is_geocoded, na.rm = TRUE),
+  log_info(sprintf("Unified BMF + geocode rows: %s | with lat/lon: %s",
+                   format(nrow(unified_geo), big.mark = ","),
+                   format(sum(unified_geo$geo_is_geocoded, na.rm = TRUE),
                           big.mark = ",")))
 
   # ---------------------------------------------------------------- write
@@ -328,13 +331,13 @@ merge_master_geocoded_results <- function(
   qr_path      <- file.path(merged_dir, "bmf_unified_geocoded_quality_report.json")
   dict_path    <- file.path(merged_dir, "bmf_unified_geocoded_data_dictionary.csv")
 
-  arrow::write_parquet(master_geo, parquet_path, compression = "zstd")
+  arrow::write_parquet(unified_geo, parquet_path, compression = "zstd")
   log_info(sprintf("Parquet written: %s", parquet_path))
-  data.table::fwrite(master_geo, csv_path)
+  data.table::fwrite(unified_geo, csv_path)
   log_info(sprintf("CSV written:     %s", csv_path))
 
   log_info("Generating data dictionary")
-  data_dictionary <- generate_data_dictionary(master_geo)
+  data_dictionary <- generate_data_dictionary(unified_geo)
   data.table::fwrite(data_dictionary, dict_path)
   log_info(sprintf("Dictionary:      %s", dict_path))
 
@@ -343,7 +346,7 @@ merge_master_geocoded_results <- function(
     total_master_rows        = nrow(bmf),
     geocodable_rows          = nrow(addr_lookup),
     unique_addresses_geocoded = nrow(geocoded),
-    rows_with_lat_lon        = sum(master_geo$geo_is_geocoded, na.rm = TRUE),
+    rows_with_lat_lon        = sum(unified_geo$geo_is_geocoded, na.rm = TRUE),
     geocoder_match_rate_pct  = round(100 * match_n / nrow(geocoded), 2)
   )
   jsonlite::write_json(quality_report, qr_path,
@@ -361,12 +364,12 @@ merge_master_geocoded_results <- function(
         vintage = vintage,
         out_dir = merged_dir,
         outputs = list(
-          list(path = parquet_path, row_count = nrow(master_geo)),
-          list(path = csv_path,     row_count = nrow(master_geo)),
+          list(path = parquet_path, row_count = nrow(unified_geo)),
+          list(path = csv_path,     row_count = nrow(unified_geo)),
           list(path = dict_path),
           list(path = qr_path)
         ),
-        inputs = list(list(uri = master_path))
+        inputs = list(list(uri = unified_path))
       )
       log_info(sprintf("Wrote manifest: %s", manifest_result$path))
     } else {
@@ -418,8 +421,8 @@ merge_master_geocoded_results <- function(
   }
 
   invisible(list(
-    rows         = nrow(master_geo),
-    matched      = sum(master_geo$geo_is_geocoded, na.rm = TRUE),
+    rows         = nrow(unified_geo),
+    matched      = sum(unified_geo$geo_is_geocoded, na.rm = TRUE),
     parquet      = parquet_path,
     csv          = csv_path,
     quality      = qr_path,
