@@ -92,6 +92,16 @@ is rule 3 below: an aggregate gate cannot see a stratified failure.
    non-5-digit value, and reports the damage by state so a stratified failure
    is legible. Both pipelines call it before Phases 10-11 write and upload. Any
    future cleaner that can drop populated values deserves the same treatment.
+8. **Join companion tables on `spell_id`, never on `spell_rank`** (ADR 0051).
+   `spell_rank` is renumbered whenever an organization gains an address, so a
+   rank join between files from different builds matches the wrong addresses
+   with no error. `spell_id` (`R/address_spell_id.R`: the first 16 hex
+   characters of the SHA-256 of `EIN2|street|city|state|zip5`, missing as
+   empty) depends only on the organization and the address, so across builds
+   a spell goes unmatched, never mismatched. The builder stops on a repeated
+   `spell_id`; the validator recomputes every id from the published columns.
+   The address-geo-resolved crosswalk (census geography per spell) is keyed
+   on it and does not carry `spell_rank` at all.
 
 The general principle (standing rule 14): when a slow-to-notice kind of failure is
 found, leave behind a fast detector. Zero-cross-source was that detector for

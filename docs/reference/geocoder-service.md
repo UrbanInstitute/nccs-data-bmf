@@ -50,6 +50,27 @@ the entire submission step.
 There is also a confidential path (`data/input-confidential-data/...` with a
 DataSync hop to the Y drive); BMF never uses it.
 
+## Known bugs in the service
+
+These are defects in the geocoder service itself, not in this repo. They are
+listed here so nobody rediscovers them the slow way.
+
+1. **A form file with a missing key stops the queue without any error**
+   (found 2026-08-11). The form JSON must carry every key the web form
+   sends: `email`, `pii`, `has_faddress`, `has_address`, `pii_project_code`,
+   `is_human_subject`, `is_irb_approved`, `has_irb_intake`, `y_center`,
+   `y_location`, `pii_email`, `filename`, `original_filename`. Keys that do
+   not apply are still written, with an empty string or `null`. If a key is
+   left out (the IRB and Y-drive keys are the easy ones to miss), the
+   Windows worker stops on that batch: no error, no log file, no email, and
+   every batch queued behind it waits too. It was found by comparing a stuck
+   submission with a form the web page had produced.
+   **In this repo:** every form is written by `geocoder_write_form_json()`
+   in `R/master_geocoding_delta.R`, which always writes the full set of
+   keys. Write forms only through that function, and do not remove a key
+   from it. If a batch does get stuck, follow "Stall detection and crash
+   recovery" below.
+
 ## Implementation status (2026-08-11)
 
 Rules 1-6 are implemented in code for the Unified BMF workflow by

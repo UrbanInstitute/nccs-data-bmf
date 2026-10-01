@@ -25,6 +25,11 @@
 #     observations carry NULL street with real city/state/zip, kept honestly.
 #   * Keyed on EIN2 per the maintainer's spec, with canonical ein and
 #     ein_prefixed alongside (ADR 0036).
+#   * `spell_id` (ADR 0051) is a stable identifier for each (organization,
+#     address) pair, computed from EIN2 and the normalized address fields
+#     (R/address_spell_id.R). Unlike spell_rank, which is renumbered when an
+#     organization gains an address, it never changes between builds, so the
+#     address-geo-resolved crosswalk joins to this table on it.
 #
 # Requirements: DuckDB + httpfs, AWS creds via credential chain. The address
 # projection is fatter than ntee-resolved's single column; on a laptop set
@@ -40,6 +45,7 @@ library(here)
 source(here::here("R", "config.R"))                  # BMF_S3_BUCKET
 source(here::here("R", "utils", "logging.R"))        # log_info()
 source(here::here("R", "ein.R"))                     # ein_to_prefixed/ein_to_ein2 (ADR 0036)
+source(here::here("R", "address_spell_id.R"))        # address_spell_id() (ADR 0051)
 
 bucket_name      <- if (exists("BMF_S3_BUCKET")) BMF_S3_BUCKET else "nccsdata"
 aws_region       <- Sys.getenv("AWS_DEFAULT_REGION", unset = "us-east-1")
@@ -145,8 +151,10 @@ normalize_zip5_sql <- function(column_name) {
           zip_digits, zip_digits, zip_digits, zip_digits)
 }
 
-#' SQL selecting one normalized observation row per (vintage, EIN) from a glob.
-observation_select_sql <- function(parquet_glob, source_label, ein_column) {
+#' SQL selecting one normalized observation row per (vintage, EIN) from a list
+#' of parquet files (one vintage each).
+observation_select_sql <- function(parquet_files, source_label, ein_column) {
+  file_list_sql <- paste0("['", paste(parquet_files, collapse = "', '"), "']")
   sprintf("
   SELECT regexp_extract(filename, '(\\d{4}_\\d{2})', 1) AS vintage_ym,
          \"%s\" AS ein,
@@ -155,43 +163,175 @@ observation_select_sql <- function(parquet_glob, source_label, ein_column) {
          %s     AS city,
          %s     AS state,
          %s     AS zip5
-  FROM read_parquet('%s', filename = true, union_by_name = true)",
+  FROM read_parquet(%s, filename = true, union_by_name = true)",
           ein_column, source_label,
           normalize_text_sql("org_addr_street_raw"),
           normalize_text_sql("org_addr_city_raw"),
           normalize_text_sql("org_addr_state_raw"),
           normalize_zip5_sql("org_addr_zip_raw"),
-          parquet_glob)
+          file_list_sql)
 }
 
-log_info("Building observation view over all intermediate parquets")
-# Both pipelines' observation selects -> one union view the aggregate reads once
-DBI::dbExecute(duckdb_connection, sprintf(
-  "CREATE OR REPLACE TEMP VIEW obs AS %s UNION ALL BY NAME %s;",
-  observation_select_sql(current_pipeline_glob, "current", current_ein_column),
-  observation_select_sql(legacy_pipeline_glob,  "legacy",  legacy_ein_column)))
+# ---------------------------------------------------------------------------
+# 2a. Summarize a few BMF releases at a time, then combine the summaries.
+#
+# What is being computed. For each organization and each address: the first
+# BMF release (vintage) the address appeared in, the last one, and how many
+# different releases showed it.
+#
+# Why not in one pass. The input is every organization's address in every
+# release since 1989, about 250 million rows. To count how many different
+# releases showed each address, the database has to keep every (organization,
+# address, release) combination in working memory at once. That did not fit:
+# it wrote 47 GB of overflow to disk and ran out of space on a laptop
+# (2026-09-30).
+#
+# What is done instead. The release files are processed in groups ("chunks")
+# of ADDR_XWALK_FILES_PER_CHUNK files. Each chunk produces a small summary (a
+# "partial") with one row per organization and address: first release, last
+# release, number of releases. A partial is a few million rows, not 250
+# million. The partials are then combined in one final step.
+#
+# Why combining gives exactly the same answer as one pass:
+#   * First and last release: the earliest of the chunks' earliest is the
+#     overall earliest, and likewise for the latest.
+#   * Number of releases: each file is exactly one release, and a file sits
+#     in exactly one chunk, so no release is ever counted in two chunks. The
+#     chunk counts can therefore simply be added up. (Adding up counts of
+#     distinct things is only safe because of this.)
+#   * `source` (current, legacy or both): one chunk cannot know whether an
+#     address also appears in the other pipeline, so this is decided in the
+#     final step, when every chunk is in view.
+#
+# Example: an address appears in the January, February and March releases;
+# January and February fall in chunk 1, March in chunk 2. Chunk 1 reports
+# first = January, last = February, count = 2. Chunk 2 reports first = March,
+# last = March, count = 1. Combined: first = January, last = March, count = 3.
+# ---------------------------------------------------------------------------
 
-# Inner GROUP BY: distinct vintages per (ein, source, address tuple).
-# Outer GROUP BY: fold the two sources together, tagging tuples seen in both.
-# n_vintages counts DISTINCT vintages rather than rows so the column name stays
-# true even if a vintage ever lands as several parquet parts or duplicate EINs.
-log_info("Aggregating per (ein, address tuple) across sources")
-address_spells <- data.table::as.data.table(DBI::dbGetQuery(duckdb_connection, "
+files_per_chunk <- as.integer(Sys.getenv("ADDR_XWALK_FILES_PER_CHUNK", "10"))
+
+# The partials are written inside the DuckDB overflow folder. The folder is
+# emptied at the start of every run, because the final step combines every
+# partial it finds there: a partial left by an earlier run would be counted
+# again.
+partials_dir <- file.path(
+  Sys.getenv("DUCKDB_TEMP_DIR", file.path(tempdir(), "duckdb_spill")),
+  "address_partials"
+)
+unlink(partials_dir, recursive = TRUE)
+dir.create(partials_dir, recursive = TRUE, showWarnings = FALSE)
+
+#' The parquet files a glob pattern matches, in name order.
+#'
+#' @param connection DuckDB connection (with httpfs loaded when the pattern
+#'   points at S3).
+#' @param parquet_glob Character: a file pattern, local or s3://.
+#' @return Character vector of file paths, sorted by name, one per BMF release.
+list_parquet_files <- function(connection, parquet_glob) {
+
+  file_query <- sprintf("SELECT file FROM glob('%s') ORDER BY file", parquet_glob)
+  file_table <- DBI::dbGetQuery(connection, file_query)
+
+  return(file_table$file)
+
+}
+
+#' Summarize one chunk of release files and write the summary to disk.
+#'
+#' For every organization and address seen in the chunk: how many different
+#' releases showed it, and the first and last of them. Written to one parquet
+#' file per chunk under `partials_dir`.
+#'
+#' @param parquet_files Character vector: the release files of this chunk
+#'   (one release each).
+#' @param source_label Character: "current" or "legacy", the pipeline the
+#'   files come from.
+#' @param ein_column Character: name of the formatted-EIN column in these
+#'   files (from resolve_ein_column()).
+#' @param chunk_index Integer: the chunk's number within its pipeline, used
+#'   in the file name.
+#' @return Character: the path of the partial that was written.
+aggregate_one_chunk <- function(parquet_files, source_label, ein_column, chunk_index) {
+
+  partial_path <- file.path(partials_dir, sprintf("%s_%03d.parquet", source_label, chunk_index))
+
+  log_info(sprintf("  %s chunk %d: %d vintage file(s)", source_label, chunk_index, length(parquet_files)))
+
+  observation_sql <- observation_select_sql(parquet_files, source_label, ein_column)
+
+  DBI::dbExecute(duckdb_connection, sprintf("
+    COPY (
+      SELECT ein, src, street, city, state, zip5,
+             COUNT(DISTINCT vintage_ym) AS vintage_count,
+             MIN(vintage_ym)            AS first_vintage_in_source,
+             MAX(vintage_ym)            AS last_vintage_in_source
+      FROM (%s)
+      WHERE ein IS NOT NULL AND (street IS NOT NULL OR city IS NOT NULL)
+      GROUP BY ein, src, street, city, state, zip5
+    ) TO '%s' (FORMAT PARQUET, COMPRESSION ZSTD)",
+    observation_sql,
+    partial_path
+  ))
+
+  return(partial_path)
+
+}
+
+#' Summarize every release file of one pipeline, chunk by chunk.
+#'
+#' @param parquet_glob Character: file pattern matching the pipeline's
+#'   release files.
+#' @param source_label Character: "current" or "legacy".
+#' @param ein_column Character: name of the formatted-EIN column.
+#' @return Character vector: the paths of the partials written, one per chunk.
+aggregate_source_in_chunks <- function(parquet_glob, source_label, ein_column) {
+
+  parquet_files <- list_parquet_files(duckdb_connection, parquet_glob)
+
+  # Files 1..10 go to chunk 1, 11..20 to chunk 2, and so on.
+  chunk_index <- ceiling(seq_along(parquet_files) / files_per_chunk)
+  file_chunks <- split(parquet_files, chunk_index)
+
+  log_info(sprintf(
+    "%s pipeline: %d vintage files in %d chunk(s)",
+    source_label,
+    length(parquet_files),
+    length(file_chunks)
+  ))
+
+  aggregate_chunk_of_this_source <- function(chunk_files, index) {
+
+    return(aggregate_one_chunk(chunk_files, source_label, ein_column, index))
+
+  }
+
+  partial_paths <- purrr::imap_chr(unname(file_chunks), aggregate_chunk_of_this_source)
+
+  return(partial_paths)
+
+}
+
+log_info("Aggregating per (ein, source, address tuple), chunk by chunk")
+partial_paths <- c(
+  aggregate_source_in_chunks(current_pipeline_glob, "current", current_ein_column),
+  aggregate_source_in_chunks(legacy_pipeline_glob,  "legacy",  legacy_ein_column)
+)
+
+# Combine the partials (see the explanation at 2a): release counts are added
+# up, the earliest first release and the latest last release are kept, and an
+# address seen in both pipelines is marked 'both'.
+log_info("Combining the chunk partials into spells")
+address_spells <- data.table::as.data.table(DBI::dbGetQuery(duckdb_connection, sprintf("
   SELECT ein, street, city, state, zip5,
          SUM(vintage_count)                  AS n_vintages,
          MIN(first_vintage_in_source)        AS first_vintage,
          MAX(last_vintage_in_source)         AS last_vintage,
          CASE WHEN COUNT(DISTINCT src) > 1 THEN 'both' ELSE MIN(src) END AS source
-  FROM (
-    SELECT ein, src, street, city, state, zip5,
-           COUNT(DISTINCT vintage_ym) AS vintage_count,
-           MIN(vintage_ym)            AS first_vintage_in_source,
-           MAX(vintage_ym)            AS last_vintage_in_source
-    FROM obs
-    WHERE ein IS NOT NULL AND (street IS NOT NULL OR city IS NOT NULL)
-    GROUP BY ein, src, street, city, state, zip5
-  )
-  GROUP BY ein, street, city, state, zip5"))
+  FROM read_parquet(['%s'])
+  GROUP BY ein, street, city, state, zip5",
+  paste(partial_paths, collapse = "', '"))))
+address_spells[, n_vintages := as.integer(n_vintages)]
 
 log_info(sprintf("Spells: %s rows across %s EINs",
                  format(nrow(address_spells), big.mark = ","),
@@ -268,7 +408,18 @@ address_spells[, n_distinct_addresses := .N,               by = ein]
 address_spells[, ein_prefixed := ein_to_prefixed(ein)]
 address_spells[, EIN2         := ein_to_ein2(ein)]
 
-data.table::setcolorder(address_spells, c("EIN2", "ein", "ein_prefixed", "spell_rank",
+# ADR 0051: the stable spell identifier. One organization at one normalized
+# address is one spell, so the id must be unique here; a repeat would mean
+# the GROUP BY above and the hash disagree about what a distinct address is.
+address_spells[, spell_id := address_spell_id(EIN2, street, city, state, zip5)]
+
+duplicate_spell_id_count <- address_spells[, .N, by = spell_id][N > 1L, .N]
+if (duplicate_spell_id_count > 0L) {
+  stop(sprintf("Invariant violated: %s spell_id values repeat; the identifier must be unique per (EIN, address).",
+               format(duplicate_spell_id_count, big.mark = ",")))
+}
+
+data.table::setcolorder(address_spells, c("spell_id", "EIN2", "ein", "ein_prefixed", "spell_rank",
   "street", "city", "state", "zip5",
   "first_vintage", "last_vintage", "n_vintages", "source",
   "n_distinct_addresses"))
