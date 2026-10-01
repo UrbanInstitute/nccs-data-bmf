@@ -338,7 +338,7 @@ prepare_address_history_geocoder_run <- function(
   purrr::walk(c(input_dir, output_dir), dir.create, recursive = TRUE, showWarnings = FALSE)
 
   # Same guard as the monthly delta, against the same shared run pointer.
-  delta_stop_if_runs_pending(geocoding_dir)
+  geocoder_stop_if_runs_pending(geocoding_dir)
 
   # Deleting geocoder outputs left over from an earlier run, because the build
   # reads every *_geocoded.csv in output/ and would take them for this run's

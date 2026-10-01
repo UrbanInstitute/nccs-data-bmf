@@ -144,7 +144,7 @@ delta_latest_run_id <- function() {
 #' @return Invisibly NULL when no batch is waiting. Stops with a message
 #'   naming the waiting batches otherwise, and also stops when the most
 #'   recent run's ledger on S3 cannot be read (its state cannot be verified).
-delta_stop_if_runs_pending <- function(geocoding_dir) {
+geocoder_stop_if_runs_pending <- function(geocoding_dir) {
 
   local_ledger_path <- file.path(geocoding_dir, "geocode_ledger.tsv")
 
@@ -376,7 +376,7 @@ prepare_unified_geocoder_delta <- function(
     if (!dir.exists(d)) dir.create(d, recursive = TRUE)
   }
 
-  delta_stop_if_runs_pending(geocoding_dir)
+  geocoder_stop_if_runs_pending(geocoding_dir)
 
   # The merge step glob-reads every *_geocoded.csv in output/, and batch
   # filenames are stable across runs -- leftovers from a prior run would be
