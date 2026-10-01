@@ -42,6 +42,8 @@
 # re-tries ride the occasional full re-export instead.
 # ============================================================================
 
+source(here::here("R", "geocoder_working_files.R"))   # names of the run's working files, old and new
+
 MAX_IN_FLIGHT <- 3L  # bulk-run etiquette rule 2
 
 delta_runs_prefix <- function(run_id) {
@@ -607,23 +609,49 @@ retrieve_unified_geocoder_delta <- function(
 
   input_dir  <- file.path(geocoding_dir, "input")
   output_dir <- file.path(geocoding_dir, "output")
-  manifest_path <- file.path(input_dir, "bmf_unified_geocoder_manifest.json")
+  manifest_file_name <- "bmf_unified_geocoder_manifest.json"
+
+  # A run staged before the ADR 0037 rename has its manifest under the old
+  # name, locally and in its S3 run folder; both are accepted (see
+  # R/geocoder_working_files.R).
+  manifest_path <- geocoder_working_file_path(input_dir, manifest_file_name)
+
   if (!file.exists(manifest_path)) {
+
     prior_run <- delta_latest_run_id()
+
     if (is.null(prior_run)) {
       stop("No local manifest and no LATEST_RUN pointer; nothing to resume.")
     }
+
     dir.create(input_dir, recursive = TRUE, showWarnings = FALSE)
-    rc <- system2("aws", c("s3", "cp",
-                           paste0("s3://", BMF_S3_BUCKET, "/",
-                                  delta_runs_prefix(prior_run),
-                                  "bmf_unified_geocoder_manifest.json"),
-                           manifest_path, "--only-show-errors"))
-    if (rc != 0L || !file.exists(manifest_path)) {
+
+    mirrored_run_folder <- paste0("s3://", BMF_S3_BUCKET, "/", delta_runs_prefix(prior_run))
+
+    # Tries to copy the run's mirrored manifest, under the given name, to
+    # manifest_path. TRUE when the file arrived.
+    fetch_mirrored_manifest <- function(mirrored_file_name) {
+
+      copy_return_code <- system2(
+        "aws",
+        c("s3", "cp", paste0(mirrored_run_folder, mirrored_file_name), manifest_path, "--only-show-errors"),
+        stdout = FALSE,
+        stderr = FALSE
+      )
+
+      return(copy_return_code == 0L && file.exists(manifest_path))
+
+    }
+
+    manifest_fetched <- fetch_mirrored_manifest(manifest_file_name) ||
+      fetch_mirrored_manifest(geocoder_legacy_file_name(manifest_file_name))
+
+    if (!manifest_fetched) {
       stop(sprintf(
         "Could not fetch mirrored manifest for run %s; cannot resume.",
         prior_run))
     }
+
   }
   manifest <- jsonlite::read_json(manifest_path)
   # "address-history" runs (ADR 0051, R/address_history_geocoding.R) stage

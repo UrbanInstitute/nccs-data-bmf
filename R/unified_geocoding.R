@@ -14,6 +14,8 @@
 # that address in the merge step.
 # ============================================================================
 
+source(here::here("R", "geocoder_working_files.R"))   # names of the run's working files, old and new
+
 #' Export Unified BMF addresses as geocoder batches
 #'
 #' Reads `data/master/bmf_unified.parquet` (or the path you pass), keeps
@@ -240,11 +242,9 @@ merge_unified_geocoded_results <- function(
   if (!dir.exists(merged_dir)) dir.create(merged_dir, recursive = TRUE)
 
   # Find geocoded CSVs.
-  geocoded_files <- list.files(
-    output_dir,
-    pattern = "^bmf_unified_geocoder_batch_\\d{2}_geocoded\\.csv$",
-    full.names = TRUE
-  )
+  # Either naming is accepted, so a run retrieved before the ADR 0037 rename
+  # can still be merged (see R/geocoder_working_files.R).
+  geocoded_files <- geocoder_batch_output_files(output_dir)
   if (length(geocoded_files) == 0) {
     stop(sprintf("No geocoded CSVs in %s. Did you upload + download yet?",
                  output_dir))
@@ -285,8 +285,10 @@ merge_unified_geocoded_results <- function(
                    100 * match_n / nrow(geocoded)))
 
   # Load address-lookup manifest.
-  addr_lookup_path <- file.path(input_dir,
-                                "bmf_unified_geocoder_addr_lookup.parquet")
+  addr_lookup_path <- geocoder_working_file_path(
+    input_dir,
+    "bmf_unified_geocoder_addr_lookup.parquet"
+  )
   if (!file.exists(addr_lookup_path)) {
     stop(sprintf("Address-lookup manifest not found: %s", addr_lookup_path))
   }

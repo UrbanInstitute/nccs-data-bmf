@@ -33,12 +33,16 @@ UNIFIED_GEOCODING_DIR <- here::here("data", "geocoding", "unified")
 # The working folder was data/geocoding/master/ before the rename. A machine
 # that still has the old folder and not the new one would otherwise start
 # from an empty folder and lose sight of its staged batches and ledger.
+# Moving the folder is the whole changeover: the files inside keep their old
+# bmf_master_geocoder_* names, and the retrieve and merge steps accept those
+# (R/geocoder_working_files.R). Do NOT rename the files inside by hand; the
+# run's ledger and manifest refer to them by the names they have.
 LEGACY_GEOCODING_DIR <- here::here("data", "geocoding", "master")
 
 if (dir.exists(LEGACY_GEOCODING_DIR) && !dir.exists(UNIFIED_GEOCODING_DIR)) {
 
   stop(sprintf(
-    "The geocoding working folder was renamed. Move the existing folder first:\n  mv %s %s",
+    "The geocoding working folder was renamed. Move the existing folder first (leave the files inside as they are):\n  mv %s %s",
     LEGACY_GEOCODING_DIR,
     UNIFIED_GEOCODING_DIR
   ))
