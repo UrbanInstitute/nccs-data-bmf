@@ -76,7 +76,7 @@ state_mart_s3_roots <- function(today = Sys.Date()) {
 }
 
 build_master_state_marts <- function(
-    geocoded_path = here::here("data", "geocoding", "master", "merged",
+    geocoded_path = here::here("data", "geocoding", "unified", "merged",
                                "bmf_unified_geocoded.parquet"),
     output_dir    = here::here("data", "master", "state_marts"),
     s3_upload     = TRUE,

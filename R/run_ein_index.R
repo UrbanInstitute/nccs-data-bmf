@@ -16,7 +16,7 @@
 if (!exists("ENABLE_S3_UPLOAD"))  ENABLE_S3_UPLOAD  <- TRUE
 if (!exists("EIN_INDEX_DRY_RUN")) EIN_INDEX_DRY_RUN <- FALSE
 
-GEOCODED_MASTER_PATH <- here::here("data", "geocoding", "master", "merged",
+GEOCODED_MASTER_PATH <- here::here("data", "geocoding", "unified", "merged",
                                    "bmf_unified_geocoded.parquet")
 
 source(here::here("R", "config.R"))

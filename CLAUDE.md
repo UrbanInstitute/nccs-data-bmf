@@ -67,7 +67,7 @@ source("R/run_geocoding.R")
 ```
 
 For the **Unified BMF (master) geocoding**, the default monthly workflow is
-the **delta** (R/master_geocoding_delta.R, first live run 2026-08-11):
+the **delta** (R/unified_geocoding_delta.R, first live run 2026-08-11):
 carry forward results for every address already in the published geocoded
 artifact and submit only new addresses (~51K vs ~2.6M on a typical month).
 It implements the bulk-run etiquette (windowed 3-in-flight submission,
@@ -76,24 +76,24 @@ raw-output retention, ledger-driven resume that survives machine loss).
 
 ```r
 # Stage + submit the delta (submit = FALSE default stages only)
-MASTER_GEOCODING_MODE <- "delta"; DELTA_SUBMIT <- TRUE
-source("R/run_master_geocoding.R")
+UNIFIED_GEOCODING_MODE <- "delta"; DELTA_SUBMIT <- TRUE
+source("R/run_unified_geocoding.R")
 
 # Submit-as-window-opens, poll, archive raw outputs, download
-MASTER_GEOCODING_MODE <- "retrieve"
-source("R/run_master_geocoding.R")
+UNIFIED_GEOCODING_MODE <- "retrieve"
+source("R/run_unified_geocoding.R")
 
 # Merge + publish (ADR 0042: v{YYYY_MM}/ + latest/ + dual-write aliases)
-MASTER_GEOCODING_MODE <- "merge"
-source("R/run_master_geocoding.R")
+UNIFIED_GEOCODING_MODE <- "merge"
+source("R/run_unified_geocoding.R")
 ```
 
-The full re-export (`MASTER_GEOCODING_MODE <- "export"`) remains for
+The full re-export (`UNIFIED_GEOCODING_MODE <- "export"`) remains for
 occasional full refreshes (e.g., to retry previously unmatched addresses).
 Known bug in the geocoder service: form JSONs must carry ALL form keys
 (empty/null where inapplicable) -- a form with a missing key stops the
 Windows worker without any error (2026-08-11 incident). Write forms only
-through `geocoder_write_form_json()` in `R/master_geocoding_delta.R`, which
+through `geocoder_write_form_json()` in `R/unified_geocoding_delta.R`, which
 emits the full set; see "Known bugs in the service" in
 `docs/reference/geocoder-service.md`.
 
@@ -300,11 +300,11 @@ the same monthly run as the Unified BMF so the two never drift apart.
 #    geocoded Unified BMF already holds; DELTA_SUBMIT-style opt-in to submit.
 source("R/config.R"); source("R/utils/logging.R"); source("R/address.R")
 source("R/address_normalize.R"); source("R/quality/geocoding_checks.R")
-source("R/master_geocoding_delta.R"); source("R/address_history_geocoding.R")
+source("R/unified_geocoding_delta.R"); source("R/address_history_geocoding.R")
 prepare_address_history_geocoder_run(submit = FALSE)   # stage and inspect
 prepare_address_history_geocoder_run(submit = TRUE)    # ... or submit up to 3 batches
 # 3. Retrieve (same function as the monthly delta; polls, archives, keeps the window full)
-retrieve_master_geocoder_delta(geocoding_dir = ADDRESS_HISTORY_GEOCODING_DIR)
+retrieve_unified_geocoder_delta(geocoding_dir = ADDRESS_HISTORY_GEOCODING_DIR)
 ```
 
 ```bash
@@ -319,7 +319,7 @@ geocoder is one shared queue for all of Urban). First round: about 2.98M
 addresses, four batches; later rounds send only addresses never seen before.
 Working folder `data/geocoding/address_history/` (gitignored). Needs the
 geocoded Unified BMF and the published census-geo-resolved crosswalk on disk
-(`data/geocoding/master/merged/`, `data/crosswalks/`); the build compares
+(`data/geocoding/unified/merged/`, `data/crosswalks/`); the build compares
 current addresses against the census table and stops on any difference.
 
 ### Batch-process all legacy vintages on EC2
@@ -381,8 +381,8 @@ S3 (raw/bmf/YYYY-MM-BMF.csv) → Download → Transform → Validated BMF (parqu
 - `R/run_geocoding.R` - Per-month geocoding orchestrator (export/merge modes)
 - `R/geocoding_export.R` - Prepare address batches for Urban geocoder
 - `R/geocoding_merge.R` - Merge geocoded results back into processed BMF
-- `R/run_master_geocoding.R` - Master BMF geocoding orchestrator (export/merge modes)
-- `R/master_geocoding.R` - Address dedup + batch export and merge for the Master BMF
+- `R/run_unified_geocoding.R` - Master BMF geocoding orchestrator (export/merge modes)
+- `R/unified_geocoding.R` - Address dedup + batch export and merge for the Master BMF
 - `R/quality/geocoding_checks.R` - Geocoding quality validation
 
 **Quality Gates:**

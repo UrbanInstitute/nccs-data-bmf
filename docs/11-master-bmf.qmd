@@ -123,26 +123,26 @@ strategy.
 
 ## Geocoding integration
 
-`R/run_master_geocoding.R` provides export/merge modes that mirror the
+`R/run_unified_geocoding.R` provides export/merge modes that mirror the
 per-month geocoding workflow but operate on `bmf_master.parquet`:
 
 ```r
 # Step 1: write geocoder batches (dedups on org_addr_full first;
 # typical ~30-40 % reduction in geocoder rows because many EINs
 # share addresses).
-MASTER_GEOCODING_MODE <- "export"
-source("R/run_master_geocoding.R")
+UNIFIED_GEOCODING_MODE <- "export"
+source("R/run_unified_geocoding.R")
 
 # ... upload each batch CSV to the Urban Institute geocoder,
-#     download geocoded outputs to data/geocoding/master/output/ ...
+#     download geocoded outputs to data/geocoding/unified/output/ ...
 
 # Step 2: merge geocoded lat/lon back onto the master, propagating
 # to all EINs that share each unique address.
-MASTER_GEOCODING_MODE <- "merge"
-source("R/run_master_geocoding.R")
+UNIFIED_GEOCODING_MODE <- "merge"
+source("R/run_unified_geocoding.R")
 ```
 
-Outputs: `data/geocoding/master/merged/bmf_master_geocoded.{parquet,csv}`,
+Outputs: `data/geocoding/unified/merged/bmf_master_geocoded.{parquet,csv}`,
 a JSON quality report, and `bmf_master_geocoded_data_dictionary.csv`.
 Uploads to `s3://nccsdata/geocoding/bmf-master/merged/` if
 `ENABLE_S3_UPLOAD`.
@@ -165,7 +165,7 @@ has no STREET column. The legacy slim-output rule in
 in the source, so `org_addr_full` is dropped from every legacy slim
 CSV. After `union_by_name` builds the master, those rows carry NA
 `org_addr_full` and are filtered out at export
-(`R/master_geocoding.R` requires non-empty `org_addr_full`).
+(`R/unified_geocoding.R` requires non-empty `org_addr_full`).
 
 Because the master keeps each EIN's most-recent vintage and current
 (geocodable) coverage begins in 2023, this NA contract aligns with a
@@ -209,7 +209,7 @@ lookups; for legacy rows the TIGER join is the equivalent best
 available precision.
 
 Cadence is **ad-hoc**: rebuild the master, then re-export and merge.
-The dedup step uses a manifest (`bmf_master_geocoder_addr_lookup.parquet`)
+The dedup step uses a manifest (`bmf_unified_geocoder_addr_lookup.parquet`)
 written by the export step and consumed by the merge step, so don't
 delete the input directory between steps.
 

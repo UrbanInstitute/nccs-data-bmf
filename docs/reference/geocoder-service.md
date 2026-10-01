@@ -66,7 +66,7 @@ listed here so nobody rediscovers them the slow way.
    every batch queued behind it waits too. It was found by comparing a stuck
    submission with a form the web page had produced.
    **In this repo:** every form is written by `geocoder_write_form_json()`
-   in `R/master_geocoding_delta.R`, which always writes the full set of
+   in `R/unified_geocoding_delta.R`, which always writes the full set of
    keys. Write forms only through that function, and do not remove a key
    from it. If a batch does get stuck, follow "Stall detection and crash
    recovery" below.
@@ -74,8 +74,8 @@ listed here so nobody rediscovers them the slow way.
 ## Implementation status (2026-08-11)
 
 Rules 1-6 are implemented in code for the Unified BMF workflow by
-`R/master_geocoding_delta.R` (modes `delta`/`retrieve` in
-`R/run_master_geocoding.R`): windowed 3-in-flight submission; an
+`R/unified_geocoding_delta.R` (modes `delta`/`retrieve` in
+`R/run_unified_geocoding.R`): windowed 3-in-flight submission; an
 S3-synced `geocode_ledger.tsv` under
 `geocoding/unified-bmf/runs/{run_id}/` with a `LATEST_RUN` pointer at
 the runs **root** (`geocoding/unified-bmf/runs/LATEST_RUN`) naming the
@@ -95,7 +95,7 @@ inapplicable); a missing-key form wedges the Windows worker silently.
 
 ## What this means for this repo
 
-- `R/run_geocoding.R` / `R/run_master_geocoding.R` export batches and merge
+- `R/run_geocoding.R` / `R/run_unified_geocoding.R` export batches and merge
   results; the middle of the sandwich is fully scriptable: write batch CSVs
   (+ form JSONs) to `s3://geocoding-codestar-prod/data/input-data/`, poll
   `data/output-data/` for the same stems, download, merge. No human step.
