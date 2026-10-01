@@ -23,6 +23,40 @@ test_that("distinct addresses drop street-less spells and repeat addresses, and 
   expect_true("500 L'ENFANT PLAZA SW, WASHINGTON, DC 20024" %in% distinct_addresses$f_address)
 })
 
+test_that("the newest month is read from either label format", {
+  expect_equal(address_history_newest_vintage(c("2009_03", "2026_06", NA, "2023_11")), "2026_06")
+  expect_equal(address_history_newest_vintage(c("1989-06", "2026-07")), "2026_07")
+  expect_error(address_history_newest_vintage(c(NA_character_, NA_character_)), "No BMF month found")
+})
+
+test_that("inputs that end on different months stop the run and name the table to rebuild", {
+  # Same month, written the two ways the tables write it: passes.
+  same_month <- address_history_stop_unless_same_vintage(
+    address_history_vintages = c("2025_01", "2026_07"),
+    unified_bmf_vintages     = c("2024-12", "2026-07")
+  )
+  expect_equal(same_month$address_history, "2026_07")
+  expect_equal(same_month$unified_bmf, "2026_07")
+
+  # The address history is the older one: rebuild the address history.
+  expect_error(
+    address_history_stop_unless_same_vintage(
+      address_history_vintages = c("2025_01", "2026_06"),
+      unified_bmf_vintages     = c("2024-12", "2026-07")
+    ),
+    "address history runs through 2026_06, the Unified BMF through 2026_07.*build_address_resolved_crosswalk"
+  )
+
+  # The Unified BMF is the older one: rebuild the Unified BMF.
+  expect_error(
+    address_history_stop_unless_same_vintage(
+      address_history_vintages = "2026_08",
+      unified_bmf_vintages     = "2026-07"
+    ),
+    "Rebuild the geocoded Unified BMF"
+  )
+})
+
 test_that("carryover matches the Unified BMF on the normalized address, geocoded row first", {
   geocoded_unified <- tibble::tibble(
     org_addr_street_raw = c("500 L'Enfant Plaza SW ", "500 L'ENFANT PLAZA SW", "9 Elm Ave"),
@@ -70,7 +104,7 @@ test_that("an incomplete run stops the build", {
                        file.path(input_dir, "bmf_master_geocoder_manifest.json"), auto_unbox = TRUE)
   data.table::fwrite(data.frame(f_address = c("1 MAIN ST, SPRINGFIELD, MA 01103", "2 MAIN ST, SPRINGFIELD, MA 01103")),
                      file.path(input_dir, "address_history_geocoder_batch_01.csv"))
-  ledger <- data.frame(batch_id = "addrhist_test_01", service_stem = "thiya-1-addrhist",
+  ledger <- data.frame(batch_id = "addrhist_test_01", service_stem = "tpoongundranar-1-addrhist",
                        batch_file = "address_history_geocoder_batch_01.csv",
                        output_file = "address_history_geocoder_batch_01_geocoded.csv",
                        n_addresses = "2", submitted_at = "", output_seen_at = "", downloaded_at = "", status = "submitted")
@@ -122,4 +156,25 @@ test_that("geocoder outputs are read back with renamed columns, one row per addr
   expect_equal(geocodes$geo_lat, 42.10)
   expect_equal(geocodes$geo_addr_type, "StreetAddress")
   expect_true(is.numeric(geocodes$geo_score))
+})
+
+test_that("the geocoder form carries every key, including the ones that do not apply", {
+  # Known bug in the geocoder service: a form with a missing key stops the
+  # Windows worker without any error. Every key must be written, empty or
+  # null where it does not apply.
+  source(here::here("R", "master_geocoding_delta.R"))
+  form_dir <- withr::local_tempdir()
+
+  geocoder_write_form_json(form_dir, "tpoongundranar-1-addrhist", "address_history_geocoder_batch_01.csv", "someone@urban.org")
+
+  form_text <- readr::read_file(file.path(form_dir, "tpoongundranar-1-addrhist.json"))
+  form      <- jsonlite::fromJSON(form_text)
+
+  expected_keys <- c("email", "pii", "has_faddress", "has_address", "pii_project_code", "is_human_subject",
+                     "is_irb_approved", "has_irb_intake", "y_center", "y_location", "pii_email",
+                     "filename", "original_filename")
+  expect_setequal(names(form), expected_keys)
+  expect_match(form_text, '"is_irb_approved":null', fixed = TRUE)
+  expect_match(form_text, '"has_irb_intake":null', fixed = TRUE)
+  expect_equal(form$filename, "tpoongundranar-1-addrhist.csv")
 })

@@ -123,70 +123,170 @@ delta_latest_run_id <- function() {
   if (length(out) && nzchar(out[1])) out[1] else NULL
 }
 
-# Refuse to start a new run while a prior one has stems in flight
-# (rule 4: resume, don't restart; a fresh export would orphan them).
-# Refuse to start while ANY prior state -- the local workspace ledger OR
-# the mirrored ledger of the run named by LATEST_RUN -- has pending
-# stems. Both are checked: a stale workspace must not hide in-flight
-# work submitted from another machine, and vice versa. Shared by the
-# Unified BMF delta export and the address-history run (ADR 0051), which
-# is what keeps the two from ever loading the queue at the same time.
+#' Stop if an earlier geocoder run still has batches waiting.
+#'
+#' A new run must not start while an earlier one has batches that are staged
+#' or submitted and not yet retrieved: starting fresh would abandon those
+#' batches and could load the shared geocoder queue twice (etiquette rule 4:
+#' resume, do not restart).
+#'
+#' Two ledgers are checked, because either one alone can be out of date:
+#'   1. the ledger in the local working folder, and
+#'   2. the ledger on S3 of the most recent run (the run named by the
+#'      LATEST_RUN pointer), which may have been started from another machine.
+#'
+#' The Unified BMF delta export and the address-history run (ADR 0051) both
+#' call this against the same LATEST_RUN pointer, which is what keeps the two
+#' from loading the queue at the same time.
+#'
+#' @param geocoding_dir Character: the run's working directory, which holds
+#'   geocode_ledger.tsv when an earlier run was staged from this machine.
+#' @return Invisibly NULL when no batch is waiting. Stops with a message
+#'   naming the waiting batches otherwise, and also stops when the most
+#'   recent run's ledger on S3 cannot be read (its state cannot be verified).
 delta_stop_if_runs_pending <- function(geocoding_dir) {
-  old_ledger <- file.path(geocoding_dir, "geocode_ledger.tsv")
-  check_pending <- function(path, label) {
-    if (!file.exists(path)) return(invisible(NULL))
-    led <- data.table::fread(path, sep = "\t", colClasses = "character")
-    pending <- led[led$status %in% c("staged", "submitted"), ]
-    if (nrow(pending) > 0L) {
-      stop(sprintf(paste0(
-        "%s has %d pending stem(s) (%s). Resume with ",
-        "retrieve_master_geocoder_delta(), or mark them failed-* ",
-        "before re-exporting."),
-        label, nrow(pending),
-        paste(pending$service_stem, collapse = ", ")))
+
+  local_ledger_path <- file.path(geocoding_dir, "geocode_ledger.tsv")
+
+  # Stops when the ledger at `ledger_path` lists a batch that is staged or
+  # submitted. `ledger_label` names the ledger in the message. A ledger file
+  # that does not exist has nothing waiting.
+  stop_if_ledger_has_pending <- function(ledger_path, ledger_label) {
+
+    if (!file.exists(ledger_path)) {
+
+      return(invisible(NULL))
+
     }
-    invisible(NULL)
+
+    # data.table is kept here, as in the rest of this file: the monthly
+    # geocoding run does not load dplyr.
+    ledger <- data.table::fread(ledger_path, sep = "\t", colClasses = "character")
+
+    pending_batches <- ledger[ledger$status %in% c("staged", "submitted"), ]
+
+    if (nrow(pending_batches) > 0L) {
+
+      stop(sprintf(
+        paste0(
+          "%s has %d pending stem(s) (%s). Resume with ",
+          "retrieve_master_geocoder_delta(), or mark them failed-* ",
+          "before re-exporting."
+        ),
+        ledger_label,
+        nrow(pending_batches),
+        paste(pending_batches$service_stem, collapse = ", ")
+      ))
+
+    }
+
+    return(invisible(NULL))
+
   }
-  check_pending(old_ledger, sprintf("Local ledger %s", old_ledger))
-  prior_run <- delta_latest_run_id()
-  if (!is.null(prior_run)) {
-    remote_tmp <- tempfile(fileext = ".tsv")
-    rc <- system2("aws", c("s3", "cp",
-                           paste0("s3://", BMF_S3_BUCKET, "/",
-                                  delta_runs_prefix(prior_run),
-                                  "geocode_ledger.tsv"),
-                           remote_tmp, "--only-show-errors"))
-    # Fail CLOSED: if a prior run exists but its state can't be verified,
-    # refuse to export rather than risk double-loading the shared queue.
-    if (rc != 0L || !file.exists(remote_tmp)) {
-      stop(sprintf(paste0(
+
+  stop_if_ledger_has_pending(
+    ledger_path  = local_ledger_path,
+    ledger_label = sprintf("Local ledger %s", local_ledger_path)
+  )
+
+  prior_run_id <- delta_latest_run_id()
+
+  if (is.null(prior_run_id)) {
+
+    return(invisible(NULL))
+
+  }
+
+  mirrored_ledger_uri  <- paste0(
+    "s3://", BMF_S3_BUCKET, "/", delta_runs_prefix(prior_run_id), "geocode_ledger.tsv"
+  )
+  mirrored_ledger_path <- tempfile(fileext = ".tsv")
+
+  copy_return_code <- system2(
+    "aws",
+    c("s3", "cp", mirrored_ledger_uri, mirrored_ledger_path, "--only-show-errors")
+  )
+
+  # If an earlier run exists but its state cannot be read, refuse to start
+  # instead of risking a double load on the shared queue.
+  mirrored_ledger_unreadable <- copy_return_code != 0L || !file.exists(mirrored_ledger_path)
+
+  if (mirrored_ledger_unreadable) {
+
+    stop(sprintf(
+      paste0(
         "LATEST_RUN names run %s but its mirrored ledger could not be ",
         "fetched; cannot verify no stems are in flight. Fix S3 access ",
-        "and retry."), prior_run))
-    }
-    check_pending(remote_tmp,
-                  sprintf("Mirrored ledger of run %s", prior_run))
+        "and retry."
+      ),
+      prior_run_id
+    ))
+
   }
-  invisible(NULL)
+
+  stop_if_ledger_has_pending(
+    ledger_path  = mirrored_ledger_path,
+    ledger_label = sprintf("Mirrored ledger of run %s", prior_run_id)
+  )
+
+  return(invisible(NULL))
+
 }
 
-# Write the service form JSON for one batch. Full form schema, matching
-# what the web form emits: ALL keys must be present (empty/null where
-# inapplicable). A submission missing the IRB/Y-drive keys wedges the
-# Windows worker silently (diagnosed 2026-08-11 by diffing against a
-# known-good form JSON).
-delta_write_form_json <- function(input_dir, stem, batch_filename, email) {
-  form <- list(email = email, pii = "No", has_faddress = "on",
-               has_address = "on", pii_project_code = "",
-               is_human_subject = "No", is_irb_approved = NA,
-               has_irb_intake = NA, y_center = "", y_location = "",
-               pii_email = "",
-               filename = paste0(stem, ".csv"),
-               original_filename = batch_filename)
-  # NA -> null keeps the keys present (list(NULL) would drop them)
-  jsonlite::write_json(form, file.path(input_dir, paste0(stem, ".json")),
-                       auto_unbox = TRUE, na = "null")
-  invisible(form)
+#' Write the form file the geocoder service needs alongside one batch.
+#'
+#' Every submission to Urban's geocoder is a CSV of addresses plus a JSON
+#' "form" file describing it (who to notify, whether the data is sensitive).
+#' Used by every geocoding run in this repo: the Unified BMF delta and the
+#' address-history run.
+#'
+#' KNOWN BUG IN THE GEOCODER SERVICE. The form must carry every key the web
+#' form would send, with an empty or null value where a key does not apply.
+#' If any key is left out (the IRB and Y-drive keys are the easy ones to
+#' miss), the service's Windows worker stops on that batch without an error
+#' and without a log entry, and the batch, and everything queued behind it,
+#' waits forever. Found 2026-08-11 by comparing a stuck submission with a
+#' form the web page had produced. Also recorded in
+#' docs/reference/geocoder-service.md ("Known bugs in the service"). Do not
+#' remove a key from the list below.
+#'
+#' @param input_dir Character: folder the form is written into (the run's
+#'   input/ folder).
+#' @param stem Character: the service filename stem for this batch; the form
+#'   is written as <stem>.json and names <stem>.csv as its data file.
+#' @param batch_filename Character: the batch CSV's local filename, recorded
+#'   in the form as the original filename.
+#' @param email Character: address the service notifies when the batch is done.
+#' @return Invisibly the form, as the list that was written.
+geocoder_write_form_json <- function(input_dir, stem, batch_filename, email) {
+
+  form <- list(
+    email             = email,
+    pii               = "No",
+    has_faddress      = "on",
+    has_address       = "on",
+    pii_project_code  = "",
+    is_human_subject  = "No",
+    is_irb_approved   = NA,
+    has_irb_intake    = NA,
+    y_center          = "",
+    y_location        = "",
+    pii_email         = "",
+    filename          = paste0(stem, ".csv"),
+    original_filename = batch_filename
+  )
+
+  # na = "null" writes the NA entries as JSON null, which keeps their keys in
+  # the file. Using NULL in the list above would drop the keys.
+  jsonlite::write_json(
+    form,
+    file.path(input_dir, paste0(stem, ".json")),
+    auto_unbox = TRUE,
+    na         = "null"
+  )
+
+  return(invisible(form))
+
 }
 
 # Submit staged batches until MAX_IN_FLIGHT are in flight (rules 2 + 4).
@@ -390,7 +490,7 @@ prepare_master_geocoder_delta <- function(
         first_ein = batches[[i]]$ein[1L],
         last_ein  = batches[[i]]$ein[nrow(batches[[i]])]
       )
-      delta_write_form_json(input_dir, stem, fn, email)
+      geocoder_write_form_json(input_dir, stem, fn, email)
       # Mirror the staged inputs to the run prefix so a clean-checkout
       # resume can submit batches that never left this machine. REQUIRED:
       # submit-on-resume hard-depends on this mirror, so a failed mirror

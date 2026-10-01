@@ -90,9 +90,12 @@ source("R/run_master_geocoding.R")
 
 The full re-export (`MASTER_GEOCODING_MODE <- "export"`) remains for
 occasional full refreshes (e.g., to retry previously unmatched addresses).
-Gotcha: service form JSONs must carry ALL form keys (empty/null where
-inapplicable) -- a missing-key form wedges the Windows worker silently
-(2026-08-11 incident; the delta script emits the full schema).
+Known bug in the geocoder service: form JSONs must carry ALL form keys
+(empty/null where inapplicable) -- a form with a missing key stops the
+Windows worker without any error (2026-08-11 incident). Write forms only
+through `geocoder_write_form_json()` in `R/master_geocoding_delta.R`, which
+emits the full set; see "Known bugs in the service" in
+`docs/reference/geocoder-service.md`.
 
 ### Run the Legacy BMF Pipeline
 For NCCS legacy 501CX-NONPROFIT-PX BMF files (1989–2022 vintages). These
@@ -276,10 +279,22 @@ columns as the census-geo-resolved crosswalk plus coordinates and a
 plain-language `geo_match_level`. Spells with no street (pre-2009) are
 listed with empty geography. Rebuilt about once a quarter, not monthly.
 
-Four steps, from the repo root with AWS credentials in scope:
+Four steps, from the repo root with AWS credentials in scope. The full
+build (step 4) runs on EC2, never on a laptop: it downloads roughly 15 to
+20 GB of Census boundary files. Starting size 64 GB of memory and 100 GB of
+disk (an estimate, not yet measured on a full run; see the script header).
+A trial limited to a few small states (`CENSUS_GEO_STATES="DE,RI"`) is fine
+locally.
+
+Steps 2 and 4 both stop unless the address history and the geocoded Unified
+BMF end on the same month of BMF data. The month is read from the data
+(`last_vintage` and `last_vintage_ym`), not from the manifests, whose
+`vintage` field is the month the build ran. Rebuild the address history in
+the same monthly run as the Unified BMF so the two never drift apart.
 
 ```r
-# 1. The address history must carry spell_id: rebuild + validate it first
+# 1. The address history must carry spell_id and end on the same BMF month as
+#    the Unified BMF: rebuild + validate it first
 #    (Rscript scripts/build_address_resolved_crosswalk.R; scripts/validate_address_crosswalk.R).
 # 2. Stage the geocoder run: distinct historical addresses, minus those the
 #    geocoded Unified BMF already holds; DELTA_SUBMIT-style opt-in to submit.

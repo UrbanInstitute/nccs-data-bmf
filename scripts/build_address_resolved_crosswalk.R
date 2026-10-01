@@ -173,32 +173,93 @@ observation_select_sql <- function(parquet_files, source_label, ein_column) {
 }
 
 # ---------------------------------------------------------------------------
-# 2a. Aggregate in chunks of vintages, then fold the chunks.
+# 2a. Summarize a few BMF releases at a time, then combine the summaries.
 #
-# One pass over every vintage at once needs the whole observation set (about
-# 250M rows of address text) in the hash table of the COUNT(DISTINCT vintage)
-# step, which spilled 47 GB to disk and ran out on a laptop (2026-09-30). Each
-# parquet file is one vintage, so vintages never straddle chunks, and the
-# per-chunk partial aggregates fold exactly: SUM of per-chunk distinct-vintage
-# counts is the overall distinct count, MIN/MAX of vintages compose, and
-# `source` is settled at the fold. Partials are a few million rows per chunk.
+# What is being computed. For each organization and each address: the first
+# BMF release (vintage) the address appeared in, the last one, and how many
+# different releases showed it.
+#
+# Why not in one pass. The input is every organization's address in every
+# release since 1989, about 250 million rows. To count how many different
+# releases showed each address, the database has to keep every (organization,
+# address, release) combination in working memory at once. That did not fit:
+# it wrote 47 GB of overflow to disk and ran out of space on a laptop
+# (2026-09-30).
+#
+# What is done instead. The release files are processed in groups ("chunks")
+# of ADDR_XWALK_FILES_PER_CHUNK files. Each chunk produces a small summary (a
+# "partial") with one row per organization and address: first release, last
+# release, number of releases. A partial is a few million rows, not 250
+# million. The partials are then combined in one final step.
+#
+# Why combining gives exactly the same answer as one pass:
+#   * First and last release: the earliest of the chunks' earliest is the
+#     overall earliest, and likewise for the latest.
+#   * Number of releases: each file is exactly one release, and a file sits
+#     in exactly one chunk, so no release is ever counted in two chunks. The
+#     chunk counts can therefore simply be added up. (Adding up counts of
+#     distinct things is only safe because of this.)
+#   * `source` (current, legacy or both): one chunk cannot know whether an
+#     address also appears in the other pipeline, so this is decided in the
+#     final step, when every chunk is in view.
+#
+# Example: an address appears in the January, February and March releases;
+# January and February fall in chunk 1, March in chunk 2. Chunk 1 reports
+# first = January, last = February, count = 2. Chunk 2 reports first = March,
+# last = March, count = 1. Combined: first = January, last = March, count = 3.
 # ---------------------------------------------------------------------------
 
 files_per_chunk <- as.integer(Sys.getenv("ADDR_XWALK_FILES_PER_CHUNK", "10"))
-partials_dir    <- file.path(Sys.getenv("DUCKDB_TEMP_DIR", file.path(tempdir(), "duckdb_spill")), "address_partials")
+
+# The partials are written inside the DuckDB overflow folder. The folder is
+# emptied at the start of every run, because the final step combines every
+# partial it finds there: a partial left by an earlier run would be counted
+# again.
+partials_dir <- file.path(
+  Sys.getenv("DUCKDB_TEMP_DIR", file.path(tempdir(), "duckdb_spill")),
+  "address_partials"
+)
 unlink(partials_dir, recursive = TRUE)
 dir.create(partials_dir, recursive = TRUE, showWarnings = FALSE)
 
+#' The parquet files a glob pattern matches, in name order.
+#'
+#' @param connection DuckDB connection (with httpfs loaded when the pattern
+#'   points at S3).
+#' @param parquet_glob Character: a file pattern, local or s3://.
+#' @return Character vector of file paths, sorted by name, one per BMF release.
 list_parquet_files <- function(connection, parquet_glob) {
-  DBI::dbGetQuery(connection, sprintf("SELECT file FROM glob('%s') ORDER BY file", parquet_glob))$file
+
+  file_query <- sprintf("SELECT file FROM glob('%s') ORDER BY file", parquet_glob)
+  file_table <- DBI::dbGetQuery(connection, file_query)
+
+  return(file_table$file)
+
 }
 
-# Chunk the file list; for each chunk compute the per-(ein, source, address)
-# partial: distinct vintages, first and last vintage. Written to one parquet
-# per chunk so a failed chunk can be rerun without redoing the others.
+#' Summarize one chunk of release files and write the summary to disk.
+#'
+#' For every organization and address seen in the chunk: how many different
+#' releases showed it, and the first and last of them. Written to one parquet
+#' file per chunk under `partials_dir`.
+#'
+#' @param parquet_files Character vector: the release files of this chunk
+#'   (one release each).
+#' @param source_label Character: "current" or "legacy", the pipeline the
+#'   files come from.
+#' @param ein_column Character: name of the formatted-EIN column in these
+#'   files (from resolve_ein_column()).
+#' @param chunk_index Integer: the chunk's number within its pipeline, used
+#'   in the file name.
+#' @return Character: the path of the partial that was written.
 aggregate_one_chunk <- function(parquet_files, source_label, ein_column, chunk_index) {
+
   partial_path <- file.path(partials_dir, sprintf("%s_%03d.parquet", source_label, chunk_index))
+
   log_info(sprintf("  %s chunk %d: %d vintage file(s)", source_label, chunk_index, length(parquet_files)))
+
+  observation_sql <- observation_select_sql(parquet_files, source_label, ein_column)
+
   DBI::dbExecute(duckdb_connection, sprintf("
     COPY (
       SELECT ein, src, street, city, state, zip5,
@@ -209,19 +270,46 @@ aggregate_one_chunk <- function(parquet_files, source_label, ein_column, chunk_i
       WHERE ein IS NOT NULL AND (street IS NOT NULL OR city IS NOT NULL)
       GROUP BY ein, src, street, city, state, zip5
     ) TO '%s' (FORMAT PARQUET, COMPRESSION ZSTD)",
-    observation_select_sql(parquet_files, source_label, ein_column), partial_path))
-  partial_path
+    observation_sql,
+    partial_path
+  ))
+
+  return(partial_path)
+
 }
 
+#' Summarize every release file of one pipeline, chunk by chunk.
+#'
+#' @param parquet_glob Character: file pattern matching the pipeline's
+#'   release files.
+#' @param source_label Character: "current" or "legacy".
+#' @param ein_column Character: name of the formatted-EIN column.
+#' @return Character vector: the paths of the partials written, one per chunk.
 aggregate_source_in_chunks <- function(parquet_glob, source_label, ein_column) {
+
   parquet_files <- list_parquet_files(duckdb_connection, parquet_glob)
-  chunk_index   <- ceiling(seq_along(parquet_files) / files_per_chunk)
-  file_chunks   <- split(parquet_files, chunk_index)
-  log_info(sprintf("%s pipeline: %d vintage files in %d chunk(s)",
-                   source_label, length(parquet_files), length(file_chunks)))
-  purrr::imap_chr(unname(file_chunks), function(chunk_files, index) {
-    aggregate_one_chunk(chunk_files, source_label, ein_column, index)
-  })
+
+  # Files 1..10 go to chunk 1, 11..20 to chunk 2, and so on.
+  chunk_index <- ceiling(seq_along(parquet_files) / files_per_chunk)
+  file_chunks <- split(parquet_files, chunk_index)
+
+  log_info(sprintf(
+    "%s pipeline: %d vintage files in %d chunk(s)",
+    source_label,
+    length(parquet_files),
+    length(file_chunks)
+  ))
+
+  aggregate_chunk_of_this_source <- function(chunk_files, index) {
+
+    return(aggregate_one_chunk(chunk_files, source_label, ein_column, index))
+
+  }
+
+  partial_paths <- purrr::imap_chr(unname(file_chunks), aggregate_chunk_of_this_source)
+
+  return(partial_paths)
+
 }
 
 log_info("Aggregating per (ein, source, address tuple), chunk by chunk")
@@ -230,10 +318,10 @@ partial_paths <- c(
   aggregate_source_in_chunks(legacy_pipeline_glob,  "legacy",  legacy_ein_column)
 )
 
-# Fold the partials: distinct vintages add up across chunks (no vintage is in
-# two chunks), first/last compose, and a tuple seen under both sources is
-# tagged 'both'.
-log_info("Folding the chunk partials into spells")
+# Combine the partials (see the explanation at 2a): release counts are added
+# up, the earliest first release and the latest last release are kept, and an
+# address seen in both pipelines is marked 'both'.
+log_info("Combining the chunk partials into spells")
 address_spells <- data.table::as.data.table(DBI::dbGetQuery(duckdb_connection, sprintf("
   SELECT ein, street, city, state, zip5,
          SUM(vintage_count)                  AS n_vintages,

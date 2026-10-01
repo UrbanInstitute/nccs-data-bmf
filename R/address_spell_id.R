@@ -21,16 +21,24 @@ ADDRESS_SPELL_ID_LENGTH <- 16L
 
 #' Stable identifier for an address spell.
 #'
-#' @param EIN2   EIN in the EIN-XX-XXXXXXX form (ADR 0036).
-#' @param street Normalized street, upper case and trimmed; NA when absent.
-#' @param city   Normalized city.
-#' @param state  Normalized state.
-#' @param zip5   Normalized 5-digit ZIP.
-#' @return Character vector of 16-character hexadecimal identifiers.
+#' The five fields are joined with "|" (a missing value written as an empty
+#' string), hashed with SHA-256, and the first 16 hexadecimal characters of
+#' the hash are kept.
+#'
+#' @param EIN2   Character vector: EIN in the EIN-XX-XXXXXXX form (ADR 0036).
+#' @param street Character vector: normalized street, upper case and trimmed;
+#'   NA when absent.
+#' @param city   Character vector: normalized city.
+#' @param state  Character vector: normalized state.
+#' @param zip5   Character vector: normalized 5-digit ZIP.
+#' @return Character vector of 16-character hexadecimal identifiers, one per
+#'   input row.
 address_spell_id <- function(EIN2, street, city, state, zip5) {
 
   missing_as_empty <- function(values) {
-    dplyr::coalesce(as.character(values), "")
+
+    return(dplyr::coalesce(as.character(values), ""))
+
   }
 
   key_text <- paste(
@@ -45,5 +53,8 @@ address_spell_id <- function(EIN2, street, city, state, zip5) {
   # openssl::sha256() hashes every element of a character vector at once.
   full_hash <- as.character(openssl::sha256(key_text))
 
-  substr(full_hash, 1L, ADDRESS_SPELL_ID_LENGTH)
+  spell_id <- stringr::str_sub(full_hash, 1L, ADDRESS_SPELL_ID_LENGTH)
+
+  return(spell_id)
+
 }
