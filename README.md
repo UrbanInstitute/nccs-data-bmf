@@ -154,6 +154,16 @@ standalone via `source("R/run_publish_lookups.R")`. **Any edit to
 requires re-running the publish step**, or downstream consumers go stale. See
 the "Published artifacts" section of `CLAUDE.md` for the full path contract.
 
+## License
+
+Two licenses apply, because this repository holds code and publishes data.
+
+**Code.** The R code, scripts and documentation in this repository are released under the MIT License (see `LICENSE`).
+
+**Data.** The datasets this pipeline publishes to `s3://nccsdata` (the Unified BMF, the geocoded extension, the state marts, the crosswalks and the lookup tables, including the NTEE to NAICS crosswalk) are NCCS datasets and are released under the [Open Data Commons Attribution License (ODC-BY) v1.0](https://opendatacommons.org/licenses/by/1-0/), as stated in section 3.5 of the [NCCS Terms of Service](https://nccs.urban.org/nccs/terms/). ODC-BY permits copying, adapting, redistributing and commercial use, provided the data are attributed to the National Center for Charitable Statistics (NCCS) at the Urban Institute. The underlying IRS source files are in the public domain; ODC-BY applies to the cleaned and enhanced datasets NCCS produces from them.
+
+The files under `data/lookup/` are working inputs to the pipeline and may change without notice. The published, licensed form of each lookup table is the copy at `s3://nccsdata/lookups/bmf/latest/`, linked from the [lookup tables page](https://nccs.urban.org/nccs/datasets/lookups/).
+
 ## Documentation
 
 - [BMF Research Guidebook](https://urbaninstitute.github.io/nccs-data-bmf/index.html) — full pipeline documentation (Quarto)
