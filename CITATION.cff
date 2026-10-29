@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "NCCS Business Master File pipeline and Unified BMF"
+type: software
+authors:
+  - family-names: Poongundranar
+    given-names: Thiyaghessan
+    affiliation: "National Center for Charitable Statistics, Urban Institute"
+  - name: "Urban Institute"
+repository-code: "https://github.com/UrbanInstitute/nccs-data-bmf"
+url: "https://nccs.urban.org"
+abstract: "Pipeline that builds the NCCS Unified Business Master File (one row per EIN, 1989 to present) from IRS monthly and legacy BMF releases, with geocoding, geography crosswalks, and the published NTEE and NAICS lookup tables."
+date-released: "2026-10-29"
