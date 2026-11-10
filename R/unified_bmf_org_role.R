@@ -114,8 +114,14 @@ check_unified_bmf_ready_for_org_role <- function(con, table_name) {
 derive_org_role_by_ein <- function(con, table_name) {
   quoted_table_name <- DBI::dbQuoteIdentifier(con, table_name)
 
+  quoted_input_columns <- paste(
+    DBI::dbQuoteIdentifier(con, UNIFIED_BMF_ORG_ROLE_INPUT_COLUMNS),
+    collapse = ", "
+  )
+
   input_rows <- DBI::dbGetQuery(con, sprintf(
-    "SELECT ein, ntee_code_raw, subsection_code, foundation_code FROM %s",
+    "SELECT %s FROM %s",
+    quoted_input_columns,
     quoted_table_name
   ))
 
@@ -127,9 +133,11 @@ derive_org_role_by_ein <- function(con, table_name) {
 
   org_role_by_ein <- dplyr::tibble(
     ein = input_rows$ein,
-    nccs_org_role = org_role,
-    nccs_org_role_definition = label_nccs_org_role(org_role)
+    org_role = org_role,
+    org_role_definition = label_nccs_org_role(org_role)
   )
+
+  names(org_role_by_ein) <- c("ein", UNIFIED_BMF_ORG_ROLE_COLUMNS)
 
   return(org_role_by_ein)
 }
@@ -137,6 +145,52 @@ derive_org_role_by_ein <- function(con, table_name) {
 # ============================================================================
 # 4. The step the build calls
 # ============================================================================
+
+#' Write the SQL that copies the Unified BMF table with the role columns added
+#'
+#' @details
+#' The copy keeps every existing column in its existing order, leaves out
+#' role columns from an earlier run, and puts the role columns last. Rows
+#' are matched to their role by EIN.
+#'
+#' @param con DBI connection to the DuckDB database that holds the table.
+#' @param table_name name of the Unified BMF table.
+#'
+#' @return one SQL statement, as a character string.
+#'
+#' @keywords internal
+build_table_with_org_role_sql <- function(con, table_name) {
+  existing_columns <- DBI::dbListFields(con, table_name)
+
+  columns_to_keep <- setdiff(existing_columns, UNIFIED_BMF_ORG_ROLE_COLUMNS)
+
+  quoted_columns_to_keep <- paste0(
+    "unified_bmf.",
+    DBI::dbQuoteIdentifier(con, columns_to_keep),
+    collapse = ", "
+  )
+
+  quoted_role_columns <- paste0(
+    "org_role.",
+    DBI::dbQuoteIdentifier(con, UNIFIED_BMF_ORG_ROLE_COLUMNS),
+    collapse = ", "
+  )
+
+  create_table_sql <- sprintf(
+    "CREATE TABLE %s AS
+     SELECT %s, %s
+       FROM %s AS unified_bmf
+       LEFT JOIN %s AS org_role
+         ON unified_bmf.ein = org_role.ein",
+    DBI::dbQuoteIdentifier(con, UNIFIED_BMF_WITH_ORG_ROLE_NAME),
+    quoted_columns_to_keep,
+    quoted_role_columns,
+    DBI::dbQuoteIdentifier(con, table_name),
+    DBI::dbQuoteIdentifier(con, UNIFIED_BMF_ORG_ROLE_BY_EIN_NAME)
+  )
+
+  return(create_table_sql)
+}
 
 #' Add the organization role columns to the Unified BMF table
 #'
@@ -166,33 +220,11 @@ add_nccs_org_role_to_unified_bmf <- function(con,
 
   org_role_by_ein <- derive_org_role_by_ein(con, table_name)
 
-  existing_columns <- DBI::dbListFields(con, table_name)
-
-  columns_to_keep <- setdiff(existing_columns, UNIFIED_BMF_ORG_ROLE_COLUMNS)
-
-  quoted_columns_to_keep <- paste0(
-    "unified_bmf.",
-    DBI::dbQuoteIdentifier(con, columns_to_keep),
-    collapse = ", "
-  )
-
   quoted_table_name <- DBI::dbQuoteIdentifier(con, table_name)
 
   quoted_new_table_name <- DBI::dbQuoteIdentifier(con, UNIFIED_BMF_WITH_ORG_ROLE_NAME)
 
-  create_table_sql <- sprintf(
-    "CREATE TABLE %s AS
-     SELECT %s,
-            org_role.nccs_org_role,
-            org_role.nccs_org_role_definition
-       FROM %s AS unified_bmf
-       LEFT JOIN %s AS org_role
-         ON unified_bmf.ein = org_role.ein",
-    quoted_new_table_name,
-    quoted_columns_to_keep,
-    quoted_table_name,
-    UNIFIED_BMF_ORG_ROLE_BY_EIN_NAME
-  )
+  create_table_sql <- build_table_with_org_role_sql(con, table_name)
 
   duckdb::duckdb_register(con, UNIFIED_BMF_ORG_ROLE_BY_EIN_NAME, org_role_by_ein)
 
@@ -238,12 +270,19 @@ count_unified_bmf_by_org_role <- function(con,
                                           table_name = UNIFIED_BMF_TABLE_NAME) {
   quoted_table_name <- DBI::dbQuoteIdentifier(con, table_name)
 
+  quoted_role_columns <- paste(
+    DBI::dbQuoteIdentifier(con, UNIFIED_BMF_ORG_ROLE_COLUMNS),
+    collapse = ", "
+  )
+
   organizations_by_role <- DBI::dbGetQuery(con, sprintf(
-    "SELECT nccs_org_role, nccs_org_role_definition, COUNT(*) AS organizations
+    "SELECT %s, COUNT(*) AS organizations
        FROM %s
-      GROUP BY nccs_org_role, nccs_org_role_definition
-      ORDER BY nccs_org_role NULLS LAST",
-    quoted_table_name
+      GROUP BY %s
+      ORDER BY 1 NULLS LAST",
+    quoted_role_columns,
+    quoted_table_name,
+    quoted_role_columns
   ))
 
   organizations_by_role$organizations <- as.integer(organizations_by_role$organizations)
