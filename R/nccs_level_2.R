@@ -1,28 +1,52 @@
 # ============================================================================
 # nccs_level_2.R
-# Rebuild the old NCCS_LEVEL_2 grouping (operating, supporting, mutual
-# benefit) from an NTEE code, subsection code and foundation code
+# Rebuild the old NCCS_LEVEL_2 grouping from three BMF fields
+#
+# Terms used in this file, each with one meaning:
+#
+#   grouping         The old NCCS_LEVEL_2 value: "O" (operating),
+#                    "S" (supporting) or "M" (mutual benefit). Older BMF
+#                    files carry it as LEVEL2.
+#   NTEE code        The activity code of an organization: one letter (the
+#                    major group) followed by up to four letters or digits,
+#                    for example B11, E112 or B1170.
+#   common code      Characters 2 and 3 of an NTEE code when they name a
+#                    role that exists in every major group. 11 is support for
+#                    a single organization; 12 is fund raising and fund
+#                    distribution.
+#   subsection code  The IRS code for the kind of tax exemption. 3 means
+#                    501(c)(3).
+#   foundation code  The IRS code for the kind of 501(c)(3). 4 is a private
+#                    non-operating foundation; 17 is an organization run for
+#                    the benefit of another public charity.
+#   definition       Which of the two historical ways of building the
+#                    grouping to use: "through_2016" (NTEE code alone) or
+#                    "2017_onward" (NTEE code, subsection code and foundation
+#                    code).
 # ============================================================================
 
 # ============================================================================
-# Constants
+# 1. Constants
 # ============================================================================
 
-# NTEE "common code" endings that mark a support organization, in any major
-# group: 11 = single organization support, 12 = fund raising and fund
-# distribution. They sit in characters 2 and 3 of the code (B11, E112).
+# A real NTEE code: one letter, then up to four letters or digits.
+NCCS_LEVEL_2_NTEE_CODE_PATTERN <- "^[A-Z][A-Z0-9]{0,4}$"
+
+# The two common codes that mark a supporting organization.
 NCCS_LEVEL_2_SUPPORT_COMMON_CODES <- c("11", "12")
 
-# Codes in major group T (philanthropy, voluntarism and grantmaking) that the
-# old variable kept as operating, together with every T code whose second
-# character is 0 (T01, T033). All other T codes seen in the older files were
-# supporting.
-NCCS_LEVEL_2_OPERATING_T_CODES <- c("T19", "T40", "T50")
+# Major group Y holds mutual and membership benefit organizations.
+NCCS_LEVEL_2_MUTUAL_BENEFIT_MAJOR_GROUP <- "Y"
 
-# From September 2017 on, the old variable also counted 501(c)(3)
-# organizations with these IRS foundation codes as supporting, whatever their
-# NTEE code: 4 = private non-operating foundation, 17 = organization run for
-# the benefit of another public charity (a 509(a)(3) supporting organization).
+# Major group T holds philanthropy, voluntarism and grantmaking. Its codes
+# are supporting, except the ones below and every code whose second character
+# is 0 (T01, T033), which the older files kept as operating.
+NCCS_LEVEL_2_GRANTMAKING_MAJOR_GROUP <- "T"
+NCCS_LEVEL_2_OPERATING_GRANTMAKING_CODES <- c("T19", "T40", "T50")
+NCCS_LEVEL_2_OPERATING_SECOND_CHARACTER <- "0"
+
+# From September 2017 on, the older files also counted a 501(c)(3) with one
+# of these foundation codes as supporting, whatever its NTEE code.
 NCCS_LEVEL_2_SUPPORT_SUBSECTION_CODE <- 3L
 NCCS_LEVEL_2_SUPPORT_FOUNDATION_CODES <- c(4L, 17L)
 
@@ -35,32 +59,167 @@ NCCS_LEVEL_2_LABELS <- c(
 )
 
 # ============================================================================
-# Helper Functions
+# 2. Reading the inputs
 # ============================================================================
 
-#' Read an IRS code as a whole number
+#' Clean a vector of NTEE codes
 #'
-#' @description
-#' Turns a subsection or foundation code into an integer, however it is
-#' stored.
+#' @details
+#' Trims surrounding spaces and converts to upper case. A value that is
+#' missing, blank or not a real NTEE code (one letter, then up to four
+#' letters or digits) becomes `NA`, so that it is never mistaken for an
+#' operating organization later.
+#'
+#' @param ntee_code character vector of NTEE codes as stored in a file.
+#'
+#' @return character vector the same length as `ntee_code`, holding a clean
+#'   NTEE code or `NA`.
+#'
+#' @keywords internal
+clean_nccs_level_2_ntee_code <- function(ntee_code) {
+  trimmed_code <- stringr::str_trim(as.character(ntee_code))
+
+  upper_case_code <- stringr::str_to_upper(trimmed_code)
+
+  is_real_ntee_code <- stringr::str_detect(
+    upper_case_code,
+    pattern = NCCS_LEVEL_2_NTEE_CODE_PATTERN
+  )
+
+  clean_ntee_code <- dplyr::if_else(
+    is_real_ntee_code,
+    upper_case_code,
+    NA_character_,
+    missing = NA_character_
+  )
+
+  return(clean_ntee_code)
+}
+
+#' Read a subsection code or foundation code as a whole number
 #'
 #' @details
 #' The older and current BMF files store these codes as "03", "3", 3 or
-#' "3.0" depending on the file. All four become 3. Blank or unreadable values
-#' become `NA`.
+#' "3.0" depending on the file. All four become 3. A blank or unreadable
+#' value becomes `NA`.
 #'
-#' @param code character, integer or numeric vector of codes.
+#' @param irs_code character, integer or numeric vector of subsection codes
+#'   or foundation codes.
 #'
-#' @return integer vector the same length as `code`.
+#' @return integer vector the same length as `irs_code`.
 #'
 #' @keywords internal
-parse_nccs_level_2_code <- function(code) {
-  code_as_text <- stringr::str_trim(as.character(code))
-  suppressWarnings(as.integer(as.numeric(code_as_text)))
+parse_nccs_level_2_irs_code <- function(irs_code) {
+  code_as_text <- as.character(irs_code)
+
+  code_as_number <- suppressWarnings(as.numeric(code_as_text))
+
+  code_as_integer <- as.integer(code_as_number)
+
+  return(code_as_integer)
 }
 
 # ============================================================================
-# Derivation Functions
+# 3. The two rules
+# ============================================================================
+
+#' Derive the grouping from the NTEE code alone
+#'
+#' @details
+#' Applies the NTEE code rules in order, where the first one that fits wins:
+#' \enumerate{
+#'   \item Supporting: the common code is 11 or 12 (B11, E112).
+#'   \item Mutual benefit: the major group is Y.
+#'   \item Supporting: the major group is T, except T0x, T19, T40 and T50.
+#'   \item Operating: every other NTEE code.
+#' }
+#' `NA` in gives `NA` out.
+#'
+#' @param clean_ntee_code character vector from
+#'   [clean_nccs_level_2_ntee_code()].
+#'
+#' @return character vector the same length as `clean_ntee_code`, holding
+#'   "O", "S", "M" or `NA`.
+#'
+#' @keywords internal
+derive_nccs_level_2_from_ntee_code <- function(clean_ntee_code) {
+  major_group <- stringr::str_sub(clean_ntee_code, start = 1, end = 1)
+
+  second_character <- stringr::str_sub(clean_ntee_code, start = 2, end = 2)
+
+  common_code <- stringr::str_sub(clean_ntee_code, start = 2, end = 3)
+
+  first_three_characters <- stringr::str_sub(clean_ntee_code, start = 1, end = 3)
+
+  is_operating_grantmaking_code <-
+    second_character %in% NCCS_LEVEL_2_OPERATING_SECOND_CHARACTER |
+    first_three_characters %in% NCCS_LEVEL_2_OPERATING_GRANTMAKING_CODES
+
+  is_supporting_grantmaking_code <-
+    major_group %in% NCCS_LEVEL_2_GRANTMAKING_MAJOR_GROUP &
+    !is_operating_grantmaking_code
+
+  grouping_from_ntee_code <- dplyr::case_when(
+    is.na(clean_ntee_code) ~ NA_character_,
+    common_code %in% NCCS_LEVEL_2_SUPPORT_COMMON_CODES ~ "S",
+    major_group %in% NCCS_LEVEL_2_MUTUAL_BENEFIT_MAJOR_GROUP ~ "M",
+    is_supporting_grantmaking_code ~ "S",
+    .default = "O"
+  )
+
+  return(grouping_from_ntee_code)
+}
+
+#' Flag organizations that are supporting because of their foundation code
+#'
+#' @details
+#' An organization is flagged when its subsection code is 3 (501(c)(3)) and
+#' its foundation code is 4 or 17. A missing subsection code or foundation
+#' code is never flagged. Stops if either input is absent or is not the
+#' expected length.
+#'
+#' @param subsection_code vector of subsection codes, in any stored form.
+#' @param foundation_code vector of foundation codes, in any stored form.
+#' @param expected_length number of organizations, which both inputs must
+#'   match.
+#'
+#' @return logical vector of length `expected_length`, `TRUE` where the
+#'   foundation code makes the organization supporting.
+#'
+#' @keywords internal
+is_supporting_by_foundation_code <- function(subsection_code,
+                                             foundation_code,
+                                             expected_length) {
+  if (is.null(subsection_code) || is.null(foundation_code)) {
+    rlang::abort(paste(
+      "definition = \"2017_onward\" needs subsection_code and foundation_code.",
+      "Use definition = \"through_2016\" to work from the NTEE code alone."
+    ))
+  }
+
+  has_expected_lengths <-
+    length(subsection_code) == expected_length &&
+    length(foundation_code) == expected_length
+
+  if (!has_expected_lengths) {
+    rlang::abort(
+      "subsection_code and foundation_code must be the same length as ntee_code."
+    )
+  }
+
+  is_support_subsection <-
+    parse_nccs_level_2_irs_code(subsection_code) %in% NCCS_LEVEL_2_SUPPORT_SUBSECTION_CODE
+
+  is_support_foundation <-
+    parse_nccs_level_2_irs_code(foundation_code) %in% NCCS_LEVEL_2_SUPPORT_FOUNDATION_CODES
+
+  is_supporting <- is_support_subsection & is_support_foundation
+
+  return(is_supporting)
+}
+
+# ============================================================================
+# 4. Public functions
 # ============================================================================
 
 #' Derive the old NCCS_LEVEL_2 grouping
@@ -71,31 +230,33 @@ parse_nccs_level_2_code <- function(code) {
 #' ("M").
 #'
 #' @details
-#' The old variable had two definitions over time. Both start from the same
-#' NTEE code rules, applied in this order, where the first one that fits wins:
+#' The old grouping had two definitions over time.
+#'
+#' `definition = "through_2016"` uses the NTEE code alone, applying these
+#' rules in order, where the first one that fits wins:
 #' \enumerate{
-#'   \item Supporting: characters 2 and 3 of the code are 11 or 12
-#'     (for example B11, E112).
-#'   \item Mutual benefit: the code starts with Y.
-#'   \item Supporting: the code starts with T, except T0x, T19, T40 and T50.
-#'   \item Operating: every other code.
+#'   \item Supporting: characters 2 and 3 of the NTEE code are 11 or 12
+#'     (B11, E112).
+#'   \item Mutual benefit: the NTEE code starts with Y.
+#'   \item Supporting: the NTEE code starts with T, except T0x, T19, T40 and
+#'     T50.
+#'   \item Operating: every other NTEE code.
 #' }
+#' This is how the BMF files from June 1989 through August 2016 were built.
 #'
-#' `definition = "through_2016"` uses the NTEE code rules alone. This is how
-#' the BMF files from June 1989 through August 2016 were built.
+#' `definition = "2017_onward"` (the default) puts one rule ahead of those: a
+#' 501(c)(3) organization (subsection code 3) with foundation code 4 or 17 is
+#' supporting, whatever its NTEE code. This is how the BMF files from
+#' September 2017 through August 2022 were built.
 #'
-#' `definition = "2017_onward"` (the default) adds one rule ahead of the
-#' others: a 501(c)(3) organization (subsection code 3) with foundation code
-#' 4 or 17 is supporting, whatever its NTEE code. This is how the BMF files
-#' from September 2017 through August 2022 were built.
-#'
-#' A missing or blank NTEE code returns `NA`, unless the foundation code rule
-#' already settles the answer.
+#' The result is `NA` when the NTEE code is missing, blank or not a real NTEE
+#' code (one letter, then up to four letters or digits), unless the
+#' foundation code rule already settles the answer.
 #'
 #' Evidence. The rules were worked out by comparing the original `LEVEL2`
 #' column with the other columns in the older BMF files under `legacy/bmf/`.
 #' They were not taken from written documentation. Files tested, with the
-#' share of organizations where the rebuilt value equals the original:
+#' share of organizations where the rebuilt grouping equals the original:
 #' June 1989, June 2014 and July 2015 (100%), July 2013 and August 2016 (all
 #' but 1 and 2 organizations) under "through_2016"; September 2017, December
 #' 2017 and December 2018 (100%), August 2019, April 2020 and August 2022
@@ -105,19 +266,14 @@ parse_nccs_level_2_code <- function(code) {
 #'
 #' Limits. Every T code that appears in the older files (39 codes) is
 #' reproduced, but a T code that never appeared there is handled by the
-#' general pattern, which is an extension, not something observed. Values
-#' that are not real NTEE codes ("123", "UNDEFINED") fall through to
-#' operating, so pass a column of real codes with missing values left as
-#' `NA`, such as `ntee_code_raw` in the Unified BMF.
+#' general pattern, which is an extension, not something observed.
 #'
 #' @param ntee_code character vector of NTEE codes, for example the
-#'   `ntee_code_raw` column of the Unified BMF. Codes are usually 3 or 4
-#'   characters; 5-character codes are accepted. Upper or lower case, with or
+#'   `ntee_code_raw` column of the Unified BMF. Upper or lower case, with or
 #'   without surrounding spaces.
-#' @param subsection_code vector of IRS subsection codes, the same length as
-#'   `ntee_code` (3 means 501(c)(3)). Needed for "2017_onward"; ignored for
-#'   "through_2016".
-#' @param foundation_code vector of IRS foundation codes, the same length as
+#' @param subsection_code vector of subsection codes, the same length as
+#'   `ntee_code`. Needed for "2017_onward"; ignored for "through_2016".
+#' @param foundation_code vector of foundation codes, the same length as
 #'   `ntee_code`. Needed for "2017_onward"; ignored for "through_2016".
 #' @param definition which historical definition to rebuild: "2017_onward"
 #'   (default) or "through_2016".
@@ -143,60 +299,26 @@ derive_nccs_level_2 <- function(ntee_code,
                                 definition = "2017_onward") {
   definition <- rlang::arg_match(definition, values = NCCS_LEVEL_2_DEFINITIONS)
 
-  # ---- 1. NTEE code rules ---------------------------------------------------
+  clean_ntee_code <- clean_nccs_level_2_ntee_code(ntee_code)
 
-  clean_code <- stringr::str_to_upper(stringr::str_trim(as.character(ntee_code)))
-  clean_code <- dplyr::na_if(clean_code, "")
+  grouping_from_ntee_code <- derive_nccs_level_2_from_ntee_code(clean_ntee_code)
 
-  major_group <- stringr::str_sub(clean_code, start = 1, end = 1)
-  second_character <- stringr::str_sub(clean_code, start = 2, end = 2)
-  common_code <- stringr::str_sub(clean_code, start = 2, end = 3)
-  first_three_characters <- stringr::str_sub(clean_code, start = 1, end = 3)
-
-  is_support_common_code <- common_code %in% NCCS_LEVEL_2_SUPPORT_COMMON_CODES
-  is_operating_t_code <- second_character %in% "0" |
-    first_three_characters %in% NCCS_LEVEL_2_OPERATING_T_CODES
-
-  # ---- 2. Foundation code rule (2017 onward only) ---------------------------
-
-  is_support_by_foundation_code <- rep(FALSE, length(clean_code))
-
-  if (definition == "2017_onward") {
-    if (is.null(subsection_code) || is.null(foundation_code)) {
-      rlang::abort(paste(
-        "definition = \"2017_onward\" needs subsection_code and foundation_code.",
-        "Use definition = \"through_2016\" to work from the NTEE code alone."
-      ))
-    }
-
-    if (length(subsection_code) != length(clean_code) ||
-        length(foundation_code) != length(clean_code)) {
-      rlang::abort(
-        "subsection_code and foundation_code must be the same length as ntee_code."
-      )
-    }
-
-    is_support_by_foundation_code <-
-      parse_nccs_level_2_code(subsection_code) %in% NCCS_LEVEL_2_SUPPORT_SUBSECTION_CODE &
-      parse_nccs_level_2_code(foundation_code) %in% NCCS_LEVEL_2_SUPPORT_FOUNDATION_CODES
+  if (definition == "through_2016") {
+    return(grouping_from_ntee_code)
   }
 
-  # ---- 3. Combine -----------------------------------------------------------
-
-  dplyr::case_when(
-    is_support_by_foundation_code ~ "S",
-    is.na(clean_code) ~ NA_character_,
-    is_support_common_code ~ "S",
-    major_group == "Y" ~ "M",
-    major_group == "T" & !is_operating_t_code ~ "S",
-    .default = "O"
+  is_supporting <- is_supporting_by_foundation_code(
+    subsection_code = subsection_code,
+    foundation_code = foundation_code,
+    expected_length = length(clean_ntee_code)
   )
+
+  grouping <- dplyr::if_else(is_supporting, "S", grouping_from_ntee_code)
+
+  return(grouping)
 }
 
-#' Label an NCCS_LEVEL_2 value in words
-#'
-#' @description
-#' Turns the one-letter NCCS_LEVEL_2 value into a readable label.
+#' Label an NCCS_LEVEL_2 grouping in words
 #'
 #' @details
 #' "O" becomes "Operating", "S" becomes "Supporting" and "M" becomes
@@ -209,5 +331,7 @@ derive_nccs_level_2 <- function(ntee_code,
 #'
 #' @export
 label_nccs_level_2 <- function(nccs_level_2) {
-  unname(NCCS_LEVEL_2_LABELS[as.character(nccs_level_2)])
+  grouping_label <- unname(NCCS_LEVEL_2_LABELS[as.character(nccs_level_2)])
+
+  return(grouping_label)
 }
