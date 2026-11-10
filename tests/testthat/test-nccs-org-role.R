@@ -92,10 +92,24 @@ test_that("a value that is not an NTEE code is unknown, never operating", {
 test_that("short words and missing-value words are unknown, never a role", {
   expect_identical(
     derive_nccs_org_role(
-      c("NA", "NULL", "YUCK", "TURT", "T", "Y", "BO2", "EJ21", "DISP", "000", "B12,", "B11700"),
+      c("NA", "NULL", "YUCK", "TURT", "T", "Y", "BO2", "EJ21", "DISP", "000", "B11700"),
       definition = "through_2016"
     ),
-    rep(NA_character_, times = 12)
+    rep(NA_character_, times = 11)
+  )
+})
+
+test_that("punctuation after an NTEE code is ignored (ADR 0058)", {
+  expect_identical(
+    derive_nccs_org_role(c("B12,", "P20.", "Y42;", "T22,,"), definition = "through_2016"),
+    c("S", "O", "M", "S")
+  )
+})
+
+test_that("punctuation inside or before an NTEE code still makes it unknown", {
+  expect_identical(
+    derive_nccs_org_role(c("B,12", ",B12", "B 12", ","), definition = "through_2016"),
+    rep(NA_character_, times = 4)
   )
 })
 

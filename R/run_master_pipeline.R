@@ -99,6 +99,8 @@ source(here::here("R", "config.R"))
 source(here::here("R", "utils", "logging.R"))
 source(here::here("R", "quality", "post_checks.R"))            # generate_data_dictionary()
 source(here::here("R", "master_bmf_builder.R"))
+source(here::here("R", "nccs_org_role.R"))                      # derive_nccs_org_role()
+source(here::here("R", "unified_bmf_org_role.R"))               # add_nccs_org_role_to_unified_bmf()
 source(here::here("R", "quality", "master_post_checks.R"))
 source(here::here("R", "manifest.R"))
 source(here::here("R", "publish_lookups.R"))
@@ -162,6 +164,12 @@ if (!is.null(DUCKDB_TEMP_DIR)) {
 
 log_phase_start("BUILD")
 build_master_bmf(con, inputs, staging_dir = MASTER_STAGING_DIR)
+
+# ADR 0058: add nccs_org_role and nccs_org_role_definition at the end of the
+# finished one-row-per-EIN table, before the quality checks read it.
+log_info("Adding the organization role columns (ADR 0058)")
+add_nccs_org_role_to_unified_bmf(con)
+print(count_unified_bmf_by_org_role(con))
 
 # ============================================================================
 # PHASE 4: QUALITY CHECKS
