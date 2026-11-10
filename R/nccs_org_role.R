@@ -37,6 +37,10 @@
 # letters or digits. Words such as "NA", "NULL" or "DISP" do not fit.
 NCCS_ORG_ROLE_NTEE_CODE_PATTERN <- "^[A-Z][0-9][A-Z0-9]{0,3}$"
 
+# Punctuation left after an NTEE code by an older source file ("B12,").
+# It is dropped before the shape is checked (ADR 0058).
+NCCS_ORG_ROLE_TRAILING_PUNCTUATION_PATTERN <- "[[:punct:]]+$"
+
 # The two common codes that mark a supporting organization.
 NCCS_ORG_ROLE_SUPPORT_COMMON_CODES <- c("11", "12")
 
@@ -70,7 +74,8 @@ NCCS_ORG_ROLE_LABELS <- c(
 #' Clean a vector of NTEE codes
 #'
 #' @details
-#' Trims surrounding spaces and converts to upper case. A value that is
+#' Trims surrounding spaces, drops punctuation that follows the code
+#' ("B12," becomes "B12") and converts to upper case. A value that is
 #' missing, blank or not shaped like an NTEE code (one letter, one digit,
 #' then up to three more letters or digits) becomes `NA`, so that it is
 #' never mistaken for an operating organization later. The check is on shape
@@ -85,7 +90,12 @@ NCCS_ORG_ROLE_LABELS <- c(
 clean_nccs_org_role_ntee_code <- function(ntee_code) {
   trimmed_code <- stringr::str_trim(as.character(ntee_code))
 
-  upper_case_code <- stringr::str_to_upper(trimmed_code)
+  code_without_trailing_punctuation <- stringr::str_remove(
+    trimmed_code,
+    pattern = NCCS_ORG_ROLE_TRAILING_PUNCTUATION_PATTERN
+  )
+
+  upper_case_code <- stringr::str_to_upper(code_without_trailing_punctuation)
 
   is_real_ntee_code <- stringr::str_detect(
     upper_case_code,
@@ -265,7 +275,8 @@ is_supporting_by_foundation_code <- function(subsection_code,
 #'
 #' The result is `NA` when the NTEE code is missing, blank or not shaped
 #' like an NTEE code (one letter, one digit, then up to three more letters or
-#' digits), unless the foundation code rule already settles the answer. This
+#' digits), unless the foundation code rule already settles the answer.
+#' Punctuation that follows a code ("B12,") is ignored. This
 #' is a deliberate difference from the older files: the August 2019, April
 #' 2020 and August 2022 files have 26,619 to 42,648 organizations with no
 #' NTEE code and mark them operating. Here they are unknown.
