@@ -89,6 +89,26 @@ test_that("a value that is not an NTEE code is unknown, never operating", {
   )
 })
 
+test_that("short words and missing-value words are unknown, never a role", {
+  expect_identical(
+    derive_nccs_org_role(
+      c("NA", "NULL", "YUCK", "TURT", "T", "Y", "BO2", "EJ21", "DISP", "000", "B12,", "B11700"),
+      definition = "through_2016"
+    ),
+    rep(NA_character_, times = 12)
+  )
+})
+
+test_that("every shape of NTEE code found in the BMF files is read as a code", {
+  expect_identical(
+    derive_nccs_org_role(
+      c("X2", "A69", "A6C", "D203", "A69Z", "A6E0", "A6CZ", "S0241", "G039B"),
+      definition = "through_2016"
+    ),
+    rep("O", times = 9)
+  )
+})
+
 test_that("an empty input returns an empty result", {
   expect_identical(
     derive_nccs_org_role(character(0), definition = "through_2016"),
@@ -141,6 +161,17 @@ test_that("subsection and foundation codes are read the same however they are st
       foundation_code = c("04", "17", "4.0", "17")
     ),
     c("S", "S", "S", "S")
+  )
+})
+
+test_that("a subsection or foundation code that is not a whole number is never a match", {
+  expect_identical(
+    derive_nccs_org_role(
+      ntee_code = c("P20", "P20", "P20", "P20", "P20", "P20"),
+      subsection_code = c(3.9, 3, "3.5", 3, 2.9, 3),
+      foundation_code = c(4, 4.9, 4, "17.2", 4, 16.9)
+    ),
+    rep("O", times = 6)
   )
 })
 

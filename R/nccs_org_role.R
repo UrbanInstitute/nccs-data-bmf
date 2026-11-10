@@ -10,8 +10,10 @@
 #                    files carry it as LEVEL2 and older CORE files as
 #                    NCCS_LEVEL_2.
 #   NTEE code        The activity code of an organization: one letter (the
-#                    major group) followed by up to four letters or digits,
-#                    for example B11, E112 or B1170.
+#                    major group), then one digit, then up to three more
+#                    letters or digits, for example B8, B11, A6C, E112 or
+#                    B1170. Every code in the older and current BMF files
+#                    has this shape.
 #   common code      Characters 2 and 3 of an NTEE code when they name a
 #                    job that exists in every major group. 11 is support for
 #                    a single organization; 12 is fund raising and fund
@@ -31,8 +33,9 @@
 # 1. Constants
 # ============================================================================
 
-# A real NTEE code: one letter, then up to four letters or digits.
-NCCS_ORG_ROLE_NTEE_CODE_PATTERN <- "^[A-Z][A-Z0-9]{0,4}$"
+# The shape of an NTEE code: one letter, one digit, then up to three more
+# letters or digits. Words such as "NA", "NULL" or "DISP" do not fit.
+NCCS_ORG_ROLE_NTEE_CODE_PATTERN <- "^[A-Z][0-9][A-Z0-9]{0,3}$"
 
 # The two common codes that mark a supporting organization.
 NCCS_ORG_ROLE_SUPPORT_COMMON_CODES <- c("11", "12")
@@ -68,9 +71,10 @@ NCCS_ORG_ROLE_LABELS <- c(
 #'
 #' @details
 #' Trims surrounding spaces and converts to upper case. A value that is
-#' missing, blank or not a real NTEE code (one letter, then up to four
-#' letters or digits) becomes `NA`, so that it is never mistaken for an
-#' operating organization later.
+#' missing, blank or not shaped like an NTEE code (one letter, one digit,
+#' then up to three more letters or digits) becomes `NA`, so that it is
+#' never mistaken for an operating organization later. The check is on shape
+#' only: it does not look the code up in the list of NTEE codes.
 #'
 #' @param ntee_code character vector of NTEE codes as stored in a file.
 #'
@@ -103,7 +107,8 @@ clean_nccs_org_role_ntee_code <- function(ntee_code) {
 #' @details
 #' The older and current BMF files store these codes as "03", "3", 3 or
 #' "3.0" depending on the file. All four become 3. A blank or unreadable
-#' value becomes `NA`.
+#' value becomes `NA`, and so does a number that is not whole (3.9), because
+#' it is not a code.
 #'
 #' @param irs_code character, integer or numeric vector of subsection codes
 #'   or foundation codes.
@@ -116,7 +121,14 @@ parse_nccs_org_role_irs_code <- function(irs_code) {
 
   code_as_number <- suppressWarnings(as.numeric(code_as_text))
 
-  code_as_integer <- as.integer(code_as_number)
+  is_whole_number <- code_as_number == round(code_as_number)
+
+  code_as_integer <- dplyr::if_else(
+    is_whole_number,
+    suppressWarnings(as.integer(code_as_number)),
+    NA_integer_,
+    missing = NA_integer_
+  )
 
   return(code_as_integer)
 }
@@ -251,9 +263,12 @@ is_supporting_by_foundation_code <- function(subsection_code,
 #' supporting, whatever its NTEE code. This is how the BMF files from
 #' September 2017 through August 2022 were built.
 #'
-#' The result is `NA` when the NTEE code is missing, blank or not a real NTEE
-#' code (one letter, then up to four letters or digits), unless the
-#' foundation code rule already settles the answer.
+#' The result is `NA` when the NTEE code is missing, blank or not shaped
+#' like an NTEE code (one letter, one digit, then up to three more letters or
+#' digits), unless the foundation code rule already settles the answer. This
+#' is a deliberate difference from the older files: the August 2019, April
+#' 2020 and August 2022 files have 26,619 to 42,648 organizations with no
+#' NTEE code and mark them operating. Here they are unknown.
 #'
 #' Evidence. The rules were worked out by comparing the original `LEVEL2`
 #' column with the other columns in the older BMF files under `legacy/bmf/`.
@@ -262,7 +277,8 @@ is_supporting_by_foundation_code <- function(subsection_code,
 #' June 1989, June 2014 and July 2015 (100%), July 2013 and August 2016 (all
 #' but 1 and 2 organizations) under "through_2016"; September 2017, December
 #' 2017 and December 2018 (100%), August 2019, April 2020 and August 2022
-#' (all but 2 or 3 organizations) under "2017_onward". No file between August
+#' (all but 2 or 3 of the organizations that have an NTEE code) under
+#' "2017_onward". No file between August
 #' 2016 and September 2017 exists, so the exact month of the change is not
 #' known. `scripts/check_nccs_org_role.R` repeats two of these comparisons.
 #'
