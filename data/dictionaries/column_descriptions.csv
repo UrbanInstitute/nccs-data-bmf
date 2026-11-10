@@ -108,3 +108,5 @@ last_vintage_ym,Latest BMF vintage (YYYY-MM) in which this EIN was observed; mat
 first_year_in_bmf,Calendar year (YYYY) of first_vintage_ym; convenience integer for filtering
 last_year_in_bmf,Calendar year (YYYY) of last_vintage_ym; convenience integer for filtering
 bmf_vintages_observed,Count of BMF vintages in which this EIN appeared (1 = appears only in the surviving vintage)
+nccs_org_role,"Role of the organization, derived by NCCS from the NTEE code, subsection code and foundation code: O = operating, S = supporting, M = mutual benefit; missing when the organization has no usable NTEE code and its foundation code does not decide. Formerly NCCS_LEVEL_2 (CORE) and LEVEL2 (BMF). ADR 0058."
+nccs_org_role_definition,"The value of nccs_org_role in words: Operating, Supporting or Mutual benefit"
