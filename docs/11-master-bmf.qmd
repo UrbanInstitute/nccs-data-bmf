@@ -58,6 +58,42 @@ Columns from the legacy slim per-vintage schema that don't exist in the
 current schema are filled with `NULL` for current-sourced rows, and
 vice versa. DuckDB's `union_by_name` handles this automatically.
 
+### Derived organization columns
+
+The last six columns of the file sort each organization three ways. NCCS
+works them out from the IRS codes in the same row. Older NCCS files
+carried the same groupings under the names in the last column.
+
+| Column                           | Values                                                                 | Worked out from                                        | Older name                     |
+|----------------------------------|------------------------------------------------------------------------|--------------------------------------------------------|--------------------------------|
+| `nccs_org_role`                  | `O` operating, `S` supporting, `M` mutual benefit                      | `ntee_code_raw`, `subsection_code`, `foundation_code`  | `NCCS_LEVEL_2`, `LEVEL2`       |
+| `nccs_org_role_definition`       | The role in words                                                      | `nccs_org_role`                                        |                                |
+| `nccs_org_legal_type`            | `PC` public charity, `PF` private foundation, `O` other tax-exempt organization | `subsection_code`, `foundation_code`          | `NCCS_LEVEL_1`, `LEVEL1`       |
+| `nccs_org_legal_type_definition` | The legal type in words                                                | `nccs_org_legal_type`                                  |                                |
+| `nccs_org_field`                 | One of 17 two-letter values, for example `HS` human services           | `ntee_code_raw`                                        | `NCCS_LEVEL_3`, `LEVEL3`       |
+| `nccs_org_field_definition`      | The field in words                                                     | `nccs_org_field`                                       |                                |
+
+A derived column is blank when the IRS code it comes from is blank:
+
+- `nccs_org_legal_type` is blank when the subsection code is blank. It is
+  also blank for a 501(c)(3) whose foundation code is blank.
+- `nccs_org_field` is blank when the NTEE code is blank.
+- `nccs_org_role` is blank when the NTEE code is blank. The one exception
+  is a 501(c)(3) with foundation code 4 or 17: it is `S` whatever its NTEE
+  code.
+
+Two more cases count as a blank code. The IRS writes `0` when it gives no
+subsection code or foundation code. An NTEE code must start with a letter
+and a digit, so text such as `UNDEFINED` is not a code.
+
+The rules are in `R/nccs_org_role.R`, `R/nccs_org_legal_type.R` and
+`R/nccs_org_field.R`. `R/unified_bmf_org_columns.R` adds the columns to
+the finished table. The decisions are ADR 0058 (role) and ADR 0059
+(legal type and field) in `nccs-contracts`.
+
+The fourth older grouping, `NCCS_LEVEL_4`, is the first letter of the
+NTEE code. The file already has it as `ntee_code_major_group`.
+
 ## Dedup logic
 
 ```sql
@@ -111,6 +147,12 @@ Reported by `R/quality/master_post_checks.R`:
 - Year range over `first_year_in_bmf` and `last_year_in_bmf`
 - Distribution of `bmf_vintages_observed`
 - Per-column non-null percentage
+- Derived organization columns: for `nccs_org_role`,
+  `nccs_org_legal_type` and `nccs_org_field`, the number of organizations
+  for every value, the number of blanks, and the change from the
+  previous build. Hard gate: the build fails if a value is not on the
+  list of allowed values or does not match its value in words
+  (`R/quality/unified_bmf_org_column_checks.R`).
 
 ## Update cadence
 

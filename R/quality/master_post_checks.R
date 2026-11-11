@@ -10,10 +10,27 @@
 
 #' Generate the Master BMF quality report
 #'
-#' @param con DuckDB connection (must contain bmf_master)
+#' @details
+#' When the report fails, the build stops before any upload. The report
+#' fails in four cases:
+#' \enumerate{
+#'   \item The table does not have one row per EIN.
+#'   \item The build found no input file.
+#'   \item The table is empty.
+#'   \item The check of the derived organization columns fails (ADR 0059
+#'     Decision 10, see [check_unified_bmf_org_columns()]).
+#' }
+#'
+#' @param con DuckDB connection (must contain bmf_master, with the derived
+#'   organization columns already added)
 #' @param inputs Discovery output from discover_master_inputs()
+#' @param previous_org_column_counts counts of the derived organization
+#'   columns in the previous build, from
+#'   [read_previous_unified_bmf_org_column_counts()], or `NULL` when there
+#'   are none. Used only to show the change from the previous build.
 #' @return list with quality metrics; printable / serializable
-generate_master_quality_report <- function(con, inputs) {
+generate_master_quality_report <- function(con, inputs,
+                                           previous_org_column_counts = NULL) {
   q <- function(sql) DBI::dbGetQuery(con, sql)
 
   total_rows <- q("SELECT COUNT(*) AS n FROM bmf_master")$n
@@ -90,6 +107,16 @@ generate_master_quality_report <- function(con, inputs) {
     (pct_legacy  <= flag_threshold_dead & pct_current >= flag_threshold_alive)
   ]
 
+  # Derived organization columns (role, legal type, field): the count for
+  # every value and the change from the previous build. A value outside
+  # the allowed list fails the report (ADR 0059 Decision 10).
+  org_column_counts <- count_unified_bmf_by_org_columns(con)
+
+  derived_org_columns <- check_unified_bmf_org_columns(
+    organizations_by_value = org_column_counts,
+    previous_organizations_by_value = previous_org_column_counts
+  )
+
   # Pre-condition checks.
   ein_unique <- (total_rows == distinct_eins)
   inputs_n   <- nrow(inputs)
@@ -97,7 +124,8 @@ generate_master_quality_report <- function(con, inputs) {
 
   passed <- ein_unique &&
             inputs_n > 0 &&
-            total_rows > 0
+            total_rows > 0 &&
+            derived_org_columns$passed
 
   list(
     timestamp        = format(Sys.time(), "%Y-%m-%dT%H:%M:%S%z"),
@@ -112,7 +140,8 @@ generate_master_quality_report <- function(con, inputs) {
     vintages_observed = as.list(vintages_observed),
     vintage_histogram = vintage_hist,
     completeness     = completeness_dt,
-    source_completeness_flags = source_completeness_flags
+    source_completeness_flags = source_completeness_flags,
+    derived_org_columns = derived_org_columns
   )
 }
 
@@ -149,6 +178,9 @@ print_master_quality_report <- function(report) {
   } else {
     message("Source-split completeness tripwire: no columns flagged.")
   }
+
+  print_unified_bmf_org_column_check(report$derived_org_columns)
+
   message("===========================================================")
 }
 

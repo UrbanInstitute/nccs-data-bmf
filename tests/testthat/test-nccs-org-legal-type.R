@@ -59,10 +59,10 @@ test_that("the foundation code does not matter outside 501(c)(3)", {
 })
 
 # ============================================================================
-# 2. Unknown stays unknown
+# 2. A blank code gives a blank, never a guess
 # ============================================================================
 
-test_that("a missing or zero subsection code gives a missing legal type", {
+test_that("a blank or zero subsection code gives a blank legal type", {
   expect_identical(
     derive_nccs_org_legal_type(
       subsection_code = c(NA, 0, "", "00"),
@@ -72,7 +72,7 @@ test_that("a missing or zero subsection code gives a missing legal type", {
   )
 })
 
-test_that("a 501(c)(3) with a missing or zero foundation code is missing, not a public charity", {
+test_that("a 501(c)(3) with a blank or zero foundation code is blank, not a public charity", {
   expect_identical(
     derive_nccs_org_legal_type(
       subsection_code = c(3, 3, 3, 3),

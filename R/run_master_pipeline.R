@@ -100,7 +100,10 @@ source(here::here("R", "utils", "logging.R"))
 source(here::here("R", "quality", "post_checks.R"))            # generate_data_dictionary()
 source(here::here("R", "master_bmf_builder.R"))
 source(here::here("R", "nccs_org_role.R"))                      # derive_nccs_org_role()
-source(here::here("R", "unified_bmf_org_role.R"))               # add_nccs_org_role_to_unified_bmf()
+source(here::here("R", "nccs_org_legal_type.R"))                # derive_nccs_org_legal_type()
+source(here::here("R", "nccs_org_field.R"))                     # derive_nccs_org_field()
+source(here::here("R", "unified_bmf_org_columns.R"))            # add_nccs_org_columns_to_unified_bmf()
+source(here::here("R", "quality", "unified_bmf_org_column_checks.R"))  # check_unified_bmf_org_columns()
 source(here::here("R", "quality", "master_post_checks.R"))
 source(here::here("R", "manifest.R"))
 source(here::here("R", "publish_lookups.R"))
@@ -165,18 +168,26 @@ if (!is.null(DUCKDB_TEMP_DIR)) {
 log_phase_start("BUILD")
 build_master_bmf(con, inputs, staging_dir = MASTER_STAGING_DIR)
 
-# ADR 0058: add nccs_org_role and nccs_org_role_definition at the end of the
-# finished one-row-per-EIN table, before the quality checks read it.
-log_info("Adding the organization role columns (ADR 0058)")
-add_nccs_org_role_to_unified_bmf(con)
-print(count_unified_bmf_by_org_role(con))
+# ADR 0058 and ADR 0059: add the six derived organization columns at the
+# end of the finished one-row-per-EIN table, before the quality checks read
+# it. The six are the role, the legal type and the field, each as a value
+# and in words.
+log_info("Adding the derived organization columns (ADR 0058, ADR 0059)")
+add_nccs_org_columns_to_unified_bmf(con)
 
 # ============================================================================
 # PHASE 4: QUALITY CHECKS
 # ============================================================================
 
 log_phase_start("QUALITY CHECKS")
-quality_report <- generate_master_quality_report(con, inputs)
+# ADR 0059 Decision 10: the report shows how the counts of the derived
+# organization columns changed. The previous counts come from the published
+# report, read here because the upload below replaces that report.
+previous_org_column_counts <- read_previous_unified_bmf_org_column_counts()
+quality_report <- generate_master_quality_report(
+  con, inputs,
+  previous_org_column_counts = previous_org_column_counts
+)
 print_master_quality_report(quality_report)
 
 quality_report_path <- file.path(

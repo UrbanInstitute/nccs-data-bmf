@@ -99,7 +99,7 @@ test_that("lower case, spaces and punctuation after the code do not change the f
   )
 })
 
-test_that("a missing, blank or misshapen code gives a missing field", {
+test_that("a blank or misshapen code gives a blank field", {
   expect_identical(
     derive_nccs_org_field(c(NA, "", "NA", "DISP", "12", "B")),
     c(NA_character_, NA_character_, NA_character_, NA_character_, NA_character_, NA_character_)

@@ -15,8 +15,8 @@
 #                    501(c)(3). 0 means the IRS file gives no subsection.
 #   foundation code  The IRS code for the kind of 501(c)(3). 2, 3 and 4 are
 #                    private foundations. 0 means the IRS file gives none.
-#   unknown          The legal type cannot be told from the two codes. It is
-#                    returned as a missing value, never as a guess.
+#   blank            The legal type is left blank (NA in R) when a code it
+#                    needs is blank. It is never a guess.
 #
 # This file needs R/nccs_org_role.R loaded first: it uses
 # parse_nccs_org_role_irs_code() from there to read the two codes, so that
@@ -59,17 +59,17 @@ NCCS_ORG_LEGAL_TYPE_LABELS <- c(
 #' @details
 #' The rules, where the first one that fits wins:
 #' \enumerate{
-#'   \item Unknown: the subsection code is missing or 0.
+#'   \item Blank: the subsection code is blank or 0.
 #'   \item Other tax-exempt organization: the subsection code is not 3.
-#'   \item Unknown: the foundation code is missing or 0.
+#'   \item Blank: the foundation code is blank or 0.
 #'   \item Private foundation: the foundation code is 2, 3 or 4.
 #'   \item Public charity: every other foundation code.
 #' }
 #'
 #' Difference from the older files. They marked a 501(c)(3) with no
-#' foundation code as a public charity. Here it is unknown, because nothing
+#' foundation code as a public charity. Here it is blank, because nothing
 #' says which of the two it is (ADR 0059 Decision 4). The older files' value
-#' "U" for a subsection code of 0 is also returned as a missing value.
+#' "U" for a subsection code of 0 is also left blank.
 #'
 #' Checked against the older BMF files of July 2013 and December 2017: the
 #' rule gives the original `LEVEL1` on every row that has a subsection code
@@ -84,7 +84,7 @@ NCCS_ORG_LEGAL_TYPE_LABELS <- c(
 #'   Unified BMF.
 #'
 #' @return character vector the same length as `subsection_code`, holding
-#'   "PC", "PF", "O" or `NA`.
+#'   "PC", "PF", "O" or a blank (`NA`).
 #'
 #' @examples
 #' derive_nccs_org_legal_type(
