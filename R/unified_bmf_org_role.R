@@ -134,7 +134,7 @@ derive_org_role_by_ein <- function(con, table_name) {
   org_role_by_ein <- dplyr::tibble(
     ein = input_rows$ein,
     org_role = org_role,
-    org_role_definition = label_nccs_org_role(org_role)
+    org_role_definition = look_up_nccs_org_label(org_role, NCCS_ORG_ROLE_LABELS)
   )
 
   names(org_role_by_ein) <- c("ein", UNIFIED_BMF_ORG_ROLE_COLUMNS)
