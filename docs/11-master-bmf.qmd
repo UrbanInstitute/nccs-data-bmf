@@ -58,6 +58,35 @@ Columns from the legacy slim per-vintage schema that don't exist in the
 current schema are filled with `NULL` for current-sourced rows, and
 vice versa. DuckDB's `union_by_name` handles this automatically.
 
+### Derived organization columns
+
+The last six columns of the file sort each organization three ways. NCCS
+works them out from the IRS codes in the same row. Older NCCS files
+carried the same groupings under the names in the last column.
+
+| Column                           | Values                                                                 | Worked out from                                        | Older name                     |
+|----------------------------------|------------------------------------------------------------------------|--------------------------------------------------------|--------------------------------|
+| `nccs_org_role`                  | `O` operating, `S` supporting, `M` mutual benefit                      | `ntee_code_raw`, `subsection_code`, `foundation_code`  | `NCCS_LEVEL_2`, `LEVEL2`       |
+| `nccs_org_role_definition`       | The role in words                                                      | `nccs_org_role`                                        |                                |
+| `nccs_org_legal_type`            | `PC` public charity, `PF` private foundation, `O` other tax-exempt organization | `subsection_code`, `foundation_code`          | `NCCS_LEVEL_1`, `LEVEL1`       |
+| `nccs_org_legal_type_definition` | The legal type in words                                                | `nccs_org_legal_type`                                  |                                |
+| `nccs_org_field`                 | One of 17 two-letter values, for example `HS` human services           | `ntee_code_raw`                                        | `NCCS_LEVEL_3`, `LEVEL3`       |
+| `nccs_org_field_definition`      | The field in words                                                     | `nccs_org_field`                                       |                                |
+
+A value is missing when the codes do not decide it. The legal type is
+missing for an organization with no subsection code, and for a 501(c)(3)
+with no foundation code. The role and the field are missing for an
+organization with no usable NTEE code, unless its foundation code alone
+decides the role.
+
+The rules are in `R/nccs_org_role.R`, `R/nccs_org_legal_type.R` and
+`R/nccs_org_field.R`. `R/unified_bmf_org_columns.R` adds the columns to
+the finished table. The decisions are ADR 0058 (role) and ADR 0059
+(legal type and field) in `nccs-contracts`.
+
+The fourth older grouping, `NCCS_LEVEL_4`, is the first letter of the
+NTEE code. The file already has it as `ntee_code_major_group`.
+
 ## Dedup logic
 
 ```sql
