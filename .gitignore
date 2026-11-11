@@ -52,3 +52,7 @@ data/crosswalks/census_geo_resolved_crosswalk*
 # address-resolved and address-geo-resolved crosswalk outputs (ADR 0041, 0051): large, distributed via S3
 data/crosswalks/address_resolved_crosswalk*
 data/crosswalks/address_geo_resolved_crosswalk*
+
+# Output of the code quality tools (crapper, dryer, mutator)
+.metrics/
+target/

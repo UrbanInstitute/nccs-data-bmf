@@ -347,20 +347,29 @@ derive_nccs_org_role <- function(ntee_code,
   return(role)
 }
 
-#' Label a role in words
+#' Put a derived organization value in words
 #'
 #' @details
-#' "O" becomes "Operating", "S" becomes "Supporting" and "M" becomes
-#' "Mutual benefit". Any other value, including `NA`, returns `NA`.
+#' The one place that turns a role, a legal type or a field into its label.
+#' Each of the three files holds its own named vector of labels:
+#' `NCCS_ORG_ROLE_LABELS` here, `NCCS_ORG_LEGAL_TYPE_LABELS` in
+#' R/nccs_org_legal_type.R and `NCCS_ORG_FIELD_LABELS` in R/nccs_org_field.R.
+#' A value that is not a name in `labels`, including `NA`, returns `NA`.
 #'
-#' @param nccs_org_role character vector of "O", "S", "M" or `NA`, as returned
-#'   by [derive_nccs_org_role()].
+#' @param value character vector of values, for example "O", "S", "M" as
+#'   returned by [derive_nccs_org_role()].
+#' @param labels named character vector: the names are the allowed values
+#'   and the elements are their labels.
 #'
-#' @return character vector the same length as `nccs_org_role`.
+#' @return character vector the same length as `value`, without names.
+#'
+#' @examples
+#' look_up_nccs_org_label(c("O", "S", "M", NA), NCCS_ORG_ROLE_LABELS)
+#' # "Operating" "Supporting" "Mutual benefit" NA
 #'
 #' @export
-label_nccs_org_role <- function(nccs_org_role) {
-  role_label <- unname(NCCS_ORG_ROLE_LABELS[as.character(nccs_org_role)])
+look_up_nccs_org_label <- function(value, labels) {
+  label <- unname(labels[as.character(value)])
 
-  return(role_label)
+  return(label)
 }

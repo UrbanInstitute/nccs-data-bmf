@@ -239,7 +239,19 @@ test_that("an unknown definition is an error", {
 
 test_that("letters become readable labels and anything else becomes NA", {
   expect_identical(
-    label_nccs_org_role(c("O", "S", "M", "X", NA)),
+    look_up_nccs_org_label(c("O", "S", "M", "X", NA), NCCS_ORG_ROLE_LABELS),
     c("Operating", "Supporting", "Mutual benefit", NA, NA)
+  )
+})
+
+test_that("a definition that is not one of the two stops with an error", {
+  expect_error(
+    derive_nccs_org_role(
+      ntee_code = "B11",
+      subsection_code = 3,
+      foundation_code = 15,
+      definition = "2018"
+    ),
+    "must be one of"
   )
 })
