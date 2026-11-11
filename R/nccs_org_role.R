@@ -198,7 +198,7 @@ derive_nccs_org_role_from_ntee_code <- function(clean_ntee_code) {
 #'
 #' @details
 #' An organization is flagged when its subsection code is 3 (501(c)(3)) and
-#' its foundation code is 4 or 17. A missing subsection code or foundation
+#' its foundation code is 4 or 17. A blank subsection code or foundation
 #' code is never flagged. Stops if either input is absent or is not the
 #' expected length.
 #'
@@ -273,13 +273,13 @@ is_supporting_by_foundation_code <- function(subsection_code,
 #' supporting, whatever its NTEE code. This is how the BMF files from
 #' September 2017 through August 2022 were built.
 #'
-#' The result is `NA` when the NTEE code is missing, blank or not shaped
+#' The result is a blank (`NA`) when the NTEE code is blank or not shaped
 #' like an NTEE code (one letter, one digit, then up to three more letters or
 #' digits), unless the foundation code rule already settles the answer.
 #' Punctuation that follows a code ("B12,") is ignored. This
 #' is a deliberate difference from the older files: the August 2019, April
 #' 2020 and August 2022 files have 26,619 to 42,648 organizations with no
-#' NTEE code and mark them operating. Here they are unknown.
+#' NTEE code and mark them operating. Here they are blank.
 #'
 #' Evidence. The rules were worked out by comparing the original `LEVEL2`
 #' column with the other columns in the older BMF files under `legacy/bmf/`.
@@ -354,7 +354,8 @@ derive_nccs_org_role <- function(ntee_code,
 #' Each of the three files holds its own named vector of labels:
 #' `NCCS_ORG_ROLE_LABELS` here, `NCCS_ORG_LEGAL_TYPE_LABELS` in
 #' R/nccs_org_legal_type.R and `NCCS_ORG_FIELD_LABELS` in R/nccs_org_field.R.
-#' A value that is not a name in `labels`, including `NA`, returns `NA`.
+#' A value that is not a name in `labels`, and a blank, both return a blank
+#' (`NA`).
 #'
 #' @param value character vector of values, for example "O", "S", "M" as
 #'   returned by [derive_nccs_org_role()].

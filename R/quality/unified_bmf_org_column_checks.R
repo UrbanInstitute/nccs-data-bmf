@@ -9,15 +9,15 @@
 #                    nccs_org_field (see R/unified_bmf_org_columns.R).
 #   counts           A table with one row per value of each value column:
 #                    column, value, definition (the value in words) and
-#                    organizations. A missing value has its own row. Made
+#                    organizations. Blanks have their own row. Made
 #                    by count_unified_bmf_by_org_columns().
 #   allowed list     The values a value column may hold, with their words:
-#                    UNIFIED_BMF_ORG_VALUE_LABELS. A missing value is always
+#                    UNIFIED_BMF_ORG_VALUE_LABELS. A blank is always
 #                    allowed and has no words.
 #   previous build   The Unified BMF build published before this one. Its
 #                    counts are read from its validation report.
 #   change           This build's count minus the previous build's count.
-#                    Unknown (NA) when the previous build has no counts for
+#                    Blank (NA) when the previous build has no counts for
 #                    that value column.
 #   problem          A row of the counts that must stop the publish.
 #
@@ -51,7 +51,7 @@ PROBLEM_COLUMN_HAS_NO_COUNTS <- "the column has no counts"
 #' \enumerate{
 #'   \item The value is not in the allowed list of its value column.
 #'   \item The value is allowed, but the words beside it are not the words
-#'     the allowed list gives. A missing value must have no words.
+#'     the allowed list gives. A blank must have no words.
 #'   \item A value column has no row at all in the counts.
 #' }
 #'
@@ -151,7 +151,7 @@ build_allowed_org_value_rows <- function(labels, value_column) {
 #'   `column`, `value`, `definition`, `organizations`,
 #'   `previous_organizations` and `change`. The value columns come in the
 #'   order they sit in the file; within one, values are sorted and the row
-#'   for a missing value is last.
+#'   for blanks is last.
 #'
 #' @keywords internal
 compare_org_column_counts_with_previous <- function(organizations_by_value,
@@ -177,7 +177,7 @@ compare_org_column_counts_with_previous <- function(organizations_by_value,
       definition = dplyr::coalesce(definition, previous_definition),
       organizations = dplyr::coalesce(organizations, 0L),
       # 0 only where the previous build counted this column and did not
-      # have this value. Otherwise the previous count stays unknown.
+      # have this value. Otherwise the previous count stays blank.
       previous_organizations = dplyr::if_else(
         is_column_in_previous_build,
         dplyr::coalesce(previous_organizations, 0L),
@@ -203,7 +203,7 @@ compare_org_column_counts_with_previous <- function(organizations_by_value,
 #'
 #' @details
 #' For `nccs_org_role`, `nccs_org_legal_type` and `nccs_org_field` this
-#' gives the count for every value, the count of missing values and the
+#' gives the count for every value, the count of blanks and the
 #' change from the previous build. It fails when a value is outside the
 #' allowed list, when a value and its words disagree, or when a value
 #' column has no counts (ADR 0059 Decision 10). A failed check stops the
@@ -297,8 +297,8 @@ print_unified_bmf_org_column_check <- function(org_column_check) {
 #' The validation report is a JSON file. A report written before the
 #' derived columns existed has no counts, and this function then returns
 #' `NULL`. If the report cannot be read at all, the function warns and
-#' returns `NULL`: the build goes on, and the report shows the change as
-#' unknown.
+#' returns `NULL`: the build goes on, and the report leaves the change
+#' blank.
 #'
 #' @param report_source path or URL of the previous build's validation
 #'   report. Defaults to the published Unified BMF report.

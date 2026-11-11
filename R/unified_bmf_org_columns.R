@@ -12,8 +12,8 @@
 #                      by its words column.
 #   value column       A derived column that holds a short code:
 #                      nccs_org_role (O, S, M), nccs_org_legal_type (PC, PF,
-#                      O) and nccs_org_field (17 two-letter values). Missing
-#                      when unknown.
+#                      O) and nccs_org_field (17 two-letter values). Blank
+#                      when the IRS code it comes from is blank.
 #   words column       The column that holds the same value in words. Its
 #                      name is the value column's name plus "_definition".
 #   input columns      The columns of the Unified BMF table the derived
@@ -309,7 +309,7 @@ add_nccs_org_columns_to_unified_bmf <- function(con,
 #'
 #' @return data frame with four columns: `column` (the value column's
 #'   name), `value`, `definition` and `organizations`. Sorted by value,
-#'   with the row for a missing value last.
+#'   with the row for blanks last.
 #'
 #' @keywords internal
 count_unified_bmf_by_one_org_column <- function(value_column, con, table_name) {
@@ -339,8 +339,8 @@ count_unified_bmf_by_one_org_column <- function(value_column, con, table_name) {
 #'
 #' @details
 #' Gives the numbers the validation report shows and checks before anything
-#' is published (ADR 0059 Decision 10). Organizations whose value is
-#' unknown are counted in their own row, with a missing `value`.
+#' is published (ADR 0059 Decision 10). Organizations with a blank are
+#' counted in their own row, where `value` is blank (`NA`).
 #'
 #' Stops if the table does not have all six derived columns.
 #'

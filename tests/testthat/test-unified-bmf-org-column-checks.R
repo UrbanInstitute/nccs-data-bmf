@@ -49,7 +49,7 @@ counts_for_column <- function(counts, column_name) {
 # 2. Counts and the change from the previous build
 # ============================================================================
 
-test_that("healthy counts pass and keep the count for every value and for missing", {
+test_that("healthy counts pass and keep the count for every value and for blanks", {
   result <- check_unified_bmf_org_columns(counts_from_this_build)
 
   expect_true(result$passed)
@@ -61,7 +61,7 @@ test_that("healthy counts pass and keep the count for every value and for missin
   expect_identical(result$counts$value, counts_from_this_build$value)
 })
 
-test_that("with no previous build the change is unknown, not zero", {
+test_that("with no previous build the change is blank, not zero", {
   result <- check_unified_bmf_org_columns(counts_from_this_build)
 
   expect_true(all(is.na(result$counts$previous_organizations)))
@@ -107,7 +107,7 @@ test_that("a value that is new in this build is compared with a previous count o
   expect_identical(role_counts$change[role_counts$value %in% "S"], 20L)
 })
 
-test_that("a column the previous build did not have shows an unknown change", {
+test_that("a column the previous build did not have shows a blank change", {
   result <- check_unified_bmf_org_columns(counts_from_this_build, counts_from_previous_build)
 
   field_counts <- counts_for_column(result$counts, "nccs_org_field")
@@ -151,11 +151,11 @@ test_that("a value in words that disagrees with its value fails the check", {
   expect_identical(result$problems$problem, "the value in words does not match the value")
 })
 
-test_that("a missing value with words beside it fails the check", {
-  counts_with_words_on_missing <- counts_from_this_build
-  counts_with_words_on_missing$definition[7] <- "Human services"
+test_that("a blank with words beside it fails the check", {
+  counts_with_words_on_blank <- counts_from_this_build
+  counts_with_words_on_blank$definition[7] <- "Human services"
 
-  result <- check_unified_bmf_org_columns(counts_with_words_on_missing)
+  result <- check_unified_bmf_org_columns(counts_with_words_on_blank)
 
   expect_false(result$passed)
 

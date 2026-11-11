@@ -18,8 +18,8 @@
 #   common code   Characters 2 and 3 of an NTEE code when they name a kind
 #                 of activity found in every major group. 11 is single
 #                 organization support and 12 is fundraising.
-#   unknown       The organization has no usable NTEE code. The field is
-#                 returned as a missing value. This is not the value "UN",
+#   blank         The field is left blank (NA in R) when the NTEE code is
+#                 blank or is not a code. This is not the value "UN",
 #                 which means the IRS gave a code in major group Z.
 #
 # This file needs R/nccs_org_role.R loaded first: it uses
@@ -113,7 +113,8 @@ NCCS_ORG_FIELD_LABELS <- c(
 #'     are EN; E to H are HE; I to P are HS; Q is IN; R to W are PB; X is
 #'     RE; Y is MO; Z is UN.
 #' }
-#' An organization with no usable NTEE code gets `NA`. Punctuation after a
+#' An organization whose NTEE code is blank gets a blank (`NA`). Punctuation
+#' after a
 #' code is ignored ("B12," is read as B12).
 #'
 #' Checked against the older BMF files of July 2013 and December 2017: the
@@ -129,7 +130,7 @@ NCCS_ORG_FIELD_LABELS <- c(
 #'   without surrounding spaces.
 #'
 #' @return character vector the same length as `ntee_code`, holding one of
-#'   the 17 two-letter values or `NA`.
+#'   the 17 two-letter values or a blank (`NA`).
 #'
 #' @examples
 #' derive_nccs_org_field(c("B11", "T22", "Y30", "Y42", "P20", NA))
@@ -148,7 +149,7 @@ derive_nccs_org_field <- function(ntee_code) {
 
   common_code <- stringr::str_sub(clean_ntee_code, start = 2, end = 3)
 
-  # What each rule would give. A code the rule does not cover gives NA.
+  # What each rule would give. A code the rule does not cover gives a blank.
   field_from_common_code <- unname(NCCS_ORG_FIELD_BY_COMMON_CODE[common_code])
 
   field_from_grantmaking_prefix <- unname(

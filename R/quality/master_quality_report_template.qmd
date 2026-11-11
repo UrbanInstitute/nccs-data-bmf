@@ -223,7 +223,7 @@ if (!has_previous_counts) {
 ```{r}
 #| results: asis
 
-# Show an unknown previous count or change as an empty cell, not as "NA".
+# Show a blank previous count or change as an empty cell, not as "NA".
 options(knitr.kable.NA = "")
 
 #' Print the table of counts for one of the three columns

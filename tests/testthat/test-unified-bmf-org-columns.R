@@ -99,7 +99,7 @@ test_that("each organization gets the legal type the rule gives it", {
 
   unified_bmf <- read_unified_bmf(connection)
 
-  # The last organization is a 501(c)(3) with no foundation code: unknown.
+  # The last organization is a 501(c)(3) with no foundation code: blank.
   expect_identical(unified_bmf$nccs_org_legal_type, c("PC", "PC", "O", "PF", "PC", "PC", NA))
 
   expect_identical(
@@ -289,7 +289,7 @@ test_that("derived columns left by an earlier build are replaced, whatever they 
 # 4. Counts to read before publishing
 # ============================================================================
 
-test_that("organizations are counted by every value of every derived column, with unknown in its own row", {
+test_that("organizations are counted by every value of every derived column, with blanks in their own row", {
   connection <- open_small_unified_bmf()
   on.exit(DBI::dbDisconnect(connection, shutdown = TRUE))
 
