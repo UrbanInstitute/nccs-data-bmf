@@ -103,6 +103,7 @@ source(here::here("R", "nccs_org_role.R"))                      # derive_nccs_or
 source(here::here("R", "nccs_org_legal_type.R"))                # derive_nccs_org_legal_type()
 source(here::here("R", "nccs_org_field.R"))                     # derive_nccs_org_field()
 source(here::here("R", "unified_bmf_org_columns.R"))            # add_nccs_org_columns_to_unified_bmf()
+source(here::here("R", "quality", "unified_bmf_org_column_checks.R"))  # check_unified_bmf_org_columns()
 source(here::here("R", "quality", "master_post_checks.R"))
 source(here::here("R", "manifest.R"))
 source(here::here("R", "publish_lookups.R"))
@@ -179,7 +180,14 @@ add_nccs_org_columns_to_unified_bmf(con)
 # ============================================================================
 
 log_phase_start("QUALITY CHECKS")
-quality_report <- generate_master_quality_report(con, inputs)
+# ADR 0059 Decision 10: the report shows how the counts of the derived
+# organization columns changed. The previous counts come from the published
+# report, read here because the upload below replaces that report.
+previous_org_column_counts <- read_previous_unified_bmf_org_column_counts()
+quality_report <- generate_master_quality_report(
+  con, inputs,
+  previous_org_column_counts = previous_org_column_counts
+)
 print_master_quality_report(quality_report)
 
 quality_report_path <- file.path(

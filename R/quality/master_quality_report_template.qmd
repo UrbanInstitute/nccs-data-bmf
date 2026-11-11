@@ -165,6 +165,51 @@ if (!is.null(flags) && nrow(flags) > 0) {
 }
 ```
 
+# Derived organization columns
+
+NCCS works out three columns from the IRS codes of each organization:
+its role (`nccs_org_role`), its legal type (`nccs_org_legal_type`) and
+the field it works in (`nccs_org_field`). Each table below gives the
+number of organizations for every value, the number with no value, and
+the change from the previous build. The quality gate fails when a value
+is outside the allowed list or does not match its value in words.
+
+```{r}
+# Show an unknown count or change as an empty cell, not as "NA".
+options(knitr.kable.NA = "")
+org_columns <- report$derived_org_columns
+org_problems <- as.data.table(org_columns$problems)
+if (nrow(org_problems) > 0) {
+  cat("FAILED. Problems found:")
+  kable(org_problems, format = "html",
+        col.names = c("Column", "Value", "Value in words", "Organizations", "Problem"),
+        format.args = list(big.mark = ","))
+} else {
+  cat("Every value is in its allowed list and matches its value in words.")
+}
+```
+
+```{r}
+if (!isTRUE(org_columns$has_previous_counts)) {
+  cat("The previous build has no counts for these columns, so no change is shown.")
+}
+```
+
+```{r}
+#| results: asis
+org_counts <- as.data.table(org_columns$counts)
+for (org_column in unique(org_counts$column)) {
+  one_column <- org_counts[column == org_column,
+                           .(value, definition, organizations, previous_organizations, change)]
+  one_column[is.na(value), value := "(no value)"]
+  cat(sprintf("\n\n## `%s`\n\n", org_column))
+  print(kable(one_column, format = "html",
+              col.names = c("Value", "Value in words", "Organizations",
+                            "Previous build", "Change"),
+              format.args = list(big.mark = ",")))
+}
+```
+
 # Notes
 
 - **All output columns are VARCHAR.** The master build forces every

@@ -140,6 +140,12 @@ Reported by `R/quality/master_post_checks.R`:
 - Year range over `first_year_in_bmf` and `last_year_in_bmf`
 - Distribution of `bmf_vintages_observed`
 - Per-column non-null percentage
+- Derived organization columns: for `nccs_org_role`,
+  `nccs_org_legal_type` and `nccs_org_field`, the number of organizations
+  for every value, the number with no value, and the change from the
+  previous build. Hard gate: the build fails if a value is outside the
+  allowed list or does not match its value in words
+  (`R/quality/unified_bmf_org_column_checks.R`).
 
 ## Update cadence
 
