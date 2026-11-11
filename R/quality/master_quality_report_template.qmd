@@ -169,45 +169,100 @@ if (!is.null(flags) && nrow(flags) > 0) {
 
 NCCS works out three columns from the IRS codes of each organization:
 its role (`nccs_org_role`), its legal type (`nccs_org_legal_type`) and
-the field it works in (`nccs_org_field`). Each table below gives the
-number of organizations for every value, the number with no value, and
-the change from the previous build. The quality gate fails when a value
-is outside the allowed list or does not match its value in words.
+the field it works in (`nccs_org_field`). Each column may hold only the
+values on its list, and each value has one set of words that goes with
+it.
+
+The build stops before anything is published in two cases: a column
+holds a value that is not on its list, or a value and its words
+disagree.
 
 ```{r}
-# Show an unknown count or change as an empty cell, not as "NA".
-options(knitr.kable.NA = "")
-org_columns <- report$derived_org_columns
-org_problems <- as.data.table(org_columns$problems)
-if (nrow(org_problems) > 0) {
-  cat("FAILED. Problems found:")
-  kable(org_problems, format = "html",
-        col.names = c("Column", "Value", "Value in words", "Organizations", "Problem"),
-        format.args = list(big.mark = ","))
-} else {
-  cat("Every value is in its allowed list and matches its value in words.")
+#| results: asis
+
+derived_org_columns <- report$derived_org_columns
+
+problems <- derived_org_columns$problems
+
+has_problems <- nrow(problems) > 0
+
+if (has_problems) {
+  problems_table <- knitr::kable(
+    problems,
+    format = "html",
+    col.names = c("Column", "Value", "Value in words", "Organizations", "Problem"),
+    format.args = list(big.mark = ",")
+  )
+
+  cat("**Failed.** The build found these problems:\n\n")
+
+  print(problems_table)
+}
+
+if (!has_problems) {
+  cat("**Passed.** Every value is on its list and matches its words.")
 }
 ```
 
+## Counts for each column
+
+Each table gives the number of organizations for every value, the number
+of blanks, and the change from the previous build. A column is blank
+when the IRS code it comes from is blank.
+
 ```{r}
-if (!isTRUE(org_columns$has_previous_counts)) {
-  cat("The previous build has no counts for these columns, so no change is shown.")
+#| results: asis
+
+has_previous_counts <- isTRUE(derived_org_columns$has_previous_counts)
+
+if (!has_previous_counts) {
+  cat("The previous build has no counts for these columns, so the tables show no change.")
 }
 ```
 
 ```{r}
 #| results: asis
-org_counts <- as.data.table(org_columns$counts)
-for (org_column in unique(org_counts$column)) {
-  one_column <- org_counts[column == org_column,
-                           .(value, definition, organizations, previous_organizations, change)]
-  one_column[is.na(value), value := "(no value)"]
-  cat(sprintf("\n\n## `%s`\n\n", org_column))
-  print(kable(one_column, format = "html",
-              col.names = c("Value", "Value in words", "Organizations",
-                            "Previous build", "Change"),
-              format.args = list(big.mark = ",")))
+
+# Show an unknown previous count or change as an empty cell, not as "NA".
+options(knitr.kable.NA = "")
+
+#' Print the table of counts for one of the three columns
+#'
+#' @details
+#' Writes a heading with the column's name, then one row per value. The
+#' row for organizations with a blank is labelled "(blank)".
+#'
+#' @param value_column name of the column, for example "nccs_org_role".
+#' @param counts the counts for all three columns, from the report.
+#'
+#' @return `value_column`, invisibly.
+print_counts_for_one_value_column <- function(value_column, counts) {
+  counts_for_column <- counts |>
+    dplyr::filter(column == value_column) |>
+    dplyr::mutate(value = dplyr::coalesce(value, "(blank)")) |>
+    dplyr::select(value, definition, organizations, previous_organizations, change)
+
+  counts_table <- knitr::kable(
+    counts_for_column,
+    format = "html",
+    col.names = c("Value", "Value in words", "Organizations", "Previous build", "Change"),
+    format.args = list(big.mark = ",")
+  )
+
+  cat(sprintf("\n\n### `%s`\n\n", value_column))
+
+  print(counts_table)
+
+  return(invisible(value_column))
 }
+
+value_columns <- unique(derived_org_columns$counts$column)
+
+purrr::walk(
+  value_columns,
+  print_counts_for_one_value_column,
+  counts = derived_org_columns$counts
+)
 ```
 
 # Notes

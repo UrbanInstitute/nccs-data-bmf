@@ -244,7 +244,51 @@ check_unified_bmf_org_columns <- function(organizations_by_value,
 }
 
 # ============================================================================
-# 5. Reading the previous build's counts
+# 5. The summary for the build log
+# ============================================================================
+
+#' Print the check of the derived organization columns to the build log
+#'
+#' @details
+#' Prints the counts first, then either the problems or one line saying
+#' there are none. The validation report page shows the same tables; this
+#' summary is for a person reading the log while the build runs.
+#'
+#' @param org_column_check the list returned by
+#'   [check_unified_bmf_org_columns()].
+#'
+#' @return `org_column_check`, unchanged and invisibly.
+#'
+#' @export
+print_unified_bmf_org_column_check <- function(org_column_check) {
+  problem_count <- nrow(org_column_check$problems)
+
+  has_problems <- problem_count > 0
+
+  # The counts, whether or not the check passed.
+  message("Derived organization columns: count for every value, and change from the previous build")
+
+  print(org_column_check$counts)
+
+  # The outcome of the check.
+  if (has_problems) {
+    message(sprintf(
+      "FAILED: %d problem(s) in the derived organization columns:",
+      problem_count
+    ))
+
+    print(org_column_check$problems)
+  }
+
+  if (!has_problems) {
+    message("Derived organization columns: every value is allowed and matches its value in words.")
+  }
+
+  return(invisible(org_column_check))
+}
+
+# ============================================================================
+# 6. Reading the previous build's counts
 # ============================================================================
 
 #' Read the derived-column counts from the previous build's validation report

@@ -73,11 +73,18 @@ carried the same groupings under the names in the last column.
 | `nccs_org_field`                 | One of 17 two-letter values, for example `HS` human services           | `ntee_code_raw`                                        | `NCCS_LEVEL_3`, `LEVEL3`       |
 | `nccs_org_field_definition`      | The field in words                                                     | `nccs_org_field`                                       |                                |
 
-A value is missing when the codes do not decide it. The legal type is
-missing for an organization with no subsection code, and for a 501(c)(3)
-with no foundation code. The role and the field are missing for an
-organization with no usable NTEE code, unless its foundation code alone
-decides the role.
+A derived column is blank when the IRS code it comes from is blank:
+
+- `nccs_org_legal_type` is blank when the subsection code is blank. It is
+  also blank for a 501(c)(3) whose foundation code is blank.
+- `nccs_org_field` is blank when the NTEE code is blank.
+- `nccs_org_role` is blank when the NTEE code is blank. The one exception
+  is a 501(c)(3) with foundation code 4 or 17: it is `S` whatever its NTEE
+  code.
+
+Two more cases count as a blank code. The IRS writes `0` when it gives no
+subsection code or foundation code. An NTEE code must start with a letter
+and a digit, so text such as `UNDEFINED` is not a code.
 
 The rules are in `R/nccs_org_role.R`, `R/nccs_org_legal_type.R` and
 `R/nccs_org_field.R`. `R/unified_bmf_org_columns.R` adds the columns to
@@ -142,9 +149,9 @@ Reported by `R/quality/master_post_checks.R`:
 - Per-column non-null percentage
 - Derived organization columns: for `nccs_org_role`,
   `nccs_org_legal_type` and `nccs_org_field`, the number of organizations
-  for every value, the number with no value, and the change from the
-  previous build. Hard gate: the build fails if a value is outside the
-  allowed list or does not match its value in words
+  for every value, the number of blanks, and the change from the
+  previous build. Hard gate: the build fails if a value is not on the
+  list of allowed values or does not match its value in words
   (`R/quality/unified_bmf_org_column_checks.R`).
 
 ## Update cadence

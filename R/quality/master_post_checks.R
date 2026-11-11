@@ -178,18 +178,9 @@ print_master_quality_report <- function(report) {
   } else {
     message("Source-split completeness tripwire: no columns flagged.")
   }
-  message("Derived organization columns (count for every value; change from the previous build):")
-  print(report$derived_org_columns$counts)
-  n_org_column_problems <- nrow(report$derived_org_columns$problems)
-  if (n_org_column_problems > 0) {
-    message(sprintf(
-      "FAILED: %d problem(s) in the derived organization columns:",
-      n_org_column_problems
-    ))
-    print(report$derived_org_columns$problems)
-  } else {
-    message("Derived organization columns: every value is in its allowed list.")
-  }
+
+  print_unified_bmf_org_column_check(report$derived_org_columns)
+
   message("===========================================================")
 }
 

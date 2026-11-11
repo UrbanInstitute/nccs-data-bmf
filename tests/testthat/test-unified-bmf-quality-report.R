@@ -153,3 +153,25 @@ test_that("the summary printed for the build log names a problem in a derived co
 
   expect_match(all_printed, "value is not in the allowed list")
 })
+
+test_that("the summary printed for the build log says so when nothing is wrong", {
+  connection <- open_small_unified_bmf()
+  on.exit(DBI::dbDisconnect(connection, shutdown = TRUE))
+
+  report <- generate_master_quality_report(connection, input_files)
+
+  printed <- capture.output(
+    printed_messages <- testthat::capture_messages(print_master_quality_report(report))
+  )
+
+  all_printed <- paste(c(printed, printed_messages), collapse = "\n")
+
+  expect_match(all_printed, "every value is allowed and matches its value in words")
+
+  expect_match(all_printed, "count for every value, and change from the previous build")
+
+  # The counts themselves are printed: one of the values in words.
+  expect_match(all_printed, "Private foundation")
+
+  expect_no_match(all_printed, "FAILED")
+})
