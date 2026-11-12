@@ -1,0 +1,30 @@
+{
+  "title": "NCCS Business Master File pipeline and Unified BMF",
+  "upload_type": "software",
+  "description": "Code that builds the NCCS Unified Business Master File (one row per EIN, 1989 to present) from IRS monthly and historical BMF files, with geocoding, geography crosswalks and NTEE classification. National Center for Charitable Statistics, Urban Institute.",
+  "creators": [
+    {
+      "name": "Poongundranar, Thiyaghessan",
+      "affiliation": "Urban Institute"
+    }
+  ],
+  "license": "odc-by-1.0",
+  "keywords": [
+    "nonprofit organizations",
+    "IRS",
+    "National Center for Charitable Statistics"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://nccs.urban.org",
+      "relation": "isDocumentedBy",
+      "scheme": "url"
+    }
+  ],
+  "contributors": [
+    {
+      "name": "Lecy, Jesse",
+      "type": "ProjectMember"
+    }
+  ]
+}
