@@ -1,5 +1,7 @@
 # nccs-data-bmf
 
+Maintained by Thiyaghessan Poongundranar, National Center for Charitable Statistics, Urban Institute, since June 2024. Jesse Lecy started this repository in June 2024.
+
 Code and documentation for harmonizing IRS Business Master File (BMF) data —
 extracts of the ~1.9 million nonprofit organizations exempt from federal income
 tax. This repo ingests both the **current monthly IRS BMF** and **NCCS legacy
